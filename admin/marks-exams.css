@@ -1,0 +1,626 @@
+/* Marks & Exams Page Styles */
+
+/* Main Layout */
+.tabs-container {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.tab {
+    padding: 12px 20px;
+    font-weight: 600;
+    color: #555;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.tab:hover {
+    color: #8B1818;
+}
+
+.tab.active {
+    color: #8B1818;
+}
+
+.tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: #8B1818;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Cards */
+.card {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    margin-bottom: 25px;
+    overflow: hidden;
+}
+
+#addExamPeriodForm, #addMarksForm {
+    display: none;
+}
+
+.card-header {
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #333;
+    display: flex;
+    align-items: center;
+}
+
+.card-header h3 i {
+    margin-right: 10px;
+    color: #8B1818;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+.card-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Forms */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group.full-width {
+    grid-column: span 2;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group input[type="date"],
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border 0.3s ease;
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="number"]:focus,
+.form-group input[type="date"]:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: #8B1818;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(139, 24, 24, 0.1);
+}
+
+.form-group textarea {
+    height: 100px;
+    resize: vertical;
+}
+
+.form-actions {
+    grid-column: span 2;
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.submit-btn, .reset-btn, .filter-btn, .reset-filter-btn, .export-btn, .email-btn {
+    padding:
+    10px 20px;
+    border: none;
+    border-radius: 4px;  
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    color: #fff;
+    background-color: #8B1818;
+}
+.submit-btn, .reset-btn, .filter-btn, .reset-filter-btn, .export-btn, .email-btn {
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.submit-btn {
+    background-color: #8B1818;
+    color: white;
+    border: none;
+}
+
+.submit-btn:hover {
+    background-color: #701313;
+}
+
+.reset-btn {
+    background-color: #f8f9fa;
+    color: #555;
+    border: 1px solid #ddd;
+}
+
+.reset-btn:hover {
+    background-color: #e9ecef;
+}
+
+.export-btn {
+    background-color: #f8f9fa;
+    color: #555;
+    border: 1px solid #ddd;
+    font-size: 13px;
+}
+
+.export-btn:hover {
+    background-color: #e9ecef;
+}
+
+.email-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+}
+
+.email-btn:hover {
+    background-color: #45a049;
+}
+
+/* Tables */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.data-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+}
+
+.data-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.action-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 5px;
+    transition: all 0.2s ease;
+}
+
+.action-icon.edit {
+    color: #2196F3;
+}
+
+.action-icon.edit:hover {
+    background-color: rgba(33, 150, 243, 0.1);
+}
+
+.action-icon.delete {
+    color: #E74C3C;
+}
+
+.action-icon.delete:hover {
+    background-color: rgba(231, 76, 60, 0.1);
+}
+
+/* Status Indicators */
+.status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status.ongoing {
+    background-color: rgba(33, 150, 243, 0.1);
+    color: #2196F3;
+}
+
+.status.upcoming {
+    background-color: rgba(76, 175, 80, 0.1);
+    color: #4CAF50;
+}
+
+.status.ended {
+    background-color: rgba(158, 158, 158, 0.1);
+    color: #757575;
+}
+
+/* Filters */
+.filters-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) auto;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    align-items: end;
+}
+
+.filter-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    font-size: 13px;
+    color: #555;
+}
+
+.filter-group input,
+.filter-group select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.filter-btn {
+    background-color: #8B1818;
+    color: white;
+    border: none;
+}
+
+.filter-btn:hover {
+    background-color: #701313;
+}
+
+.reset-filter-btn {
+    background-color: #f8f9fa;
+    color: #555;
+    border: 1px solid #ddd;
+}
+
+.reset-filter-btn:hover {
+    background-color: #e9ecef;
+}
+
+/* View Toggle */
+.view-toggle {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.view-toggle label {
+    margin-right: 15px;
+    font-weight: 500;
+    color: #555;
+}
+
+.toggle-options {
+    display: flex;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.toggle-btn {
+    padding: 8px 15px;
+    background-color: #f8f9fa;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    color: #555;
+    transition: all 0.2s ease;
+}
+
+.toggle-btn:not(:last-child) {
+    border-right: 1px solid #ddd;
+}
+
+.toggle-btn.active {
+    background-color: #8B1818;
+    color: white;
+}
+
+/* Mark Entry Tabs */
+.mark-entry-tabs {
+    margin: 0 0 20px 0;
+}
+
+.mark-entry-tabs .tab {
+    flex: 1;
+    text-align: center;
+}
+
+/* File Upload */
+.file-upload {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.file-upload input[type="file"] {
+    position: absolute;
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+    overflow: hidden;
+    z-index: -1;
+}
+
+.file-label {
+    padding: 10px 15px;
+    background-color: #f1f3f5;
+    border: 1px dashed #ced4da;
+    border-radius: 4px;
+    color: #555;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s ease;
+}
+
+.file-label:hover {
+    background-color: #e9ecef;
+}
+
+.file-name {
+    margin-left: 10px;
+    color: #555;
+    font-size: 13px;
+}
+
+/* Upload Instructions */
+.upload-instructions {
+    background-color: #f8f9fa;
+    padding: 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #555;
+}
+
+.upload-instructions p {
+    margin: 0 0 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.download-template {
+    color: #2196F3;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.download-template:hover {
+    text-decoration: underline;
+}
+
+/* Checkbox Group */
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    user-select: none;
+    cursor: pointer;
+}
+
+.checkbox-container input[type="checkbox"] {
+    margin-right: 8px;
+    accent-color: #8B1818;
+}
+
+.checkbox-label {
+    font-size: 14px;
+    color: #555;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+}
+
+.pagination-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pagination-btn:hover {
+    background-color: #f8f9fa;
+}
+
+.pagination-info {
+    margin: 0 15px;
+    font-size: 14px;
+    color: #555;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1024px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-group.full-width {
+        grid-column: auto;
+    }
+    
+    .filters-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .charts-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .tab {
+        padding: 10px 15px;
+        font-size: 14px;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 10px;
+        font-size: 13px;
+    }
+    
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .card-actions {
+        margin-top: 10px;
+    }
+}
+
+/* Animation for tabs switching */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tab-content.active {
+    animation: slideIn 0.3s ease;
+}
+
+/* Mark auto-calculation highlight */
+#markValue:focus + #gradeValue {
+    background-color: #f8f9fa;
+    transition: background-color 0.3s ease;
+}
+
+/* Student ID & Course Unit Search Suggestions */
+.search-suggestions {
+    position: absolute;
+    width: 100%;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    display: none;
+}
+
+.suggestion-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.suggestion-item:hover {
+    background-color: #f1f3f5;
+}
+
+/* Audit Trail Styles */
+.data-table tr.highlight {
+    background-color: rgba(139, 24, 24, 0.05);
+}
+
+.data-table tr.added {
+    border-left: 3px solid #4CAF50;
+}
+
+.data-table tr.updated {
+    border-left: 3px solid #2196F3;
+}
+
+.data-table tr.deleted {
+    border-left: 3px solid #E74C3C;
+}
