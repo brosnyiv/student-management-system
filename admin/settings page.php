@@ -1,3 +1,17 @@
+<?php
+session_start();
+include 'dbconnect.php';
+
+
+// Check if user is not logged in
+if (empty($_SESSION['userid'])) {
+    header("Location: index.php");
+    exit();
+}
+
+?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -179,18 +193,18 @@
                             <span class="close-modal">&times;</span>
                         </div>
                         <div class="modal-body">
-                            <form id="addUserForm">
+                            <form id="addUserForm" action="add_user.php" method="POST">
                                 <div class="form-group">
                                     <label for="userName">Full Name</label>
-                                    <input type="text" id="userName" placeholder="Enter full name" required>
+                                    <input type="text" id="userName" placeholder="Enter full name" required name="fullname">
                                 </div>
                                 <div class="form-group">
                                     <label for="userEmail">Email</label>
-                                    <input type="email" id="userEmail" placeholder="Enter email address" required>
+                                    <input type="email" id="userEmail" placeholder="Enter email address" required name="email">
                                 </div>
                                 <div class="form-group">
                                     <label for="userRole">Role</label>
-                                    <select id="userRole" required>
+                                    <select id="userRole" required name="user_role">
                                         <option value="">Select a role</option>
                                         <option value="Admin">Admin</option>
                                         <option value="Instructor">Instructor</option>
@@ -201,11 +215,11 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="userPassword">Password</label>
-                                    <input type="password" id="userPassword" placeholder="Enter password" required>
+                                    <input type="password" id="userPassword" placeholder="Enter password" required name="password">
                                 </div>
                                 <div class="form-group">
                                     <label for="userStatus">Status</label>
-                                    <select id="userStatus" required>
+                                    <select id="userStatus" required name="status">                                        
                                         <option value="Active">Active</option>
                                         <option value="Suspended">Suspended</option>
                                     </select>
@@ -217,8 +231,8 @@
                                     </div>
                                 </div>
                                 <div class="form-actions">
-                                    <button type="submit" class="submit-btn">Add User</button>
-                                    <button type="button" class="cancel-btn">Cancel</button>
+                                    <button type="submit" class="submit-btn" name="add_user">Add User</button>
+                                    <button type="button" class="cancel-btn" name="cancel">Cancel</button>
                                 </div>
                             </form>
                         </div>

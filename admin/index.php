@@ -1,3 +1,44 @@
+<?php 
+
+session_start();
+include('dbconnect.php'); 
+
+
+if (isset($_SESSION['userid'])) {
+    header("Location: dash.php");
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+
+    $username = $_POST['email'];
+    $password = $_POST['password'];
+
+    if (empty($username) || empty($password)) {
+        $error = "Please fill in all fields.";
+    } else {
+        // Sanitize input to prevent SQL injection
+        $username = mysqli_real_escape_string($conn, $username);
+        
+        $sql = "SELECT * FROM users WHERE email = '$username'";
+        $result = mysqli_query($conn, $sql);
+        $user = mysqli_fetch_assoc($result);
+
+        if ($user && password_verify($password, $user['password'])) {
+          // Password is correct
+          $_SESSION['userid'] = $user['userid'];
+          $_SESSION['email'] = $user['email'];
+          $_SESSION['user_role'] = $user['user_role'];
+          header("Location: dash.php");
+          exit();
+      } else {
+          $error = "Invalid email or password.";
+      }
+    }
+}
+
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -357,17 +398,23 @@
         </div>
         
         <div class="login-section">
+            <?php if (isset($error)) { ?>
+                <div class="alert alert-danger" role="alert">
+                    <?= htmlspecialchars($error) ?>
+                </div>
+            <?php } ?>
+
             <h2 class="form-title">USER LOGIN</h2>
             
-            <form id="loginForm">
+            <form id="loginForm" method="post" action="index.php">
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" placeholder="Enter your username" required>
+                    <input type="text" id="username" placeholder="Enter your username" name="email">
                 </div>
                 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" placeholder="Enter your password" required>
+                    <input type="password" id="password" placeholder="Enter your password" name="password">
                     <button type="button" class="password-toggle" id="togglePassword">
                         <i class="far fa-eye"></i>
                     </button>
@@ -382,8 +429,7 @@
                         <a href="#">Forgot password?</a>
                     </div>
                 </div>
-                
-                <button type="submit" class="login-button">LOGIN</button>
+                <input type="submit" name="submit" class="login-button"  value="LOGIN">
             </form>
         </div>
     </div>
@@ -400,11 +446,11 @@
         });
 
         // Form submission
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            // Add your actual login logic here
-            console.log('Login form submitted');
-        });
+        // document.getElementById('loginForm').addEventListener('submit', function(e) {
+        //     e.preventDefault();
+        //     // Add your actual login logic here
+        //     console.log('Login form submitted');
+        // });
     </script>
 </body>
 </html>
