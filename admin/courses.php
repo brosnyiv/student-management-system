@@ -222,7 +222,7 @@
                     </select>
                 </div>
             </div>
-            <button class="add-button"  onclick="window.location.href='new course.html'" ><i class="fas fa-plus"></i> Add New Course</button>
+            <button class="add-button"  onclick="window.location.href='new course.php'" ><i class="fas fa-plus"></i> Add New Course</button>
         </div>
 
         <div class="course-tabs">

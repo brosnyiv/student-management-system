@@ -135,10 +135,10 @@
             <button class="action-button">
                 <i class="fas fa-bell"></i> Send Payment Reminders
             </button>
-            <button class="action-button" onclick="window.location.href='recipt.html'">
+            <button class="action-button" onclick="window.location.href='recipt.php'">
                 <i class="fas fa-file-invoice"></i> Record New Payment
             </button>
-            <button class="action-button"  onclick="window.location.href='expenses.html'">
+            <button class="action-button"  onclick="window.location.href='expenses.php'">
                 <i class="fas fa-plus-circle" ></i> Add New Expense
             </button>
             <button class="action-button">

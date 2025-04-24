@@ -389,7 +389,7 @@
         // Cancel button handler
         document.getElementById('cancelBtn').addEventListener('click', function() {
             if (confirm('Are you sure you want to cancel? All changes will be lost.')) {
-                window.location.href = 'classes.html'; // Redirect back to classes page
+                window.location.href = 'classes.php'; // Redirect back to classes page
             }
         });
         

@@ -71,21 +71,21 @@
 
         <div class="quick-access" >
             <div class="quick-access-item">
-                <div class="quick-access-icon" onclick="window.location.href='student registration.html'" ><i class="fas fa-user-plus"></i></div>
-                <div  onclick="window.location.href='student registration.html'" >Add Student</div>
+                <div class="quick-access-icon" onclick="window.location.href='student registration.php'" ><i class="fas fa-user-plus"></i></div>
+                <div  onclick="window.location.href='student registration.php'" >Add Student</div>
             </div>  
 
             <div class="quick-access-item">
-                <div class="quick-access-icon"  onclick="window.location.href='staff registration.html'" ><i class="fas fa-user-shield"></i></div>
-                <div class="quick-access-text"   onclick="window.location.href='staff registration.html'" > Add Staff</div>
+                <div class="quick-access-icon"  onclick="window.location.href='staff registration.php'" ><i class="fas fa-user-shield"></i></div>
+                <div class="quick-access-text"   onclick="window.location.href='staff registration.php'" > Add Staff</div>
             </div>
             <div class="quick-access-item">
-                <div class="quick-access-icon"  onclick="window.location.href='new course.html'"> <i class="fas fa-book-medical"></i></div>
-                <div class="quick-access-text" onclick="window.location.href='new course.html'">Add Course</div>
+                <div class="quick-access-icon"  onclick="window.location.href='new course.php'"> <i class="fas fa-book-medical"></i></div>
+                <div class="quick-access-text" onclick="window.location.href='new course.php'">Add Course</div>
             </div>
             <div class="quick-access-item">
-                <div class="quick-access-icon" onclick="window.location.href='events.html'"><i class="fas fa-calendar-plus"></i></div>
-                <div class="quick-access-text" onclick="window.location.href='events.html'">Add Event</div>
+                <div class="quick-access-icon" onclick="window.location.href='events.php'"><i class="fas fa-calendar-plus"></i></div>
+                <div class="quick-access-text" onclick="window.location.href='events.php'">Add Event</div>
             </div>
             <div class="quick-access-item">
                 <div class="quick-access-icon"><i class="fas fa-file-invoice"></i></div>
@@ -135,7 +135,7 @@
             <div class="section-header">
                 <div class="section-title"><i class="fas fa-calendar-week"></i> Upcoming Events</div>
                 <div class="action-buttons">
-                    <button class="add-button"  onclick="window.location.href='events.html'"><i class="fas fa-plus"></i> Add New</button>
+                    <button class="add-button"  onclick="window.location.href='events.php'"><i class="fas fa-plus"></i> Add New</button>
                 </div>
             </div>
             <table>
@@ -305,7 +305,7 @@
                 <div class="section-header">
                     <div class="section-title"><i class="fas fa-chalkboard-teacher"></i> Today's Classes</div>
                     <div class="action-buttons">
-                        <button class="add-button"  onclick="window.location.href='timetable.html'"><i class="fas fa-plus"></i> Add Class</button>
+                        <button class="add-button"  onclick="window.location.href='timetable.php'"><i class="fas fa-plus"></i> Add Class</button>
                     </div>
                 </div>
                 <ul class="classes-list">

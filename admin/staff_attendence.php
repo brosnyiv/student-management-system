@@ -492,7 +492,7 @@
     <div class="container">
         <div class="form-header">
             <h2><i class="fas fa-clipboard-check"></i> Staff Attendance Tracker</h2>
-            <a href="dash.html" class="back-link">
+            <a href="dash.php" class="back-link">
                 <i class="fas fa-arrow-left"></i> Back to Dashboard
             </a>
         </div>
@@ -876,8 +876,8 @@
             statusRadios.forEach(radio => {
                 radio.addEventListener('change', updateStaffCounts);
             });
-        }
-        
+        });
+
         // Function to update attendance counts
         function updateStaffCounts() {
             const staffTable = document.querySelector('#staffTable tbody');

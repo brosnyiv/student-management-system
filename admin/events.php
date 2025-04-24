@@ -480,7 +480,7 @@
                 </div>
 
                 <div class="form-buttons">
-                    <button type="button" class="btn btn-secondary" onclick="window.location.href='dash.html'">Cancel</button>
+                    <button type="button" class="btn btn-secondary" onclick="window.location.href='dash.php'">Cancel</button>
                     <button type="button" class="btn btn-secondary" id="previewButton">Preview</button>
                     <button type="submit" class="btn btn-primary">Create Event</button>
                 </div>
@@ -517,7 +517,7 @@
                 } else {
                     recurrenceOptions.style.display = 'none';
                 }
-            });
+            // Removed the extra closing brace and parenthesis
             
             // Add participant functionality
             const addButton = document.getElementById('addParticipant');
@@ -597,7 +597,7 @@
                 alert('Event created successfully!');
                 
                 // Redirect to dashboard
-                window.location.href = 'dash.html';
+                window.location.href = 'dash.php';
             });
         });
         

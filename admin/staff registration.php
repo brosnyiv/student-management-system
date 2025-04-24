@@ -1018,9 +1018,39 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Form submission
-    const staffRegistrationForm = document.getElementById('staffRegistrationForm');
-    const saveAsDraftBtn = document.getElementById('saveAsDraft');
+// Form submission
+const staffRegistrationForm = document.getElementById('staffRegistrationForm');
+const saveAsDraftBtn = document.getElementById('saveAsDraft');
+
+staffRegistrationForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Validate form before submission
+    const requiredFields = document.querySelectorAll('[required]');
+    let isValid = true;
+    
+    requiredFields.forEach(field => {
+        if (!field.value) {
+            field.classList.add('invalid');
+            isValid = false;
+        } else {
+            field.classList.remove('invalid');
+        }
+    });
+    
+    if (isValid) {
+        // In a real application, you would collect form data and submit via AJAX
+        const formData = new FormData(this);
+        
+        // For demo purposes, show success message
+        alert('Registration submitted successfully!');
+        
+        // Redirect to confirmation page (in a real app)
+        // window.location.href = 'confirmation.html';
+    } else {
+        alert('Please fill in all required fields before submitting.');
+    }
+});
 
     // Save as draft
     saveAsDraftBtn.addEventListener('click', function() {
@@ -1053,86 +1083,132 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Initialize date fields with current date
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('signatureDate').value = today;
+// Initialize date fields with current date
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('signatureDate').value = today;
+});
 
-    // Form submission handler
-    staffRegistrationForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        console.log("Form submission triggered");
+// Form submission
+const staffRegistrationForm = document.getElementById('staffRegistrationForm');
+const saveAsDraftBtn = document.getElementById('saveAsDraft');
+
+staffRegistrationForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+   // Inside your DOMContentLoaded event listener
+// Keep this event listener and remove the duplicate one outside the DOMContentLoaded
+staffRegistrationForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    console.log("Form submission triggered");
+    
+    // Validate form before submission
+    const requiredFields = document.querySelectorAll('[required]');
+    let isValid = true;
+    
+    requiredFields.forEach(field => {
+        if (!field.value) {
+            field.classList.add('invalid');
+            isValid = false;
+            console.log("Invalid field:", field.id);
+        } else {
+            field.classList.remove('invalid');
+        }
+    });
+    
+    if (isValid) {
+        console.log("Form is valid, preparing to submit");
+        // Collect form data
+        const formData = new FormData(this);
         
-        // Validate form before submission
-        const requiredFields = document.querySelectorAll('[required]');
-        let isValid = true;
+        // Add files to form data
+        const profilePhoto = document.getElementById('profilePhoto');
+        if (profilePhoto.files.length > 0) {
+            formData.append('profilePhoto', profilePhoto.files[0]);
+        }
         
-        requiredFields.forEach(field => {
-            if (!field.value) {
-                field.classList.add('invalid');
-                isValid = false;
-                console.log("Invalid field:", field.id);
+        // Log formData keys for debugging
+        for (let key of formData.keys()) {
+            console.log("FormData includes key:", key);
+        }
+        
+        // Submit via AJAX with better error handling
+        fetch('submit_staff.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            console.log("Response status:", response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log("Server response:", data);
+            if (data.success) {
+                alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
+                // Redirect to confirmation page or clear form
+                // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
             } else {
-                field.classList.remove('invalid');
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while submitting the form.');
+        });
+    } else {
+        alert('Please fill in all required fields before submitting.');
+    }
+});
+
+
+    
+    if (isValid) {
+        // Collect form data
+        const formData = new FormData(this);
+        
+        // Add files to form data
+        const profilePhoto = document.getElementById('profilePhoto');
+        if (profilePhoto.files.length > 0) {
+            formData.append('profilePhoto', profilePhoto.files[0]);
+        }
+        
+        // Add qualification certificates
+        const qualificationCertificates = document.querySelectorAll('input[name^="qualifications["][name$="][certificate]"]');
+        qualificationCertificates.forEach((cert, index) => {
+            if (cert.files.length > 0) {
+                formData.append(`qualifications[${index}][certificate]`, cert.files[0]);
             }
         });
         
-        if (isValid) {
-            console.log("Form is valid, preparing to submit");
-            // Collect form data
-            const formData = new FormData(this);
-            
-            // Add files to form data
-            const profilePhoto = document.getElementById('profilePhoto');
-            if (profilePhoto.files.length > 0) {
-                formData.append('profilePhoto', profilePhoto.files[0]);
+        // Add document files
+        const documentFiles = document.querySelectorAll('input[name^="documents["][name$="][file]"]');
+        documentFiles.forEach((doc, index) => {
+            if (doc.files.length > 0) {
+                formData.append(`documents[${index}][file]`, doc.files[0]);
             }
-            
-            // Add qualification certificates
-            const qualificationCertificates = document.querySelectorAll('input[name^="qualifications["][name$="][certificate]"]');
-            qualificationCertificates.forEach((cert, index) => {
-                if (cert.files.length > 0) {
-                    formData.append(`qualifications[${index}][certificate]`, cert.files[0]);
-                }
-            });
-            
-            // Add document files
-            const documentFiles = document.querySelectorAll('input[name^="documents["][name$="][file]"]');
-            documentFiles.forEach((doc, index) => {
-                if (doc.files.length > 0) {
-                    formData.append(`documents[${index}][file]`, doc.files[0]);
-                }
-            });
-            
-            // Submit via AJAX
-            fetch('submit_staff.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                console.log("Response status:", response.status);
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log("Server response:", data);
-                if (data.success) {
-                    alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
-                    // Redirect to confirmation page or clear form
-                    // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while submitting the form. Please try again.');
-            });
-        } else {
-            alert('Please fill in all required fields before submitting.');
-        }
-    });
+        });
+        
+        // Submit via AJAX
+        fetch('submit_staff.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
+                // Redirect to confirmation page or clear form
+                // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while submitting the form.');
+        });
+    } else {
+        alert('Please fill in all required fields before submitting.');
+    }
 });
 </script>
 </body>
