@@ -65,6 +65,6 @@
     // Function to handle confirmed logout
     function confirmLogout() {
         // In a real application, this would handle session termination
-        window.location.href = 'login.html'; // Redirect to login page
+        window.location.href = 'login.php'; // Redirect to login page
     }
 </script>

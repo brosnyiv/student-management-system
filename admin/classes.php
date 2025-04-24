@@ -516,7 +516,7 @@
         <div class="section-header">
             <div class="section-title"><i class="fas fa-calendar-week"></i> Timetable Management</div>
             <div class="action-buttons">
-                <button class="add-button" id="openAddClassModal"  onclick="window.location.href='timetable.html'"
+                <button class="add-button" id="openAddClassModal"  onclick="window.location.href='timetable.php'"
                 ><i class="fas fa-plus"></i> Add New Class</button>
             </div>
         </div>

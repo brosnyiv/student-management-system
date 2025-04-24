@@ -1046,7 +1046,7 @@ staffRegistrationForm.addEventListener('submit', function(e) {
         alert('Registration submitted successfully!');
         
         // Redirect to confirmation page (in a real app)
-        // window.location.href = 'confirmation.html';
+        // window.location.href = 'confirmation.php';
     } else {
         alert('Please fill in all required fields before submitting.');
     }
@@ -1145,7 +1145,7 @@ staffRegistrationForm.addEventListener('submit', function(e) {
             if (data.success) {
                 alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
                 // Redirect to confirmation page or clear form
-                // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
+                // window.location.href = 'confirmation.php?staff_id=' + data.staff_id;
             } else {
                 alert('Error: ' + data.message);
             }
@@ -1197,7 +1197,7 @@ staffRegistrationForm.addEventListener('submit', function(e) {
             if (data.success) {
                 alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
                 // Redirect to confirmation page or clear form
-                // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
+                // window.location.href = 'confirmation.php?staff_id=' + data.staff_id;
             } else {
                 alert('Error: ' + data.message);
             }

@@ -18,16 +18,16 @@
                 <p>Empowering Professional Skills</p>
             </div>
             <ul class="nav-menu">
-                <li class="nav-item" onclick="window.location.href='dash.html'">Dashboard</li>
-                <li class="nav-item" onclick="window.location.href='course.html'">My Courses</li>
-                <li class="nav-item" onclick="window.location.href='asignments.html'">Assignments</li>
-                <li class="nav-item" onclick="window.location.href='results.html'">Results</li>
-                <li class="nav-item" onclick="window.location.href='attendence.html'">Attendance</li>
-                <li class="nav-item" onclick="window.location.href='payments.html'">Payments</li>
-                <li class="nav-item" onclick="window.location.href='drop semester.html'">Drop Semester</li>
-                <li class="nav-item" onclick="window.location.href='notices.html'">Notices</li>
-                <li class="nav-item" onclick="window.location.href='messages.html'">Messages <span class="badge">3</span></li>
-                <li class="logout-item" onclick="window.location.href='login.html'">Log Out</li>
+                <li class="nav-item" onclick="window.location.href='dash.php'">Dashboard</li>
+                <li class="nav-item" onclick="window.location.href='course.php'">My Courses</li>
+                <li class="nav-item" onclick="window.location.href='asignments.php'">Assignments</li>
+                <li class="nav-item" onclick="window.location.href='results.php'">Results</li>
+                <li class="nav-item" onclick="window.location.href='attendence.php'">Attendance</li>
+                <li class="nav-item" onclick="window.location.href='payments.php'">Payments</li>
+                <li class="nav-item" onclick="window.location.href='drop semester.php'">Drop Semester</li>
+                <li class="nav-item" onclick="window.location.href='notices.php'">Notices</li>
+                <li class="nav-item" onclick="window.location.href='messages.php'">Messages <span class="badge">3</span></li>
+                <li class="logout-item" onclick="window.location.href='login.php'">Log Out</li>
             </ul>
         </div>
         
