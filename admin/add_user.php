@@ -8,7 +8,7 @@ $role = $fullname = $email = $password = $status = "";'';
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     //pick variables from the form
-    $role = $_POST['role'];
+    $role = $_POST['user_role'];
     $fullname = $_POST['fullname'];
     $email = $_POST['email'];
     $password = $_POST['password'];

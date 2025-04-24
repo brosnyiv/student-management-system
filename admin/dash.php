@@ -60,7 +60,7 @@ if (empty($_SESSION['userid'])) {
         <div class="welcome-banner">
             <div class="welcome-text">
                 <h1>MONACO INSTITUTE</h1>
-                <p>Welcome back, John!</p>
+                <p>Welcome back, <?php echo isset($_SESSION['fullname']) ? htmlspecialchars($_SESSION['fullname']) : "User"; ?></p>
                 <div class="date-display">
                     <i class="fas fa-calendar-alt"></i> <span id="currentDate"></span>
                     <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
@@ -78,8 +78,8 @@ if (empty($_SESSION['userid'])) {
                 <div class="user-profile">
                     <div class="user-avatar">J</div>
                     <div class="user-info">
-                        John Doe<br>
-                        <span class="role">Admin</span>
+                    <?php echo isset($_SESSION['fullname']) ? htmlspecialchars($_SESSION['fullname']) : "User"; ?><br>
+                        <span class="role"><?php echo isset($_SESSION['user_role']) ? htmlspecialchars($_SESSION['user_role']) : "undefined"; ?></span>
                     </div>
                 </div>
             </div>
