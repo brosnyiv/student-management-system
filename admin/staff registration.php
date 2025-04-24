@@ -634,581 +634,505 @@
     </div>
     
     <script>
-        // JavaScript functionality for the form
-        document.addEventListener('DOMContentLoaded', function() {
-            // Staff Type Selection
-            const teachingStaffCard = document.getElementById('teachingStaff');
-            const nonTeachingStaffCard = document.getElementById('nonTeachingStaff');
-            const staffTypeContainer = document.getElementById('staffTypeContainer');
-            const registrationFormContainer = document.getElementById('registrationFormContainer');
-            const staffTypeInput = document.getElementById('staffType');
-            const accountSetupSection = document.getElementById('accountSetupSection');
-            const formTitle = document.getElementById('formTitle');
-            
-            // Handle teaching staff selection
-            teachingStaffCard.addEventListener('click', function() {
-                staffTypeInput.value = 'teaching';
-                staffTypeContainer.style.display = 'none';
-                registrationFormContainer.style.display = 'block';
-                accountSetupSection.style.display = 'block';
-                formTitle.textContent = 'Teaching Staff Registration Form';
-                
-              // Show teaching-only sections, hide non-teaching sections
-document.querySelectorAll('.teaching-only-section').forEach(section => {
-    section.style.display = 'block';
-});
-document.querySelectorAll('.non-teaching-only-section').forEach(section => {
-    section.style.display = 'none';
-});
-
-// Show teaching options in selects, hide non-teaching options
-document.querySelectorAll('.teaching-option').forEach(option => {
-    option.style.display = '';
-});
-document.querySelectorAll('.non-teaching-only-field').forEach(field => {
-    field.style.display = 'none';
-});
-document.querySelectorAll('.teaching-only-field').forEach(field => {
-    field.style.display = 'block';
-});
-});
-
-// Handle non-teaching staff selection
-nonTeachingStaffCard.addEventListener('click', function() {
-    staffTypeInput.value = 'non-teaching';
-    staffTypeContainer.style.display = 'none';
-    registrationFormContainer.style.display = 'block';
-    accountSetupSection.style.display = 'none';
-    formTitle.textContent = 'Non-Teaching Staff Registration Form';
+      // JavaScript functionality for the form
+document.addEventListener('DOMContentLoaded', function() {
+    // Staff Type Selection
+    const teachingStaffCard = document.getElementById('teachingStaff');
+    const nonTeachingStaffCard = document.getElementById('nonTeachingStaff');
+    const staffTypeContainer = document.getElementById('staffTypeContainer');
+    const registrationFormContainer = document.getElementById('registrationFormContainer');
+    const staffTypeInput = document.getElementById('staffType');
+    const accountSetupSection = document.getElementById('accountSetupSection');
+    const formTitle = document.getElementById('formTitle');
     
-    // Show non-teaching only sections, hide teaching sections
-    document.querySelectorAll('.teaching-only-section').forEach(section => {
-        section.style.display = 'none';
-    });
-    document.querySelectorAll('.non-teaching-only-section').forEach(section => {
-        section.style.display = 'block';
-    });
-    
-    // Show non-teaching options in selects, hide teaching options
-    document.querySelectorAll('.non-teaching-option').forEach(option => {
-        option.style.display = '';
-    });
-    document.querySelectorAll('.teaching-only-field').forEach(field => {
-        field.style.display = 'none';
-    });
-    document.querySelectorAll('.non-teaching-only-field').forEach(field => {
-        field.style.display = 'block';
-    });
-});
-
-// Form multi-step functionality
-const formSections = document.querySelectorAll('.form-section');
-const formSteps = document.querySelectorAll('.step');
-const prevStepBtn = document.getElementById('prevStep');
-const nextStepBtn = document.getElementById('nextStep');
-const submitFormBtn = document.getElementById('submitForm');
-let currentStep = 0;
-
-// Initialize form steps
-function updateFormSteps() {
-    formSections.forEach((section, index) => {
-        if (index < currentStep * 2 || index > currentStep * 2 + 1) {
-            section.style.display = 'none';
-        } else {
+    // Handle teaching staff selection
+    teachingStaffCard.addEventListener('click', function() {
+        staffTypeInput.value = 'teaching';
+        staffTypeContainer.style.display = 'none';
+        registrationFormContainer.style.display = 'block';
+        accountSetupSection.style.display = 'block';
+        formTitle.textContent = 'Teaching Staff Registration Form';
+        
+        // Show teaching-only sections, hide non-teaching sections
+        document.querySelectorAll('.teaching-only-section').forEach(section => {
             section.style.display = 'block';
-        }
-    });
-    
-    // Update step indicators
-    formSteps.forEach((step, index) => {
-        if (index <= currentStep) {
-            step.classList.add('active');
-        } else {
-            step.classList.remove('active');
-        }
-    });
-    
-    // Show/hide buttons
-    if (currentStep === 0) {
-        prevStepBtn.style.display = 'none';
-    } else {
-        prevStepBtn.style.display = 'inline-block';
-    }
-    
-    if (currentStep === formSteps.length - 1) {
-        nextStepBtn.style.display = 'none';
-        submitFormBtn.style.display = 'inline-block';
-    } else {
-        nextStepBtn.style.display = 'inline-block';
-        submitFormBtn.style.display = 'none';
-    }
-}
+        });
+        document.querySelectorAll('.non-teaching-only-section').forEach(section => {
+            section.style.display = 'none';
+        });
 
-// Initialize form
-updateFormSteps();
-
-// Next button click
-nextStepBtn.addEventListener('click', function() {
-    // Validate current sections before proceeding
-    const currentSections = document.querySelectorAll(`.form-section:nth-child(${currentStep * 2 + 1}), .form-section:nth-child(${currentStep * 2 + 2})`);
-    let isValid = true;
-    
-    currentSections.forEach(section => {
-        const requiredFields = section.querySelectorAll('[required]');
-        requiredFields.forEach(field => {
-            if (!field.value) {
-                field.classList.add('invalid');
-                isValid = false;
-            } else {
-                field.classList.remove('invalid');
-            }
+        // Show teaching options in selects, hide non-teaching options
+        document.querySelectorAll('.teaching-option').forEach(option => {
+            option.style.display = '';
+        });
+        document.querySelectorAll('.non-teaching-only-field').forEach(field => {
+            field.style.display = 'none';
+        });
+        document.querySelectorAll('.teaching-only-field').forEach(field => {
+            field.style.display = 'block';
         });
     });
-    
-    if (isValid) {
-        currentStep++;
-        if (currentStep >= formSteps.length) {
-            currentStep = formSteps.length - 1;
+
+    // Handle non-teaching staff selection
+    nonTeachingStaffCard.addEventListener('click', function() {
+        staffTypeInput.value = 'non-teaching';
+        staffTypeContainer.style.display = 'none';
+        registrationFormContainer.style.display = 'block';
+        accountSetupSection.style.display = 'none';
+        formTitle.textContent = 'Non-Teaching Staff Registration Form';
+        
+        // Show non-teaching only sections, hide teaching sections
+        document.querySelectorAll('.teaching-only-section').forEach(section => {
+            section.style.display = 'none';
+        });
+        document.querySelectorAll('.non-teaching-only-section').forEach(section => {
+            section.style.display = 'block';
+        });
+        
+        // Show non-teaching options in selects, hide teaching options
+        document.querySelectorAll('.non-teaching-option').forEach(option => {
+            option.style.display = '';
+        });
+        document.querySelectorAll('.teaching-only-field').forEach(field => {
+            field.style.display = 'none';
+        });
+        document.querySelectorAll('.non-teaching-only-field').forEach(field => {
+            field.style.display = 'block';
+        });
+    });
+
+    // Form multi-step functionality
+    const formSections = document.querySelectorAll('.form-section');
+    const formSteps = document.querySelectorAll('.step');
+    const prevStepBtn = document.getElementById('prevStep');
+    const nextStepBtn = document.getElementById('nextStep');
+    const submitFormBtn = document.getElementById('submitForm');
+    let currentStep = 0;
+
+    // Initialize form steps
+    function updateFormSteps() {
+        formSections.forEach((section, index) => {
+            if (index < currentStep * 2 || index > currentStep * 2 + 1) {
+                section.style.display = 'none';
+            } else {
+                section.style.display = 'block';
+            }
+        });
+        
+        // Update step indicators
+        formSteps.forEach((step, index) => {
+            if (index <= currentStep) {
+                step.classList.add('active');
+            } else {
+                step.classList.remove('active');
+            }
+        });
+        
+        // Show/hide buttons
+        if (currentStep === 0) {
+            prevStepBtn.style.display = 'none';
+        } else {
+            prevStepBtn.style.display = 'inline-block';
+        }
+        
+        if (currentStep === formSteps.length - 1) {
+            nextStepBtn.style.display = 'none';
+            submitFormBtn.style.display = 'inline-block';
+        } else {
+            nextStepBtn.style.display = 'inline-block';
+            submitFormBtn.style.display = 'none';
+        }
+    }
+
+    // Initialize form
+    updateFormSteps();
+
+    // Next button click
+    nextStepBtn.addEventListener('click', function() {
+        // Validate current sections before proceeding
+        const currentSections = document.querySelectorAll(`.form-section:nth-child(${currentStep * 2 + 1}), .form-section:nth-child(${currentStep * 2 + 2})`);
+        let isValid = true;
+        
+        currentSections.forEach(section => {
+            const requiredFields = section.querySelectorAll('[required]');
+            requiredFields.forEach(field => {
+                if (!field.value) {
+                    field.classList.add('invalid');
+                    isValid = false;
+                } else {
+                    field.classList.remove('invalid');
+                }
+            });
+        });
+        
+        if (isValid) {
+            currentStep++;
+            if (currentStep >= formSteps.length) {
+                currentStep = formSteps.length - 1;
+            }
+            updateFormSteps();
+            window.scrollTo(0, 0);
+        } else {
+            alert('Please fill in all required fields before proceeding.');
+        }
+    });
+
+    // Previous button click
+    prevStepBtn.addEventListener('click', function() {
+        currentStep--;
+        if (currentStep < 0) {
+            currentStep = 0;
         }
         updateFormSteps();
         window.scrollTo(0, 0);
-    } else {
-        alert('Please fill in all required fields before proceeding.');
-    }
-});
+    });
 
-// Previous button click
-prevStepBtn.addEventListener('click', function() {
-    currentStep--;
-    if (currentStep < 0) {
-        currentStep = 0;
-    }
-    updateFormSteps();
-    window.scrollTo(0, 0);
-});
+    // Handle file uploads
+    const profilePhotoUpload = document.getElementById('profilePhotoUpload');
+    const profilePhoto = document.getElementById('profilePhoto');
 
-// Handle file uploads
-const profilePhotoUpload = document.getElementById('profilePhotoUpload');
-const profilePhoto = document.getElementById('profilePhoto');
+    profilePhotoUpload.addEventListener('click', function() {
+        profilePhoto.click();
+    });
 
-profilePhotoUpload.addEventListener('click', function() {
-    profilePhoto.click();
-});
+    profilePhoto.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            const fileName = this.files[0].name;
+            profilePhotoUpload.innerHTML = `
+                <div class="upload-icon">✓</div>
+                <div>${fileName}</div>
+                <div class="help-text">File selected</div>
+            `;
+            profilePhotoUpload.classList.add('file-selected');
+        }
+    });
 
-profilePhoto.addEventListener('change', function() {
-    if (this.files && this.files[0]) {
-        const fileName = this.files[0].name;
-        profilePhotoUpload.innerHTML = `
-            <div class="upload-icon">✓</div>
-            <div>${fileName}</div>
-            <div class="help-text">File selected</div>
+    // Handle certificate uploads
+    document.querySelectorAll('.image-upload').forEach(upload => {
+        const input = upload.querySelector('input[type="file"]');
+        if (input) {
+            upload.addEventListener('click', function() {
+                input.click();
+            });
+            
+            input.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const fileName = this.files[0].name;
+                    upload.innerHTML = `
+                        <div class="upload-icon">✓</div>
+                        <div>${fileName}</div>
+                        <div class="help-text">File selected</div>
+                    `;
+                    upload.classList.add('file-selected');
+                }
+            });
+        }
+    });
+
+    // Add another qualification
+    const qualificationsContainer = document.getElementById('qualifications-container');
+    const addQualificationBtn = document.getElementById('addQualification');
+
+    addQualificationBtn.addEventListener('click', function() {
+        const qualificationCount = qualificationsContainer.querySelectorAll('.qualification-row').length;
+        const newRow = document.createElement('div');
+        newRow.className = 'qualification-row';
+        
+        newRow.innerHTML = `
+            <button type="button" class="remove-row">×</button>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="degree${qualificationCount + 1}" class="required">Degree/Qualification</label>
+                    <input type="text" id="degree${qualificationCount + 1}" name="qualifications[${qualificationCount}][degree]" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="institution${qualificationCount + 1}" class="required">Institution</label>
+                    <input type="text" id="institution${qualificationCount + 1}" name="qualifications[${qualificationCount}][institution]" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="major${qualificationCount + 1}" class="required">Major/Area of Specialization</label>
+                    <input type="text" id="major${qualificationCount + 1}" name="qualifications[${qualificationCount}][major]" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="gradYear${qualificationCount + 1}" class="required">Year of Graduation</label>
+                    <input type="number" id="gradYear${qualificationCount + 1}" name="qualifications[${qualificationCount}][gradYear]" min="1950" max="2030" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group-full">
+                    <label for="certificateUpload${qualificationCount + 1}" class="required">Upload Certificate</label>
+                    <div class="image-upload" id="certificateUploadWrapper${qualificationCount + 1}">
+                        <div class="upload-icon">📄</div>
+                        <div>Click to upload certificate</div>
+                        <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
+                        <input type="file" id="certificateUpload${qualificationCount + 1}" name="qualifications[${qualificationCount}][certificate]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
+                    </div>
+                </div>
+            </div>
         `;
-        profilePhotoUpload.classList.add('file-selected');
-    }
-});
-
-// Handle certificate uploads
-document.querySelectorAll('.image-upload').forEach(upload => {
-    const input = upload.querySelector('input[type="file"]');
-    if (input) {
-        upload.addEventListener('click', function() {
-            input.click();
+        
+        qualificationsContainer.appendChild(newRow);
+        
+        // Add event listeners for the new file upload
+        const newUpload = newRow.querySelector('.image-upload');
+        const newInput = newRow.querySelector('input[type="file"]');
+        
+        newUpload.addEventListener('click', function() {
+            newInput.click();
         });
         
-        input.addEventListener('change', function() {
+        newInput.addEventListener('change', function() {
             if (this.files && this.files[0]) {
                 const fileName = this.files[0].name;
-                upload.innerHTML = `
+                newUpload.innerHTML = `
                     <div class="upload-icon">✓</div>
                     <div>${fileName}</div>
                     <div class="help-text">File selected</div>
                 `;
-                upload.classList.add('file-selected');
+                newUpload.classList.add('file-selected');
             }
         });
-    }
-});
-
-// Add another qualification
-const qualificationsContainer = document.getElementById('qualifications-container');
-const addQualificationBtn = document.getElementById('addQualification');
-
-addQualificationBtn.addEventListener('click', function() {
-    const qualificationCount = qualificationsContainer.querySelectorAll('.qualification-row').length;
-    const newRow = document.createElement('div');
-    newRow.className = 'qualification-row';
-    
-    newRow.innerHTML = `
-        <button type="button" class="remove-row">×</button>
         
-        <div class="form-row">
-            <div class="form-group">
-                <label for="degree${qualificationCount + 1}" class="required">Degree/Qualification</label>
-                <input type="text" id="degree${qualificationCount + 1}" name="qualifications[${qualificationCount}][degree]" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="institution${qualificationCount + 1}" class="required">Institution</label>
-                <input type="text" id="institution${qualificationCount + 1}" name="qualifications[${qualificationCount}][institution]" required>
-            </div>
-        </div>
-        
-        <div class="form-row">
-            <div class="form-group">
-                <label for="major${qualificationCount + 1}" class="required">Major/Area of Specialization</label>
-                <input type="text" id="major${qualificationCount + 1}" name="qualifications[${qualificationCount}][major]" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="gradYear${qualificationCount + 1}" class="required">Year of Graduation</label>
-                <input type="number" id="gradYear${qualificationCount + 1}" name="qualifications[${qualificationCount}][gradYear]" min="1950" max="2030" required>
-            </div>
-        </div>
-        
-        <div class="form-row">
-            <div class="form-group-full">
-                <label for="certificateUpload${qualificationCount + 1}" class="required">Upload Certificate</label>
-                <div class="image-upload" id="certificateUploadWrapper${qualificationCount + 1}">
-                    <div class="upload-icon">📄</div>
-                    <div>Click to upload certificate</div>
-                    <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
-                    <input type="file" id="certificateUpload${qualificationCount + 1}" name="qualifications[${qualificationCount}][certificate]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    qualificationsContainer.appendChild(newRow);
-    
-    // Add event listeners for the new file upload
-    const newUpload = newRow.querySelector('.image-upload');
-    const newInput = newRow.querySelector('input[type="file"]');
-    
-    newUpload.addEventListener('click', function() {
-        newInput.click();
+        // Add event listener for remove button
+        const removeBtn = newRow.querySelector('.remove-row');
+        removeBtn.addEventListener('click', function() {
+            qualificationsContainer.removeChild(newRow);
+        });
     });
-    
-    newInput.addEventListener('change', function() {
-        if (this.files && this.files[0]) {
-            const fileName = this.files[0].name;
-            newUpload.innerHTML = `
-                <div class="upload-icon">✓</div>
-                <div>${fileName}</div>
-                <div class="help-text">File selected</div>
+
+    // Add employment field
+    const employmentFieldsContainer = document.getElementById('employment-additional-fields');
+    const addEmploymentFieldBtn = document.getElementById('addEmploymentField');
+
+    addEmploymentFieldBtn.addEventListener('click', function() {
+        const fieldCount = employmentFieldsContainer.querySelectorAll('.additional-field-row').length;
+        
+        const fieldName = prompt('Enter field name:');
+        if (fieldName) {
+            const newRow = document.createElement('div');
+            newRow.className = 'additional-field-row';
+            
+            newRow.innerHTML = `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="additionalField${fieldCount + 1}">${fieldName}</label>
+                        <input type="text" id="additionalField${fieldCount + 1}" name="additionalFields[${fieldCount}][value]">
+                        <input type="hidden" name="additionalFields[${fieldCount}][name]" value="${fieldName}">
+                    </div>
+                    <button type="button" class="remove-field-btn">Remove</button>
+                </div>
             `;
-            newUpload.classList.add('file-selected');
+            
+            employmentFieldsContainer.appendChild(newRow);
+            
+            // Add event listener for remove button
+            const removeBtn = newRow.querySelector('.remove-field-btn');
+            removeBtn.addEventListener('click', function() {
+                employmentFieldsContainer.removeChild(newRow);
+            });
         }
     });
-    
-    // Add event listener for remove button
-    const removeBtn = newRow.querySelector('.remove-row');
-    removeBtn.addEventListener('click', function() {
-        qualificationsContainer.removeChild(newRow);
-    });
-});
 
-// Add employment field
-const employmentFieldsContainer = document.getElementById('employment-additional-fields');
-const addEmploymentFieldBtn = document.getElementById('addEmploymentField');
+    // Add document upload
+    const documentsContainer = document.getElementById('documents-container');
+    const addDocumentBtn = document.getElementById('addDocument');
 
-addEmploymentFieldBtn.addEventListener('click', function() {
-    const fieldCount = employmentFieldsContainer.querySelectorAll('.additional-field-row').length;
-    
-    const fieldName = prompt('Enter field name:');
-    if (fieldName) {
+    addDocumentBtn.addEventListener('click', function() {
+        const documentCount = documentsContainer.querySelectorAll('.document-row').length;
+        
         const newRow = document.createElement('div');
-        newRow.className = 'additional-field-row';
+        newRow.className = 'document-row';
         
         newRow.innerHTML = `
+            <button type="button" class="remove-row">×</button>
+            
             <div class="form-row">
                 <div class="form-group">
-                    <label for="additionalField${fieldCount + 1}">${fieldName}</label>
-                    <input type="text" id="additionalField${fieldCount + 1}" name="additionalFields[${fieldCount}][value]">
-                    <input type="hidden" name="additionalFields[${fieldCount}][name]" value="${fieldName}">
+                    <label for="document${documentCount + 1}" class="required">Document</label>
+                    <div class="image-upload" id="documentUpload${documentCount + 1}">
+                        <div class="upload-icon">📄</div>
+                        <div>Click to upload document</div>
+                        <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
+                        <input type="file" id="document${documentCount + 1}" name="documents[${documentCount}][file]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
+                    </div>
                 </div>
-                <button type="button" class="remove-field-btn">Remove</button>
+                
+                <div class="form-group">
+                    <label for="documentType${documentCount + 1}" class="required">Document Type</label>
+                    <select id="documentType${documentCount + 1}" name="documents[${documentCount}][type]" required>
+                        <option value="employment">Employment Contract</option>
+                        <option value="certificate">Academic Certificate</option>
+                        <option value="reference">Reference Letter</option>
+                        <option value="medical">Medical Certificate</option>
+                        <option value="other">Other Document</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="documentDescription${documentCount + 1}">Document Description</label>
+                    <input type="text" id="documentDescription${documentCount + 1}" name="documents[${documentCount}][description]">
+                </div>
+                
+                <div class="form-group">
+                    <label for="documentExpiry${documentCount + 1}">Expiry Date (if applicable)</label>
+                    <input type="date" id="documentExpiry${documentCount + 1}" name="documents[${documentCount}][expiry]">
+                </div>
             </div>
         `;
         
-        employmentFieldsContainer.appendChild(newRow);
+        documentsContainer.appendChild(newRow);
+        
+        // Add event listeners for the new file upload
+        const newUpload = newRow.querySelector('.image-upload');
+        const newInput = newRow.querySelector('input[type="file"]');
+        
+        newUpload.addEventListener('click', function() {
+            newInput.click();
+        });
+        
+        newInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const fileName = this.files[0].name;
+                newUpload.innerHTML = `
+                    <div class="upload-icon">✓</div>
+                    <div>${fileName}</div>
+                    <div class="help-text">File selected</div>
+                `;
+                newUpload.classList.add('file-selected');
+            }
+        });
         
         // Add event listener for remove button
-        const removeBtn = newRow.querySelector('.remove-field-btn');
+        const removeBtn = newRow.querySelector('.remove-row');
         removeBtn.addEventListener('click', function() {
-            employmentFieldsContainer.removeChild(newRow);
+            documentsContainer.removeChild(newRow);
         });
-    }
-});
-
-// Add document upload
-const documentsContainer = document.getElementById('documents-container');
-const addDocumentBtn = document.getElementById('addDocument');
-
-addDocumentBtn.addEventListener('click', function() {
-    const documentCount = documentsContainer.querySelectorAll('.document-row').length;
-    
-    const newRow = document.createElement('div');
-    newRow.className = 'document-row';
-    
-    newRow.innerHTML = `
-        <button type="button" class="remove-row">×</button>
-        
-        <div class="form-row">
-            <div class="form-group">
-                <label for="document${documentCount + 1}" class="required">Document</label>
-                <div class="image-upload" id="documentUpload${documentCount + 1}">
-                    <div class="upload-icon">📄</div>
-                    <div>Click to upload document</div>
-                    <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
-                    <input type="file" id="document${documentCount + 1}" name="documents[${documentCount}][file]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="documentType${documentCount + 1}" class="required">Document Type</label>
-                <select id="documentType${documentCount + 1}" name="documents[${documentCount}][type]" required>
-                    <option value="employment">Employment Contract</option>
-                    <option value="certificate">Academic Certificate</option>
-                    <option value="reference">Reference Letter</option>
-                    <option value="medical">Medical Certificate</option>
-                    <option value="other">Other Document</option>
-                </select>
-            </div>
-        </div>
-        
-        <div class="form-row">
-            <div class="form-group">
-                <label for="documentDescription${documentCount + 1}">Document Description</label>
-                <input type="text" id="documentDescription${documentCount + 1}" name="documents[${documentCount}][description]">
-            </div>
-            
-            <div class="form-group">
-                <label for="documentExpiry${documentCount + 1}">Expiry Date (if applicable)</label>
-                <input type="date" id="documentExpiry${documentCount + 1}" name="documents[${documentCount}][expiry]">
-            </div>
-        </div>
-    `;
-    
-    documentsContainer.appendChild(newRow);
-    
-    // Add event listeners for the new file upload
-    const newUpload = newRow.querySelector('.image-upload');
-    const newInput = newRow.querySelector('input[type="file"]');
-    
-    newUpload.addEventListener('click', function() {
-        newInput.click();
     });
-    
-    newInput.addEventListener('change', function() {
-        if (this.files && this.files[0]) {
-            const fileName = this.files[0].name;
-            newUpload.innerHTML = `
-                <div class="upload-icon">✓</div>
-                <div>${fileName}</div>
-                <div class="help-text">File selected</div>
-            `;
-            newUpload.classList.add('file-selected');
-        }
+
+    // Form submission
+    const staffRegistrationForm = document.getElementById('staffRegistrationForm');
+    const saveAsDraftBtn = document.getElementById('saveAsDraft');
+
+    // Save as draft
+    saveAsDraftBtn.addEventListener('click', function() {
+        // In a real application, you would save the current state to localStorage or server
+        alert('Your registration has been saved as draft. You can continue later.');
     });
-    
-    // Add event listener for remove button
-    const removeBtn = newRow.querySelector('.remove-row');
-    removeBtn.addEventListener('click', function() {
-        documentsContainer.removeChild(newRow);
-    });
-});
 
-// Form submission
-const staffRegistrationForm = document.getElementById('staffRegistrationForm');
-const saveAsDraftBtn = document.getElementById('saveAsDraft');
-
-staffRegistrationForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    // Validate form before submission
-    const requiredFields = document.querySelectorAll('[required]');
-    let isValid = true;
-    
-    requiredFields.forEach(field => {
-        if (!field.value) {
-            field.classList.add('invalid');
-            isValid = false;
-        } else {
-            field.classList.remove('invalid');
-        }
-    });
-    
-    if (isValid) {
-        // In a real application, you would collect form data and submit via AJAX
-        const formData = new FormData(this);
-        
-        // For demo purposes, show success message
-        alert('Registration submitted successfully!');
-        
-        // Redirect to confirmation page (in a real app)
-        // window.location.href = 'confirmation.html';
-    } else {
-        alert('Please fill in all required fields before submitting.');
-    }
-});
-
-// Save as draft
-saveAsDraftBtn.addEventListener('click', function() {
-    // In a real application, you would save the current state to localStorage or server
-    alert('Your registration has been saved as draft. You can continue later.');
-});
-
-// Remove first qualification row (if needed)
-const firstRemoveRowBtn = document.querySelector('.qualification-row .remove-row');
-if (firstRemoveRowBtn) {
-    firstRemoveRowBtn.addEventListener('click', function() {
-        const qualificationRows = qualificationsContainer.querySelectorAll('.qualification-row');
-        if (qualificationRows.length > 1) {
-            qualificationsContainer.removeChild(this.parentNode);
-        } else {
-            alert('At least one qualification is required.');
-        }
-    });
-}
-
-// Password validation
-const password = document.getElementById('password');
-const confirmPassword = document.getElementById('confirmPassword');
-
-confirmPassword.addEventListener('input', function() {
-    if (password.value !== this.value) {
-        this.setCustomValidity('Passwords do not match');
-    } else {
-        this.setCustomValidity('');
-    }
-});
-
-// Initialize date fields with current date
-const today = new Date().toISOString().split('T')[0];
-document.getElementById('signatureDate').value = today;
-});
-
-// Form submission
-const staffRegistrationForm = document.getElementById('staffRegistrationForm');
-const saveAsDraftBtn = document.getElementById('saveAsDraft');
-
-staffRegistrationForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-   // Inside your DOMContentLoaded event listener
-// Keep this event listener and remove the duplicate one outside the DOMContentLoaded
-staffRegistrationForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    console.log("Form submission triggered");
-    
-    // Validate form before submission
-    const requiredFields = document.querySelectorAll('[required]');
-    let isValid = true;
-    
-    requiredFields.forEach(field => {
-        if (!field.value) {
-            field.classList.add('invalid');
-            isValid = false;
-            console.log("Invalid field:", field.id);
-        } else {
-            field.classList.remove('invalid');
-        }
-    });
-    
-    if (isValid) {
-        console.log("Form is valid, preparing to submit");
-        // Collect form data
-        const formData = new FormData(this);
-        
-        // Add files to form data
-        const profilePhoto = document.getElementById('profilePhoto');
-        if (profilePhoto.files.length > 0) {
-            formData.append('profilePhoto', profilePhoto.files[0]);
-        }
-        
-        // Log formData keys for debugging
-        for (let key of formData.keys()) {
-            console.log("FormData includes key:", key);
-        }
-        
-        // Submit via AJAX with better error handling
-        fetch('submit_staff.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            console.log("Response status:", response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log("Server response:", data);
-            if (data.success) {
-                alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
-                // Redirect to confirmation page or clear form
-                // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
+    // Remove first qualification row (if needed)
+    const firstRemoveRowBtn = document.querySelector('.qualification-row .remove-row');
+    if (firstRemoveRowBtn) {
+        firstRemoveRowBtn.addEventListener('click', function() {
+            const qualificationRows = qualificationsContainer.querySelectorAll('.qualification-row');
+            if (qualificationRows.length > 1) {
+                qualificationsContainer.removeChild(this.parentNode);
             } else {
-                alert('Error: ' + data.message);
+                alert('At least one qualification is required.');
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while submitting the form.');
         });
-    } else {
-        alert('Please fill in all required fields before submitting.');
     }
-});
 
+    // Password validation
+    const password = document.getElementById('password');
+    const confirmPassword = document.getElementById('confirmPassword');
 
-    
-    if (isValid) {
-        // Collect form data
-        const formData = new FormData(this);
-        
-        // Add files to form data
-        const profilePhoto = document.getElementById('profilePhoto');
-        if (profilePhoto.files.length > 0) {
-            formData.append('profilePhoto', profilePhoto.files[0]);
+    confirmPassword.addEventListener('input', function() {
+        if (password.value !== this.value) {
+            this.setCustomValidity('Passwords do not match');
+        } else {
+            this.setCustomValidity('');
         }
+    });
+
+    // Initialize date fields with current date
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('signatureDate').value = today;
+
+    // Form submission handler
+    staffRegistrationForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        console.log("Form submission triggered");
         
-        // Add qualification certificates
-        const qualificationCertificates = document.querySelectorAll('input[name^="qualifications["][name$="][certificate]"]');
-        qualificationCertificates.forEach((cert, index) => {
-            if (cert.files.length > 0) {
-                formData.append(`qualifications[${index}][certificate]`, cert.files[0]);
-            }
-        });
+        // Validate form before submission
+        const requiredFields = document.querySelectorAll('[required]');
+        let isValid = true;
         
-        // Add document files
-        const documentFiles = document.querySelectorAll('input[name^="documents["][name$="][file]"]');
-        documentFiles.forEach((doc, index) => {
-            if (doc.files.length > 0) {
-                formData.append(`documents[${index}][file]`, doc.files[0]);
-            }
-        });
-        
-        // Submit via AJAX
-        fetch('submit_staff.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
-                // Redirect to confirmation page or clear form
-                // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
+        requiredFields.forEach(field => {
+            if (!field.value) {
+                field.classList.add('invalid');
+                isValid = false;
+                console.log("Invalid field:", field.id);
             } else {
-                alert('Error: ' + data.message);
+                field.classList.remove('invalid');
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while submitting the form.');
         });
-    } else {
-        alert('Please fill in all required fields before submitting.');
-    }
+        
+        if (isValid) {
+            console.log("Form is valid, preparing to submit");
+            // Collect form data
+            const formData = new FormData(this);
+            
+            // Add files to form data
+            const profilePhoto = document.getElementById('profilePhoto');
+            if (profilePhoto.files.length > 0) {
+                formData.append('profilePhoto', profilePhoto.files[0]);
+            }
+            
+            // Add qualification certificates
+            const qualificationCertificates = document.querySelectorAll('input[name^="qualifications["][name$="][certificate]"]');
+            qualificationCertificates.forEach((cert, index) => {
+                if (cert.files.length > 0) {
+                    formData.append(`qualifications[${index}][certificate]`, cert.files[0]);
+                }
+            });
+            
+            // Add document files
+            const documentFiles = document.querySelectorAll('input[name^="documents["][name$="][file]"]');
+            documentFiles.forEach((doc, index) => {
+                if (doc.files.length > 0) {
+                    formData.append(`documents[${index}][file]`, doc.files[0]);
+                }
+            });
+            
+            // Submit via AJAX
+            fetch('submit_staff.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                console.log("Response status:", response.status);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Server response:", data);
+                if (data.success) {
+                    alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
+                    // Redirect to confirmation page or clear form
+                    // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while submitting the form. Please try again.');
+            });
+        } else {
+            alert('Please fill in all required fields before submitting.');
+        }
+    });
 });
 </script>
 </body>
