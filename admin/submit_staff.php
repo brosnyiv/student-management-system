@@ -10,23 +10,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         // 1. Insert into users table (for teaching staff only)
         $userId = null;
-        if ($_POST['staffType'] === 'teaching') {
+        if (isset($_POST['staffType']) && $_POST['staffType'] === 'teaching') {
+            // Validate required fields
+            if (empty($_POST['username']) || empty($_POST['email']) || empty($_POST['password'])) {
+                throw new Exception("Required account fields missing");
+            }
+            
             $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, role_id, access_level, access_start_date, is_active) 
                                   VALUES (:username, :email, :password, :role_id, :access_level, :access_start, 1)");
             
             $hashedPassword = password_hash($_POST['password'], PASSWORD_DEFAULT);
-            $roleId = ($_POST['portalRole'] === 'instructor') ? 2 : 3; // Assuming 2 is instructor role, 3 is admin
+            $roleId = (isset($_POST['portalRole']) && $_POST['portalRole'] === 'instructor') ? 2 : 3; // Assuming 2 is instructor role, 3 is admin
             
             $stmt->execute([
-                ':username' => $_POST['username'],
-                ':email' => $_POST['email'],
+                ':username' => htmlspecialchars($_POST['username']),
+                ':email' => filter_var($_POST['email'], FILTER_SANITIZE_EMAIL),
                 ':password' => $hashedPassword,
                 ':role_id' => $roleId,
-                ':access_level' => $_POST['accessLevel'],
+                ':access_level' => htmlspecialchars($_POST['accessLevel'] ?? 'standard'),
                 ':access_start' => $_POST['accessStart'] ?? date('Y-m-d')
             ]);
             
             $userId = $pdo->lastInsertId();
+        }
+
+        // Validate required staff fields
+        if (empty($_POST['fullName']) || empty($_POST['dateOfBirth']) || empty($_POST['gender'])) {
+            throw new Exception("Required personal details missing");
         }
 
         // 2. Insert into staff table
@@ -40,30 +50,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             :dept_id, :designation, :hire_date, :employment_type, :supervisor
         )");
         
+        // Handle profile photo upload
+        $profilePhotoPath = null;
+        if (!empty($_FILES['profilePhoto']['name'])) {
+            $profilePhotoName = time() . '_' . basename($_FILES['profilePhoto']['name']);
+            $profilePhotoPath = 'uploads/staff/photos/' . $profilePhotoName;
+        }
+        
         $stmt->execute([
             ':user_id' => $userId,
-            ':staff_type' => $_POST['staffType'],
-            ':staff_number' => $_POST['staffId'] ?? null,
-            ':full_name' => $_POST['fullName'],
-            ':dob' => $_POST['dateOfBirth'],
-            ':gender' => $_POST['gender'],
-            ':marital_status' => $_POST['maritalStatus'] ?? null,
-            ':national_id' => $_POST['nationalId'],
-            ':photo_path' => $_FILES['profilePhoto']['name'] ?? null,
-            ':phone' => $_POST['phoneNumber'],
-            ':personal_email' => $_POST['personalEmail'] ?? null,
-            ':address' => $_POST['residentialAddress'],
-            ':dept_id' => $_POST['department'],
-            ':designation' => $_POST['designation'],
+            ':staff_type' => htmlspecialchars($_POST['staffType'] ?? 'non-teaching'),
+            ':staff_number' => htmlspecialchars($_POST['staffId'] ?? null),
+            ':full_name' => htmlspecialchars($_POST['fullName']),
+            ':dob' => $_POST['dateOfBirth'], 
+            ':gender' => htmlspecialchars($_POST['gender']),
+            ':marital_status' => htmlspecialchars($_POST['maritalStatus'] ?? null),
+            ':national_id' => htmlspecialchars($_POST['nationalId']),
+            ':photo_path' => $profilePhotoPath,
+            ':phone' => htmlspecialchars($_POST['phoneNumber']),
+            ':personal_email' => filter_var($_POST['personalEmail'] ?? null, FILTER_SANITIZE_EMAIL),
+            ':address' => htmlspecialchars($_POST['residentialAddress']),
+            ':dept_id' => htmlspecialchars($_POST['department']),
+            ':designation' => htmlspecialchars($_POST['designation']),
             ':hire_date' => $_POST['hireDate'],
-            ':employment_type' => $_POST['employmentType'],
-            ':supervisor' => $_POST['supervisor'] ?? null
+            ':employment_type' => htmlspecialchars($_POST['employmentType']),
+            ':supervisor' => htmlspecialchars($_POST['supervisor'] ?? null)
         ]);
         
         $staffId = $pdo->lastInsertId();
 
         // 3. Insert into specific staff type table
-        if ($_POST['staffType'] === 'teaching') {
+        if (isset($_POST['staffType']) && $_POST['staffType'] === 'teaching') {
             $stmt = $pdo->prepare("INSERT INTO teaching_staff (
                 staff_id, title, assigned_courses, semester_load, office_hours, 
                 available_times, assigned_classes, is_faculty_leader, academic_rank
@@ -74,14 +91,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $stmt->execute([
                 ':staff_id' => $staffId,
-                ':title' => $_POST['designation'],
-                ':courses' => $_POST['assignedCourses'],
-                ':load' => $_POST['semesterLoad'],
-                ':hours' => $_POST['officeHours'],
-                ':times' => $_POST['availableTimes'],
-                ':classes' => $_POST['assignedClasses'] ?? null,
+                ':title' => htmlspecialchars($_POST['designation']),
+                ':courses' => htmlspecialchars($_POST['assignedCourses']),
+                ':load' => intval($_POST['semesterLoad']),
+                ':hours' => htmlspecialchars($_POST['officeHours']),
+                ':times' => htmlspecialchars($_POST['availableTimes']),
+                ':classes' => htmlspecialchars($_POST['assignedClasses'] ?? null),
                 ':is_leader' => (strpos($_POST['designation'], 'Head') !== false) ? 1 : 0,
-                ':rank' => $_POST['designation']
+                ':rank' => htmlspecialchars($_POST['designation'])
             ]);
         } else {
             $stmt = $pdo->prepare("INSERT INTO non_teaching_staff (
@@ -92,14 +109,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $stmt->execute([
                 ':staff_id' => $staffId,
-                ':days' => $_POST['workingDays'],
-                ':hours' => $_POST['workingHours'],
-                ':notes' => $_POST['schedulNotes'] ?? null,
-                ':area' => $_POST['workArea'] ?? null
+                ':days' => htmlspecialchars($_POST['workingDays']),
+                ':hours' => htmlspecialchars($_POST['workingHours']),
+                ':notes' => htmlspecialchars($_POST['scheduleNotes'] ?? null), // Fixed variable name
+                ':area' => htmlspecialchars($_POST['workArea'] ?? null)
             ]);
         }
 
         // 4. Insert emergency contact
+        if (empty($_POST['emergencyContactName']) || empty($_POST['emergencyContactPhone'])) {
+            throw new Exception("Emergency contact information is required");
+        }
+        
         $stmt = $pdo->prepare("INSERT INTO emergency_contacts (
             staff_id, contact_name, contact_phone, relationship
         ) VALUES (
@@ -108,32 +129,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $stmt->execute([
             ':staff_id' => $staffId,
-            ':name' => $_POST['emergencyContactName'],
-            ':phone' => $_POST['emergencyContactPhone'],
-            ':relationship' => $_POST['emergencyContactRelationship']
+            ':name' => htmlspecialchars($_POST['emergencyContactName']),
+            ':phone' => htmlspecialchars($_POST['emergencyContactPhone']),
+            ':relationship' => htmlspecialchars($_POST['emergencyContactRelationship'])
         ]);
 
         // 5. Insert qualifications
         if (!empty($_POST['qualifications'])) {
-            foreach ($_POST['qualifications'] as $qualification) {
+            foreach ($_POST['qualifications'] as $index => $qualification) {
+                // Skip if essential qualification data is missing
+                if (empty($qualification['degree']) || empty($qualification['institution'])) {
+                    continue;
+                }
+                
                 $stmt = $pdo->prepare("INSERT INTO qualifications (
                     staff_id, degree, institution, major, graduation_year, certificate_path
                 ) VALUES (
                     :staff_id, :degree, :institution, :major, :year, :certificate
                 )");
                 
+                // Handle certificate file
+                $certificatePath = null;
+                if (!empty($_FILES['qualifications']['name']['certificate'][$index])) {
+                    $certificateName = time() . '_' . basename($_FILES['qualifications']['name']['certificate'][$index]);
+                    $certificatePath = 'uploads/staff/' . $staffId . '/certificates/' . $certificateName;
+                }
+                
                 $stmt->execute([
                     ':staff_id' => $staffId,
-                    ':degree' => $qualification['degree'],
-                    ':institution' => $qualification['institution'],
-                    ':major' => $qualification['major'],
-                    ':year' => $qualification['gradYear'],
-                    ':certificate' => $qualification['certificate']['name'] ?? null
+                    ':degree' => htmlspecialchars($qualification['degree']),
+                    ':institution' => htmlspecialchars($qualification['institution']),
+                    ':major' => htmlspecialchars($qualification['major'] ?? null),
+                    ':year' => intval($qualification['gradYear'] ?? 0),
+                    ':certificate' => $certificatePath
                 ]);
             }
         }
 
         // 6. Insert bank details
+        if (empty($_POST['bankName']) || empty($_POST['accountNumber'])) {
+            throw new Exception("Bank details are required");
+        }
+        
         $stmt = $pdo->prepare("INSERT INTO bank_details (
             staff_id, bank_name, account_number, tax_id, tin_number, salary_scale, payment_frequency
         ) VALUES (
@@ -142,29 +179,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $stmt->execute([
             ':staff_id' => $staffId,
-            ':bank' => $_POST['bankName'],
-            ':account' => $_POST['accountNumber'],
-            ':tax_id' => $_POST['taxId'],
-            ':tin' => $_POST['tinNumber'],
-            ':salary' => $_POST['salaryScale'],
-            ':frequency' => $_POST['paymentFrequency']
+            ':bank' => htmlspecialchars($_POST['bankName']),
+            ':account' => htmlspecialchars($_POST['accountNumber']),
+            ':tax_id' => htmlspecialchars($_POST['taxId']),
+            ':tin' => htmlspecialchars($_POST['tinNumber']),
+            ':salary' => htmlspecialchars($_POST['salaryScale']),
+            ':frequency' => htmlspecialchars($_POST['paymentFrequency'])
         ]);
 
         // 7. Insert documents
         if (!empty($_POST['documents'])) {
-            foreach ($_POST['documents'] as $document) {
+            foreach ($_POST['documents'] as $index => $document) {
+                // Skip if essential document data is missing
+                if (empty($document['type'])) {
+                    continue;
+                }
+                
                 $stmt = $pdo->prepare("INSERT INTO staff_documents (
                     staff_id, document_type, document_path, document_number, document_description, expiry_date
                 ) VALUES (
                     :staff_id, :type, :path, :number, :description, :expiry
                 )");
                 
+                // Handle document file
+                $documentPath = null;
+                if (!empty($_FILES['documents']['name']['file'][$index])) {
+                    $documentName = time() . '_' . basename($_FILES['documents']['name']['file'][$index]);
+                    $documentPath = 'uploads/staff/' . $staffId . '/documents/' . $documentName;
+                }
+                
                 $stmt->execute([
                     ':staff_id' => $staffId,
-                    ':type' => $document['type'],
-                    ':path' => $document['file']['name'] ?? null,
-                    ':number' => $document['number'] ?? null,
-                    ':description' => $document['description'] ?? null,
+                    ':type' => htmlspecialchars($document['type']),
+                    ':path' => $documentPath,
+                    ':number' => htmlspecialchars($document['number'] ?? null),
+                    ':description' => htmlspecialchars($document['description'] ?? null),
                     ':expiry' => $document['expiry'] ?? null
                 ]);
             }
@@ -173,6 +222,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 8. Insert custom fields
         if (!empty($_POST['additionalFields'])) {
             foreach ($_POST['additionalFields'] as $field) {
+                if (empty($field['name']) || !isset($field['value'])) {
+                    continue;
+                }
+                
                 $stmt = $pdo->prepare("INSERT INTO employment_custom_fields (
                     staff_id, field_name, field_value
                 ) VALUES (
@@ -181,13 +234,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $stmt->execute([
                     ':staff_id' => $staffId,
-                    ':name' => $field['name'],
-                    ':value' => $field['value']
+                    ':name' => htmlspecialchars($field['name']),
+                    ':value' => htmlspecialchars($field['value'])
                 ]);
             }
         }
 
         // 9. Insert consents
+        if (empty($_POST['digitalSignature'])) {
+            throw new Exception("Digital signature is required");
+        }
+        
         $stmt = $pdo->prepare("INSERT INTO staff_consents (
             staff_id, terms_consent, data_consent, update_consent, digital_signature, signature_date
         ) VALUES (
@@ -199,8 +256,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':terms' => isset($_POST['termsConsent']) ? 1 : 0,
             ':data' => isset($_POST['dataConsent']) ? 1 : 0,
             ':update' => isset($_POST['updateConsent']) ? 1 : 0,
-            ':signature' => $_POST['digitalSignature'],
-            ':date' => $_POST['signatureDate']
+            ':signature' => htmlspecialchars($_POST['digitalSignature']),
+            ':date' => $_POST['signatureDate'] ?? date('Y-m-d')
         ]);
 
         // Handle file uploads
@@ -211,31 +268,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Profile photo
         if (!empty($_FILES['profilePhoto']['name'])) {
-            $profilePhotoPath = $uploadDir . basename($_FILES['profilePhoto']['name']);
-            move_uploaded_file($_FILES['profilePhoto']['tmp_name'], $profilePhotoPath);
+            $profilePhotoDir = 'uploads/staff/photos/';
+            if (!file_exists($profilePhotoDir)) {
+                mkdir($profilePhotoDir, 0777, true);
+            }
+            
+            // Move the uploaded file
+            if (move_uploaded_file($_FILES['profilePhoto']['tmp_name'], $profilePhotoPath)) {
+                // Success
+            } else {
+                throw new Exception("Failed to upload profile photo");
+            }
         }
 
         // Certificates
-        if (!empty($_FILES['qualifications'])) {
+        if (!empty($_FILES['qualifications']['name']['certificate'])) {
+            $certDir = $uploadDir . 'certificates/';
+            if (!file_exists($certDir)) {
+                mkdir($certDir, 0777, true);
+            }
+            
             foreach ($_FILES['qualifications']['tmp_name']['certificate'] as $index => $tmpName) {
                 if (!empty($tmpName)) {
-                    $certPath = $uploadDir . 'certificates/' . basename($_FILES['qualifications']['name']['certificate'][$index]);
-                    if (!file_exists(dirname($certPath))) {
-                        mkdir(dirname($certPath), 0777, true);
-                    }
+                    $certName = time() . '_' . basename($_FILES['qualifications']['name']['certificate'][$index]);
+                    $certPath = $certDir . $certName;
                     move_uploaded_file($tmpName, $certPath);
                 }
             }
         }
 
         // Documents
-        if (!empty($_FILES['documents'])) {
+        if (!empty($_FILES['documents']['name']['file'])) {
+            $docDir = $uploadDir . 'documents/';
+            if (!file_exists($docDir)) {
+                mkdir($docDir, 0777, true);
+            }
+            
             foreach ($_FILES['documents']['tmp_name']['file'] as $index => $tmpName) {
                 if (!empty($tmpName)) {
-                    $docPath = $uploadDir . 'documents/' . basename($_FILES['documents']['name']['file'][$index]);
-                    if (!file_exists(dirname($docPath))) {
-                        mkdir(dirname($docPath), 0777, true);
-                    }
+                    $docName = time() . '_' . basename($_FILES['documents']['name']['file'][$index]);
+                    $docPath = $docDir . $docName;
                     move_uploaded_file($tmpName, $docPath);
                 }
             }
@@ -245,6 +317,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->commit();
 
         // Success response
+        header('Content-Type: application/json');
         echo json_encode([
             'success' => true,
             'message' => 'Staff registration completed successfully',
@@ -256,6 +329,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->rollBack();
         
         // Error response
+        header('Content-Type: application/json');
         http_response_code(500);
         echo json_encode([
             'success' => false,
@@ -264,6 +338,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 } else {
     // Not a POST request
+    header('Content-Type: application/json');
     http_response_code(405);
     echo json_encode([
         'success' => false,

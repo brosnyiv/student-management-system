@@ -61,7 +61,7 @@
             
             <form id="staffRegistrationForm" action="submit_staff.php" method="POST">
                 <!-- Staff Type Hidden Field -->
-                <input type="hidden" id="staffType" name="staffType" value="">
+                <input type="hidden" id="staff_type" name="staff_type" value="">
                 
                 <!-- Account Setup Section (Only for Teaching Staff) -->
                 <div class="form-section" id="accountSetupSection">
@@ -106,13 +106,13 @@
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="fullName" class="required">Full Name (as per ID)</label>
-                            <input type="text" id="fullName" name="fullName" required>
+                            <label for="full_name" class="required">Full Name (as per ID)</label>
+                            <input type="text" id="full_name" name="full_name" required>
                         </div>
                         
                         <div class="form-group">
-                            <label for="dateOfBirth" class="required">Date of Birth</label>
-                            <input type="date" id="dateOfBirth" name="dateOfBirth" required>
+                            <label for="dob" class="required">Date of Birth</label>
+                            <input type="date" id="dob" name="dob" required>
                         </div>
                     </div>
                     
@@ -129,8 +129,8 @@
                         </div>
                         
                         <div class="form-group">
-                            <label for="maritalStatus">Marital Status</label>
-                            <select id="maritalStatus" name="maritalStatus">
+                            <label for="marital_status">Marital Status</label>
+                            <select id="marital_status" name="marital_status">
                                 <option value="">Select Status</option>
                                 <option value="single">Single</option>
                                 <option value="married">Married</option>
@@ -143,17 +143,17 @@
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="nationalId" class="required">National ID/Passport Number</label>
-                            <input type="text" id="nationalId" name="nationalId" required>
+                            <label for="national_id" class="required">National ID/Passport Number</label>
+                            <input type="text" id="national_id" name="national_id" required>
                         </div>
                         
                         <div class="form-group">
-                            <label for="profilePhoto" class="required">Profile Photo</label>
+                            <label for="photo_path" class="required">Profile Photo</label>
                             <div class="image-upload" id="profilePhotoUpload">
                                 <div class="upload-icon">📷</div>
                                 <div>Click to upload photo</div>
                                 <div class="help-text">JPEG or PNG, max 2MB</div>
-                                <input type="file" id="profilePhoto" name="profilePhoto" accept="image/*" style="display: none;" required>
+                                <input type="file" id="photo_path" name="photo_path" accept="image/*" style="display: none;" required>
                             </div>
                         </div>
                     </div>
@@ -168,39 +168,39 @@
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="phoneNumber" class="required">Phone Number</label>
-                            <input type="tel" id="phoneNumber" name="phoneNumber" required>
+                            <label for="phone" class="required">Phone Number</label>
+                            <input type="tel" id="phone" name="phone" required>
                         </div>
                         
                         <div class="form-group">
-                            <label for="personalEmail">Personal Email Address</label>
-                            <input type="email" id="personalEmail" name="personalEmail">
+                            <label for="personal_email">Personal Email Address</label>
+                            <input type="email" id="personal_email" name="personal_email">
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group-full">
-                            <label for="residentialAddress" class="required">Residential Address</label>
-                            <textarea id="residentialAddress" name="residentialAddress" rows="3" required></textarea>
+                            <label for="address" class="required">Residential Address</label>
+                            <textarea id="address" name="address" rows="3" required></textarea>
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="emergencyContactName" class="required">Emergency Contact Person Name</label>
-                            <input type="text" id="emergencyContactName" name="emergencyContactName" required>
+                            <label for="emergency_name" class="required">Emergency Contact Person Name</label>
+                            <input type="text" id="emergency_name" name="emergency_name" required>
                         </div>
                         
                         <div class="form-group">
-                            <label for="emergencyContactPhone" class="required">Emergency Contact Phone</label>
-                            <input type="tel" id="emergencyContactPhone" name="emergencyContactPhone" required>
+                            <label for="emergency_phone" class="required">Emergency Contact Phone</label>
+                            <input type="tel" id="emergency_phone" name="emergency_phone" required>
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="emergencyContactRelationship" class="required">Relationship to Emergency Contact</label>
-                            <input type="text" id="emergencyContactRelationship" name="emergencyContactRelationship" required>
+                            <label for="emergency_relationship" class="required">Relationship to Emergency Contact</label>
+                            <input type="text" id="emergency_relationship" name="emergency_relationship" required>
                         </div>
                     </div>
                 </div>
@@ -219,35 +219,35 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="degree1" class="required">Degree/Qualification</label>
-                                    <input type="text" id="degree1" name="qualifications[0][degree]" required>
+                                    <input type="text" id="degree1" name="degree" required>
                                 </div>
                                 
                                 <div class="form-group">
                                     <label for="institution1" class="required">Institution</label>
-                                    <input type="text" id="institution1" name="qualifications[0][institution]" required>
+                                    <input type="text" id="institution1" name="institution" required>
                                 </div>
                             </div>
                             
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="major1" class="required">Major/Area of Specialization</label>
-                                    <input type="text" id="major1" name="qualifications[0][major]" required>
+                                    <input type="text" id="major1" name="major" required>
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label for="gradYear1" class="required">Year of Graduation</label>
-                                    <input type="number" id="gradYear1" name="qualifications[0][gradYear]" min="1950" max="2030" required>
+                                    <label for="year1" class="required">Year of Graduation</label>
+                                    <input type="number" id="year1" name="year" min="1950" max="2030" required>
                                 </div>
                             </div>
                             
                             <div class="form-row">
                                 <div class="form-group-full">
-                                    <label for="certificateUpload1" class="required">Upload Certificate</label>
+                                    <label for="certificate1" class="required">Upload Certificate</label>
                                     <div class="image-upload" id="certificateUploadWrapper1">
                                         <div class="upload-icon">📄</div>
                                         <div>Click to upload certificate</div>
                                         <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
-                                        <input type="file" id="certificateUpload1" name="qualifications[0][certificate]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
+                                        <input type="file" id="certificate1" name="certificate" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
                                     </div>
                                 </div>
                             </div>
@@ -268,14 +268,14 @@
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="staffId">Staff ID/Employee Number</label>
-                            <input type="text" id="staffId" name="staffId">
+                            <label for="staff_number">Staff ID/Employee Number</label>
+                            <input type="text" id="staff_number" name="staff_number">
                             <div class="help-text">If already assigned</div>
                         </div>
                         
                         <div class="form-group">
-                            <label for="department" class="required">Department</label>
-                            <select id="department" name="department" required>
+                            <label for="dept_id" class="required">Department</label>
+                            <select id="dept_id" name="dept_id" required>
                                 <option value="">Select Department</option>
                                 <option value="computer-science">Computer Science</option>
                                 <option value="mathematics">Mathematics</option>
@@ -326,15 +326,15 @@
                         </div>
                         
                         <div class="form-group">
-                            <label for="hireDate" class="required">Date of Hire</label>
-                            <input type="date" id="hireDate" name="hireDate" required>
+                            <label for="hire_date" class="required">Date of Hire</label>
+                            <input type="date" id="hire_date" name="hire_date" required>
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="employmentType" class="required">Employment Type</label>
-                            <select id="employmentType" name="employmentType" required>
+                            <label for="employment_type" class="required">Employment Type</label>
+                            <select id="employment_type" name="employment_type" required>
                                 <option value="">Select Type</option>
                                 <option value="full-time">Full-time</option>
                                 <option value="part-time">Part-time</option>
@@ -366,27 +366,27 @@
                     
                     <div class="form-row">
                         <div class="form-group-full">
-                            <label for="assignedCourses" class="required">Assigned Course Units</label>
-                            <textarea id="assignedCourses" name="assignedCourses" rows="3" placeholder="List your assigned courses, separated by commas" required></textarea>
+                            <label for="assigned_courses" class="required">Assigned Course Units</label>
+                            <textarea id="assigned_courses" name="assigned_courses" rows="3" placeholder="List your assigned courses, separated by commas" required></textarea>
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="semesterLoad" class="required">Semester Load (Hours)</label>
-                            <input type="number" id="semesterLoad" name="semesterLoad" min="1" max="40" required>
+                            <label for="semester_load" class="required">Semester Load (Hours)</label>
+                            <input type="number" id="semester_load" name="semester_load" min="1" max="40" required>
                         </div>
                         
                         <div class="form-group">
-                            <label for="officeHours" class="required">Office Hours</label>
-                            <input type="text" id="officeHours" name="officeHours" placeholder="e.g., Mon 10-12, Wed 2-4" required>
+                            <label for="office_hours" class="required">Office Hours</label>
+                            <input type="text" id="office_hours" name="office_hours" placeholder="e.g., Mon 10-12, Wed 2-4" required>
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group-full">
-                            <label for="availableTimes" class="required">Available Teaching Days/Times</label>
-                            <textarea id="availableTimes" name="availableTimes" rows="3" placeholder="Specify your availability for teaching throughout the week" required></textarea>
+                            <label for="available_times" class="required">Available Teaching Days/Times</label>
+                            <textarea id="available_times" name="available_times" rows="3" placeholder="Specify your availability for teaching throughout the week" required></textarea>
                         </div>
                     </div>
                 </div>
@@ -400,8 +400,8 @@
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="workingDays" class="required">Working Days</label>
-                            <select id="workingDays" name="workingDays" required>
+                            <label for="working_days" class="required">Working Days</label>
+                            <select id="working_days" name="working_days" required>
                                 <option value="">Select Working Days</option>
                                 <option value="monday-friday">Monday to Friday</option>
                                 <option value="monday-saturday">Monday to Saturday</option>
@@ -411,15 +411,15 @@
                         </div>
                         
                         <div class="form-group">
-                            <label for="workingHours" class="required">Working Hours</label>
-                            <input type="text" id="workingHours" name="workingHours" placeholder="e.g., 8:00 AM - 5:00 PM" required>
+                            <label for="working_hours" class="required">Working Hours</label>
+                            <input type="text" id="working_hours" name="working_hours" placeholder="e.g., 8:00 AM - 5:00 PM" required>
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group-full">
-                            <label for="schedulNotes">Schedule Notes</label>
-                            <textarea id="schedulNotes" name="schedulNotes" rows="3" placeholder="Any additional information about your working schedule"></textarea>
+                            <label for="schedule_notes">Schedule Notes</label>
+                            <textarea id="schedule_notes" name="schedule_notes" rows="3" placeholder="Any additional information about your working schedule"></textarea>
                         </div>
                     </div>
                 </div>
@@ -433,8 +433,8 @@
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="portalRole" class="required">Portal Role</label>
-                            <select id="portalRole" name="portalRole" required>
+                            <label for="role_id" class="required">Portal Role</label>
+                            <select id="role_id" name="role_id" required>
                                 <option value="">Select Role</option>
                                 <option class="teaching-option" value="instructor">Instructor</option>
                                 <option class="teaching-option" value="course-coordinator">Course Coordinator</option>
@@ -447,20 +447,20 @@
                         </div>
                         
                         <div class="form-group teaching-only-field">
-                            <label for="assignedClasses">Assigned Classes/Rooms</label>
-                            <input type="text" id="assignedClasses" name="assignedClasses" placeholder="e.g., Room 101, Lab 3">
+                            <label for="assigned_classes">Assigned Classes/Rooms</label>
+                            <input type="text" id="assigned_classes" name="assigned_classes" placeholder="e.g., Room 101, Lab 3">
                         </div>
                         
                         <div class="form-group non-teaching-only-field">
-                            <label for="workArea">Work Area/Office</label>
-                            <input type="text" id="workArea" name="workArea" placeholder="e.g., Admin Block, Finance Office">
+                            <label for="work_area">Work Area/Office</label>
+                            <input type="text" id="work_area" name="work_area" placeholder="e.g., Admin Block, Finance Office">
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="accessLevel">System Access Level</label>
-                            <select id="accessLevel" name="accessLevel">
+                            <label for="access_level">System Access Level</label>
+                            <select id="access_level" name="access_level">
                                 <option value="basic">Basic (View only)</option>
                                 <option value="standard" selected>Standard (View & Edit own data)</option>
                                 <option value="advanced">Advanced (Department level access)</option>
@@ -469,8 +469,8 @@
                         </div>
                         
                         <div class="form-group">
-                            <label for="accessStart">Access Start Date</label>
-                            <input type="date" id="accessStart" name="accessStart">
+                            <label for="access_start">Access Start Date</label>
+                            <input type="date" id="access_start" name="access_start">
                         </div>
                     </div>
                 </div>
@@ -484,37 +484,37 @@
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="bankName" class="required">Bank Name</label>
-                            <input type="text" id="bankName" name="bankName" required>
+                            <label for="bank" class="required">Bank Name</label>
+                            <input type="text" id="bank" name="bank" required>
                         </div>
                         
                         <div class="form-group">
-                            <label for="accountNumber" class="required">Account Number</label>
-                            <input type="text" id="accountNumber" name="accountNumber" required>
+                            <label for="account" class="required">Account Number</label>
+                            <input type="text" id="account" name="account" required>
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="taxId" class="required">National Tax ID/Social Security</label>
-                            <input type="text" id="taxId" name="taxId" required>
+                            <label for="tax_id" class="required">National Tax ID/Social Security</label>
+                            <input type="text" id="tax_id" name="tax_id" required>
                         </div>
                         
                         <div class="form-group">
-                            <label for="tinNumber" class="required">TIN Number</label>
-                            <input type="text" id="tinNumber" name="tinNumber" required>
+                            <label for="tin" class="required">TIN Number</label>
+                            <input type="text" id="tin" name="tin" required>
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="salaryScale" class="required">Salary Scale/Grade</label>
-                            <input type="text" id="salaryScale" name="salaryScale" required>
+                            <label for="salary" class="required">Salary Scale/Grade</label>
+                            <input type="text" id="salary" name="salary" required>
                         </div>
                         
                         <div class="form-group">
-                            <label for="paymentFrequency" class="required">Payment Frequency</label>
-                            <select id="paymentFrequency" name="paymentFrequency" required>
+                            <label for="frequency" class="required">Payment Frequency</label>
+                            <select id="frequency" name="frequency" required>
                                 <option value="">Select Frequency</option>
                                 <option value="monthly">Monthly</option>
                                 <option value="bi-weekly">Bi-weekly</option>
@@ -536,18 +536,18 @@
                         <div class="document-row">
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="idPassportScan" class="required">ID/Passport Scan</label>
+                                    <label for="path" class="required">ID/Passport Scan</label>
                                     <div class="image-upload" id="idPassportScanUpload">
                                         <div class="upload-icon">📄</div>
                                         <div>Click to upload document</div>
                                         <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
-                                        <input type="file" id="idPassportScan" name="documents[0][idScan]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
+                                        <input type="file" id="path" name="path" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
                                     </div>
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label for="documentType" class="required">Document Type</label>
-                                    <select id="documentType" name="documents[0][type]" required>
+                                    <label for="type" class="required">Document Type</label>
+                                    <select id="type" name="type" required>
                                         <option value="id">National ID</option>
                                         <option value="passport">Passport</option>
                                         <option value="residencePermit">Residence Permit</option>
@@ -558,13 +558,20 @@
                             
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="documentNumber" class="required">Document Number</label>
-                                    <input type="text" id="documentNumber" name="documents[0][number]" required>
+                                    <label for="number" class="required">Document Number</label>
+                                    <input type="text" id="number" name="number" required>
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label for="documentExpiry">Expiry Date (if applicable)</label>
-                                    <input type="date" id="documentExpiry" name="documents[0][expiry]">
+                                    <label for="expiry">Expiry Date (if applicable)</label>
+                                    <input type="date" id="expiry" name="expiry">
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group-full">
+                                    <label for="description">Document Description</label>
+                                    <input type="text" id="description" name="description">
                                 </div>
                             </div>
                         </div>
@@ -585,22 +592,22 @@
                     <div class="form-row">
                         <div class="form-group-full">
                             <div class="checkbox-row">
-                                <input type="checkbox" id="termsConsent" name="termsConsent" required>
-                                <label for="termsConsent">
+                                <input type="checkbox" id="terms" name="terms" required>
+                                <label for="terms">
                                     I hereby declare that the information provided in this form is true and correct to the best of my knowledge. I understand that providing false information may result in termination of employment.
                                 </label>
                             </div>
                             
                             <div class="checkbox-row">
-                                <input type="checkbox" id="dataConsent" name="dataConsent" required>
-                                <label for="dataConsent">
+                                <input type="checkbox" id="data" name="data" required>
+                                <label for="data">
                                     I consent to the collection, processing, and storage of my personal data for employment and administrative purposes in accordance with the school's data privacy policy.
                                 </label>
                             </div>
                             
                             <div class="checkbox-row">
-                                <input type="checkbox" id="updateConsent" name="updateConsent" required>
-                                <label for="updateConsent">
+                                <input type="checkbox" id="update" name="update" required>
+                                <label for="update">
                                     I agree to update my information whenever there are changes to ensure the accuracy of records maintained by the school.
                                 </label>
                             </div>
@@ -609,13 +616,13 @@
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="digitalSignature" class="required">Digital Signature</label>
-                            <input type="text" id="digitalSignature" name="digitalSignature" placeholder="Type your full name as signature" required>
+                            <label for="signature" class="required">Digital Signature</label>
+                            <input type="text" id="signature" name="signature" placeholder="Type your full name as signature" required>
                         </div>
                         
                         <div class="form-group">
-                            <label for="signatureDate" class="required">Date</label>
-                            <input type="date" id="signatureDate" name="signatureDate" required>
+                            <label for="date" class="required">Date</label>
+                            <input type="date" id="date" name="date" required>
                         </div>
                     </div>
                 </div>
@@ -634,389 +641,389 @@
     </div>
     
     <script>
-        // JavaScript functionality for the form
-        document.addEventListener('DOMContentLoaded', function() {
-            // Staff Type Selection
-            const teachingStaffCard = document.getElementById('teachingStaff');
-            const nonTeachingStaffCard = document.getElementById('nonTeachingStaff');
-            const staffTypeContainer = document.getElementById('staffTypeContainer');
-            const registrationFormContainer = document.getElementById('registrationFormContainer');
-            const staffTypeInput = document.getElementById('staffType');
-            const accountSetupSection = document.getElementById('accountSetupSection');
-            const formTitle = document.getElementById('formTitle');
-            
-            // Handle teaching staff selection
-            teachingStaffCard.addEventListener('click', function() {
-                staffTypeInput.value = 'teaching';
-                staffTypeContainer.style.display = 'none';
-                registrationFormContainer.style.display = 'block';
-                accountSetupSection.style.display = 'block';
-                formTitle.textContent = 'Teaching Staff Registration Form';
-                
-              // Show teaching-only sections, hide non-teaching sections
-document.querySelectorAll('.teaching-only-section').forEach(section => {
-    section.style.display = 'block';
-});
-document.querySelectorAll('.non-teaching-only-section').forEach(section => {
-    section.style.display = 'none';
-});
-
-// Show teaching options in selects, hide non-teaching options
-document.querySelectorAll('.teaching-option').forEach(option => {
-    option.style.display = '';
-});
-document.querySelectorAll('.non-teaching-only-field').forEach(field => {
-    field.style.display = 'none';
-});
-document.querySelectorAll('.teaching-only-field').forEach(field => {
-    field.style.display = 'block';
-});
-});
-
-// Handle non-teaching staff selection
-nonTeachingStaffCard.addEventListener('click', function() {
-    staffTypeInput.value = 'non-teaching';
-    staffTypeContainer.style.display = 'none';
-    registrationFormContainer.style.display = 'block';
-    accountSetupSection.style.display = 'none';
-    formTitle.textContent = 'Non-Teaching Staff Registration Form';
+      // JavaScript functionality for the form
+document.addEventListener('DOMContentLoaded', function() {
+    // Staff Type Selection
+    const teachingStaffCard = document.getElementById('teachingStaff');
+    const nonTeachingStaffCard = document.getElementById('nonTeachingStaff');
+    const staffTypeContainer = document.getElementById('staffTypeContainer');
+    const registrationFormContainer = document.getElementById('registrationFormContainer');
+    const staffTypeInput = document.getElementById('staffType');
+    const accountSetupSection = document.getElementById('accountSetupSection');
+    const formTitle = document.getElementById('formTitle');
     
-    // Show non-teaching only sections, hide teaching sections
-    document.querySelectorAll('.teaching-only-section').forEach(section => {
-        section.style.display = 'none';
-    });
-    document.querySelectorAll('.non-teaching-only-section').forEach(section => {
-        section.style.display = 'block';
-    });
-    
-    // Show non-teaching options in selects, hide teaching options
-    document.querySelectorAll('.non-teaching-option').forEach(option => {
-        option.style.display = '';
-    });
-    document.querySelectorAll('.teaching-only-field').forEach(field => {
-        field.style.display = 'none';
-    });
-    document.querySelectorAll('.non-teaching-only-field').forEach(field => {
-        field.style.display = 'block';
-    });
-});
-
-// Form multi-step functionality
-const formSections = document.querySelectorAll('.form-section');
-const formSteps = document.querySelectorAll('.step');
-const prevStepBtn = document.getElementById('prevStep');
-const nextStepBtn = document.getElementById('nextStep');
-const submitFormBtn = document.getElementById('submitForm');
-let currentStep = 0;
-
-// Initialize form steps
-function updateFormSteps() {
-    formSections.forEach((section, index) => {
-        if (index < currentStep * 2 || index > currentStep * 2 + 1) {
-            section.style.display = 'none';
-        } else {
+    // Handle teaching staff selection
+    teachingStaffCard.addEventListener('click', function() {
+        staffTypeInput.value = 'teaching';
+        staffTypeContainer.style.display = 'none';
+        registrationFormContainer.style.display = 'block';
+        accountSetupSection.style.display = 'block';
+        formTitle.textContent = 'Teaching Staff Registration Form';
+        
+        // Show teaching-only sections, hide non-teaching sections
+        document.querySelectorAll('.teaching-only-section').forEach(section => {
             section.style.display = 'block';
-        }
-    });
-    
-    // Update step indicators
-    formSteps.forEach((step, index) => {
-        if (index <= currentStep) {
-            step.classList.add('active');
-        } else {
-            step.classList.remove('active');
-        }
-    });
-    
-    // Show/hide buttons
-    if (currentStep === 0) {
-        prevStepBtn.style.display = 'none';
-    } else {
-        prevStepBtn.style.display = 'inline-block';
-    }
-    
-    if (currentStep === formSteps.length - 1) {
-        nextStepBtn.style.display = 'none';
-        submitFormBtn.style.display = 'inline-block';
-    } else {
-        nextStepBtn.style.display = 'inline-block';
-        submitFormBtn.style.display = 'none';
-    }
-}
+        });
+        document.querySelectorAll('.non-teaching-only-section').forEach(section => {
+            section.style.display = 'none';
+        });
 
-// Initialize form
-updateFormSteps();
-
-// Next button click
-nextStepBtn.addEventListener('click', function() {
-    // Validate current sections before proceeding
-    const currentSections = document.querySelectorAll(`.form-section:nth-child(${currentStep * 2 + 1}), .form-section:nth-child(${currentStep * 2 + 2})`);
-    let isValid = true;
-    
-    currentSections.forEach(section => {
-        const requiredFields = section.querySelectorAll('[required]');
-        requiredFields.forEach(field => {
-            if (!field.value) {
-                field.classList.add('invalid');
-                isValid = false;
-            } else {
-                field.classList.remove('invalid');
-            }
+        // Show teaching options in selects, hide non-teaching options
+        document.querySelectorAll('.teaching-option').forEach(option => {
+            option.style.display = '';
+        });
+        document.querySelectorAll('.non-teaching-only-field').forEach(field => {
+            field.style.display = 'none';
+        });
+        document.querySelectorAll('.teaching-only-field').forEach(field => {
+            field.style.display = 'block';
         });
     });
-    
-    if (isValid) {
-        currentStep++;
-        if (currentStep >= formSteps.length) {
-            currentStep = formSteps.length - 1;
+
+    // Handle non-teaching staff selection
+    nonTeachingStaffCard.addEventListener('click', function() {
+        staffTypeInput.value = 'non-teaching';
+        staffTypeContainer.style.display = 'none';
+        registrationFormContainer.style.display = 'block';
+        accountSetupSection.style.display = 'none';
+        formTitle.textContent = 'Non-Teaching Staff Registration Form';
+        
+        // Show non-teaching only sections, hide teaching sections
+        document.querySelectorAll('.teaching-only-section').forEach(section => {
+            section.style.display = 'none';
+        });
+        document.querySelectorAll('.non-teaching-only-section').forEach(section => {
+            section.style.display = 'block';
+        });
+        
+        // Show non-teaching options in selects, hide teaching options
+        document.querySelectorAll('.non-teaching-option').forEach(option => {
+            option.style.display = '';
+        });
+        document.querySelectorAll('.teaching-only-field').forEach(field => {
+            field.style.display = 'none';
+        });
+        document.querySelectorAll('.non-teaching-only-field').forEach(field => {
+            field.style.display = 'block';
+        });
+    });
+
+    // Form multi-step functionality
+    const formSections = document.querySelectorAll('.form-section');
+    const formSteps = document.querySelectorAll('.step');
+    const prevStepBtn = document.getElementById('prevStep');
+    const nextStepBtn = document.getElementById('nextStep');
+    const submitFormBtn = document.getElementById('submitForm');
+    let currentStep = 0;
+
+    // Initialize form steps
+    function updateFormSteps() {
+        formSections.forEach((section, index) => {
+            if (index < currentStep * 2 || index > currentStep * 2 + 1) {
+                section.style.display = 'none';
+            } else {
+                section.style.display = 'block';
+            }
+        });
+        
+        // Update step indicators
+        formSteps.forEach((step, index) => {
+            if (index <= currentStep) {
+                step.classList.add('active');
+            } else {
+                step.classList.remove('active');
+            }
+        });
+        
+        // Show/hide buttons
+        if (currentStep === 0) {
+            prevStepBtn.style.display = 'none';
+        } else {
+            prevStepBtn.style.display = 'inline-block';
+        }
+        
+        if (currentStep === formSteps.length - 1) {
+            nextStepBtn.style.display = 'none';
+            submitFormBtn.style.display = 'inline-block';
+        } else {
+            nextStepBtn.style.display = 'inline-block';
+            submitFormBtn.style.display = 'none';
+        }
+    }
+
+    // Initialize form
+    updateFormSteps();
+
+    // Next button click
+    nextStepBtn.addEventListener('click', function() {
+        // Validate current sections before proceeding
+        const currentSections = document.querySelectorAll(`.form-section:nth-child(${currentStep * 2 + 1}), .form-section:nth-child(${currentStep * 2 + 2})`);
+        let isValid = true;
+        
+        currentSections.forEach(section => {
+            const requiredFields = section.querySelectorAll('[required]');
+            requiredFields.forEach(field => {
+                if (!field.value) {
+                    field.classList.add('invalid');
+                    isValid = false;
+                } else {
+                    field.classList.remove('invalid');
+                }
+            });
+        });
+        
+        if (isValid) {
+            currentStep++;
+            if (currentStep >= formSteps.length) {
+                currentStep = formSteps.length - 1;
+            }
+            updateFormSteps();
+            window.scrollTo(0, 0);
+        } else {
+            alert('Please fill in all required fields before proceeding.');
+        }
+    });
+
+    // Previous button click
+    prevStepBtn.addEventListener('click', function() {
+        currentStep--;
+        if (currentStep < 0) {
+            currentStep = 0;
         }
         updateFormSteps();
         window.scrollTo(0, 0);
-    } else {
-        alert('Please fill in all required fields before proceeding.');
-    }
-});
+    });
 
-// Previous button click
-prevStepBtn.addEventListener('click', function() {
-    currentStep--;
-    if (currentStep < 0) {
-        currentStep = 0;
-    }
-    updateFormSteps();
-    window.scrollTo(0, 0);
-});
+    // Handle file uploads
+    const profilePhotoUpload = document.getElementById('profilePhotoUpload');
+    const profilePhoto = document.getElementById('profilePhoto');
 
-// Handle file uploads
-const profilePhotoUpload = document.getElementById('profilePhotoUpload');
-const profilePhoto = document.getElementById('profilePhoto');
+    profilePhotoUpload.addEventListener('click', function() {
+        profilePhoto.click();
+    });
 
-profilePhotoUpload.addEventListener('click', function() {
-    profilePhoto.click();
-});
+    profilePhoto.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            const fileName = this.files[0].name;
+            profilePhotoUpload.innerHTML = `
+                <div class="upload-icon">✓</div>
+                <div>${fileName}</div>
+                <div class="help-text">File selected</div>
+            `;
+            profilePhotoUpload.classList.add('file-selected');
+        }
+    });
 
-profilePhoto.addEventListener('change', function() {
-    if (this.files && this.files[0]) {
-        const fileName = this.files[0].name;
-        profilePhotoUpload.innerHTML = `
-            <div class="upload-icon">✓</div>
-            <div>${fileName}</div>
-            <div class="help-text">File selected</div>
+    // Handle certificate uploads
+    document.querySelectorAll('.image-upload').forEach(upload => {
+        const input = upload.querySelector('input[type="file"]');
+        if (input) {
+            upload.addEventListener('click', function() {
+                input.click();
+            });
+            
+            input.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const fileName = this.files[0].name;
+                    upload.innerHTML = `
+                        <div class="upload-icon">✓</div>
+                        <div>${fileName}</div>
+                        <div class="help-text">File selected</div>
+                    `;
+                    upload.classList.add('file-selected');
+                }
+            });
+        }
+    });
+
+    // Add another qualification
+    const qualificationsContainer = document.getElementById('qualifications-container');
+    const addQualificationBtn = document.getElementById('addQualification');
+
+    addQualificationBtn.addEventListener('click', function() {
+        const qualificationCount = qualificationsContainer.querySelectorAll('.qualification-row').length;
+        const newRow = document.createElement('div');
+        newRow.className = 'qualification-row';
+        
+        newRow.innerHTML = `
+            <button type="button" class="remove-row">×</button>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="degree${qualificationCount + 1}" class="required">Degree/Qualification</label>
+                    <input type="text" id="degree${qualificationCount + 1}" name="qualifications[${qualificationCount}][degree]" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="institution${qualificationCount + 1}" class="required">Institution</label>
+                    <input type="text" id="institution${qualificationCount + 1}" name="qualifications[${qualificationCount}][institution]" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="major${qualificationCount + 1}" class="required">Major/Area of Specialization</label>
+                    <input type="text" id="major${qualificationCount + 1}" name="qualifications[${qualificationCount}][major]" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="gradYear${qualificationCount + 1}" class="required">Year of Graduation</label>
+                    <input type="number" id="gradYear${qualificationCount + 1}" name="qualifications[${qualificationCount}][gradYear]" min="1950" max="2030" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group-full">
+                    <label for="certificateUpload${qualificationCount + 1}" class="required">Upload Certificate</label>
+                    <div class="image-upload" id="certificateUploadWrapper${qualificationCount + 1}">
+                        <div class="upload-icon">📄</div>
+                        <div>Click to upload certificate</div>
+                        <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
+                        <input type="file" id="certificateUpload${qualificationCount + 1}" name="qualifications[${qualificationCount}][certificate]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
+                    </div>
+                </div>
+            </div>
         `;
-        profilePhotoUpload.classList.add('file-selected');
-    }
-});
-
-// Handle certificate uploads
-document.querySelectorAll('.image-upload').forEach(upload => {
-    const input = upload.querySelector('input[type="file"]');
-    if (input) {
-        upload.addEventListener('click', function() {
-            input.click();
+        
+        qualificationsContainer.appendChild(newRow);
+        
+        // Add event listeners for the new file upload
+        const newUpload = newRow.querySelector('.image-upload');
+        const newInput = newRow.querySelector('input[type="file"]');
+        
+        newUpload.addEventListener('click', function() {
+            newInput.click();
         });
         
-        input.addEventListener('change', function() {
+        newInput.addEventListener('change', function() {
             if (this.files && this.files[0]) {
                 const fileName = this.files[0].name;
-                upload.innerHTML = `
+                newUpload.innerHTML = `
                     <div class="upload-icon">✓</div>
                     <div>${fileName}</div>
                     <div class="help-text">File selected</div>
                 `;
-                upload.classList.add('file-selected');
+                newUpload.classList.add('file-selected');
             }
         });
-    }
-});
-
-// Add another qualification
-const qualificationsContainer = document.getElementById('qualifications-container');
-const addQualificationBtn = document.getElementById('addQualification');
-
-addQualificationBtn.addEventListener('click', function() {
-    const qualificationCount = qualificationsContainer.querySelectorAll('.qualification-row').length;
-    const newRow = document.createElement('div');
-    newRow.className = 'qualification-row';
-    
-    newRow.innerHTML = `
-        <button type="button" class="remove-row">×</button>
         
-        <div class="form-row">
-            <div class="form-group">
-                <label for="degree${qualificationCount + 1}" class="required">Degree/Qualification</label>
-                <input type="text" id="degree${qualificationCount + 1}" name="qualifications[${qualificationCount}][degree]" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="institution${qualificationCount + 1}" class="required">Institution</label>
-                <input type="text" id="institution${qualificationCount + 1}" name="qualifications[${qualificationCount}][institution]" required>
-            </div>
-        </div>
-        
-        <div class="form-row">
-            <div class="form-group">
-                <label for="major${qualificationCount + 1}" class="required">Major/Area of Specialization</label>
-                <input type="text" id="major${qualificationCount + 1}" name="qualifications[${qualificationCount}][major]" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="gradYear${qualificationCount + 1}" class="required">Year of Graduation</label>
-                <input type="number" id="gradYear${qualificationCount + 1}" name="qualifications[${qualificationCount}][gradYear]" min="1950" max="2030" required>
-            </div>
-        </div>
-        
-        <div class="form-row">
-            <div class="form-group-full">
-                <label for="certificateUpload${qualificationCount + 1}" class="required">Upload Certificate</label>
-                <div class="image-upload" id="certificateUploadWrapper${qualificationCount + 1}">
-                    <div class="upload-icon">📄</div>
-                    <div>Click to upload certificate</div>
-                    <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
-                    <input type="file" id="certificateUpload${qualificationCount + 1}" name="qualifications[${qualificationCount}][certificate]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    qualificationsContainer.appendChild(newRow);
-    
-    // Add event listeners for the new file upload
-    const newUpload = newRow.querySelector('.image-upload');
-    const newInput = newRow.querySelector('input[type="file"]');
-    
-    newUpload.addEventListener('click', function() {
-        newInput.click();
+        // Add event listener for remove button
+        const removeBtn = newRow.querySelector('.remove-row');
+        removeBtn.addEventListener('click', function() {
+            qualificationsContainer.removeChild(newRow);
+        });
     });
-    
-    newInput.addEventListener('change', function() {
-        if (this.files && this.files[0]) {
-            const fileName = this.files[0].name;
-            newUpload.innerHTML = `
-                <div class="upload-icon">✓</div>
-                <div>${fileName}</div>
-                <div class="help-text">File selected</div>
+
+    // Add employment field
+    const employmentFieldsContainer = document.getElementById('employment-additional-fields');
+    const addEmploymentFieldBtn = document.getElementById('addEmploymentField');
+
+    addEmploymentFieldBtn.addEventListener('click', function() {
+        const fieldCount = employmentFieldsContainer.querySelectorAll('.additional-field-row').length;
+        
+        const fieldName = prompt('Enter field name:');
+        if (fieldName) {
+            const newRow = document.createElement('div');
+            newRow.className = 'additional-field-row';
+            
+            newRow.innerHTML = `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="additionalField${fieldCount + 1}">${fieldName}</label>
+                        <input type="text" id="additionalField${fieldCount + 1}" name="additionalFields[${fieldCount}][value]">
+                        <input type="hidden" name="additionalFields[${fieldCount}][name]" value="${fieldName}">
+                    </div>
+                    <button type="button" class="remove-field-btn">Remove</button>
+                </div>
             `;
-            newUpload.classList.add('file-selected');
+            
+            employmentFieldsContainer.appendChild(newRow);
+            
+            // Add event listener for remove button
+            const removeBtn = newRow.querySelector('.remove-field-btn');
+            removeBtn.addEventListener('click', function() {
+                employmentFieldsContainer.removeChild(newRow);
+            });
         }
     });
-    
-    // Add event listener for remove button
-    const removeBtn = newRow.querySelector('.remove-row');
-    removeBtn.addEventListener('click', function() {
-        qualificationsContainer.removeChild(newRow);
-    });
-});
 
-// Add employment field
-const employmentFieldsContainer = document.getElementById('employment-additional-fields');
-const addEmploymentFieldBtn = document.getElementById('addEmploymentField');
+    // Add document upload
+    const documentsContainer = document.getElementById('documents-container');
+    const addDocumentBtn = document.getElementById('addDocument');
 
-addEmploymentFieldBtn.addEventListener('click', function() {
-    const fieldCount = employmentFieldsContainer.querySelectorAll('.additional-field-row').length;
-    
-    const fieldName = prompt('Enter field name:');
-    if (fieldName) {
+    addDocumentBtn.addEventListener('click', function() {
+        const documentCount = documentsContainer.querySelectorAll('.document-row').length;
+        
         const newRow = document.createElement('div');
-        newRow.className = 'additional-field-row';
+        newRow.className = 'document-row';
         
         newRow.innerHTML = `
+            <button type="button" class="remove-row">×</button>
+            
             <div class="form-row">
                 <div class="form-group">
-                    <label for="additionalField${fieldCount + 1}">${fieldName}</label>
-                    <input type="text" id="additionalField${fieldCount + 1}" name="additionalFields[${fieldCount}][value]">
-                    <input type="hidden" name="additionalFields[${fieldCount}][name]" value="${fieldName}">
+                    <label for="document${documentCount + 1}" class="required">Document</label>
+                    <div class="image-upload" id="documentUpload${documentCount + 1}">
+                        <div class="upload-icon">📄</div>
+                        <div>Click to upload document</div>
+                        <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
+                        <input type="file" id="document${documentCount + 1}" name="documents[${documentCount}][file]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
+                    </div>
                 </div>
-                <button type="button" class="remove-field-btn">Remove</button>
+                
+                <div class="form-group">
+                    <label for="documentType${documentCount + 1}" class="required">Document Type</label>
+                    <select id="documentType${documentCount + 1}" name="documents[${documentCount}][type]" required>
+                        <option value="employment">Employment Contract</option>
+                        <option value="certificate">Academic Certificate</option>
+                        <option value="reference">Reference Letter</option>
+                        <option value="medical">Medical Certificate</option>
+                        <option value="other">Other Document</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="documentDescription${documentCount + 1}">Document Description</label>
+                    <input type="text" id="documentDescription${documentCount + 1}" name="documents[${documentCount}][description]">
+                </div>
+                
+                <div class="form-group">
+                    <label for="documentExpiry${documentCount + 1}">Expiry Date (if applicable)</label>
+                    <input type="date" id="documentExpiry${documentCount + 1}" name="documents[${documentCount}][expiry]">
+                </div>
             </div>
         `;
         
-        employmentFieldsContainer.appendChild(newRow);
+        documentsContainer.appendChild(newRow);
+        
+        // Add event listeners for the new file upload
+        const newUpload = newRow.querySelector('.image-upload');
+        const newInput = newRow.querySelector('input[type="file"]');
+        
+        newUpload.addEventListener('click', function() {
+            newInput.click();
+        });
+        
+        newInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const fileName = this.files[0].name;
+                newUpload.innerHTML = `
+                    <div class="upload-icon">✓</div>
+                    <div>${fileName}</div>
+                    <div class="help-text">File selected</div>
+                `;
+                newUpload.classList.add('file-selected');
+            }
+        });
         
         // Add event listener for remove button
-        const removeBtn = newRow.querySelector('.remove-field-btn');
+        const removeBtn = newRow.querySelector('.remove-row');
         removeBtn.addEventListener('click', function() {
-            employmentFieldsContainer.removeChild(newRow);
+            documentsContainer.removeChild(newRow);
         });
-    }
-});
-
-// Add document upload
-const documentsContainer = document.getElementById('documents-container');
-const addDocumentBtn = document.getElementById('addDocument');
-
-addDocumentBtn.addEventListener('click', function() {
-    const documentCount = documentsContainer.querySelectorAll('.document-row').length;
-    
-    const newRow = document.createElement('div');
-    newRow.className = 'document-row';
-    
-    newRow.innerHTML = `
-        <button type="button" class="remove-row">×</button>
-        
-        <div class="form-row">
-            <div class="form-group">
-                <label for="document${documentCount + 1}" class="required">Document</label>
-                <div class="image-upload" id="documentUpload${documentCount + 1}">
-                    <div class="upload-icon">📄</div>
-                    <div>Click to upload document</div>
-                    <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
-                    <input type="file" id="document${documentCount + 1}" name="documents[${documentCount}][file]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="documentType${documentCount + 1}" class="required">Document Type</label>
-                <select id="documentType${documentCount + 1}" name="documents[${documentCount}][type]" required>
-                    <option value="employment">Employment Contract</option>
-                    <option value="certificate">Academic Certificate</option>
-                    <option value="reference">Reference Letter</option>
-                    <option value="medical">Medical Certificate</option>
-                    <option value="other">Other Document</option>
-                </select>
-            </div>
-        </div>
-        
-        <div class="form-row">
-            <div class="form-group">
-                <label for="documentDescription${documentCount + 1}">Document Description</label>
-                <input type="text" id="documentDescription${documentCount + 1}" name="documents[${documentCount}][description]">
-            </div>
-            
-            <div class="form-group">
-                <label for="documentExpiry${documentCount + 1}">Expiry Date (if applicable)</label>
-                <input type="date" id="documentExpiry${documentCount + 1}" name="documents[${documentCount}][expiry]">
-            </div>
-        </div>
-    `;
-    
-    documentsContainer.appendChild(newRow);
-    
-    // Add event listeners for the new file upload
-    const newUpload = newRow.querySelector('.image-upload');
-    const newInput = newRow.querySelector('input[type="file"]');
-    
-    newUpload.addEventListener('click', function() {
-        newInput.click();
     });
-    
-    newInput.addEventListener('change', function() {
-        if (this.files && this.files[0]) {
-            const fileName = this.files[0].name;
-            newUpload.innerHTML = `
-                <div class="upload-icon">✓</div>
-                <div>${fileName}</div>
-                <div class="help-text">File selected</div>
-            `;
-            newUpload.classList.add('file-selected');
-        }
-    });
-    
-    // Add event listener for remove button
-    const removeBtn = newRow.querySelector('.remove-row');
-    removeBtn.addEventListener('click', function() {
-        documentsContainer.removeChild(newRow);
-    });
-});
 
 // Form submission
 const staffRegistrationForm = document.getElementById('staffRegistrationForm');
@@ -1046,42 +1053,42 @@ staffRegistrationForm.addEventListener('submit', function(e) {
         alert('Registration submitted successfully!');
         
         // Redirect to confirmation page (in a real app)
-        // window.location.href = 'confirmation.php';
+        // window.location.href = 'confirmation.html';
     } else {
         alert('Please fill in all required fields before submitting.');
     }
 });
 
-// Save as draft
-saveAsDraftBtn.addEventListener('click', function() {
-    // In a real application, you would save the current state to localStorage or server
-    alert('Your registration has been saved as draft. You can continue later.');
-});
+    // Save as draft
+    saveAsDraftBtn.addEventListener('click', function() {
+        // In a real application, you would save the current state to localStorage or server
+        alert('Your registration has been saved as draft. You can continue later.');
+    });
 
-// Remove first qualification row (if needed)
-const firstRemoveRowBtn = document.querySelector('.qualification-row .remove-row');
-if (firstRemoveRowBtn) {
-    firstRemoveRowBtn.addEventListener('click', function() {
-        const qualificationRows = qualificationsContainer.querySelectorAll('.qualification-row');
-        if (qualificationRows.length > 1) {
-            qualificationsContainer.removeChild(this.parentNode);
+    // Remove first qualification row (if needed)
+    const firstRemoveRowBtn = document.querySelector('.qualification-row .remove-row');
+    if (firstRemoveRowBtn) {
+        firstRemoveRowBtn.addEventListener('click', function() {
+            const qualificationRows = qualificationsContainer.querySelectorAll('.qualification-row');
+            if (qualificationRows.length > 1) {
+                qualificationsContainer.removeChild(this.parentNode);
+            } else {
+                alert('At least one qualification is required.');
+            }
+        });
+    }
+
+    // Password validation
+    const password = document.getElementById('password');
+    const confirmPassword = document.getElementById('confirmPassword');
+
+    confirmPassword.addEventListener('input', function() {
+        if (password.value !== this.value) {
+            this.setCustomValidity('Passwords do not match');
         } else {
-            alert('At least one qualification is required.');
+            this.setCustomValidity('');
         }
     });
-}
-
-// Password validation
-const password = document.getElementById('password');
-const confirmPassword = document.getElementById('confirmPassword');
-
-confirmPassword.addEventListener('input', function() {
-    if (password.value !== this.value) {
-        this.setCustomValidity('Passwords do not match');
-    } else {
-        this.setCustomValidity('');
-    }
-});
 
 // Initialize date fields with current date
 const today = new Date().toISOString().split('T')[0];
@@ -1145,7 +1152,7 @@ staffRegistrationForm.addEventListener('submit', function(e) {
             if (data.success) {
                 alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
                 // Redirect to confirmation page or clear form
-                // window.location.href = 'confirmation.php?staff_id=' + data.staff_id;
+                // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
             } else {
                 alert('Error: ' + data.message);
             }
@@ -1197,7 +1204,7 @@ staffRegistrationForm.addEventListener('submit', function(e) {
             if (data.success) {
                 alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
                 // Redirect to confirmation page or clear form
-                // window.location.href = 'confirmation.php?staff_id=' + data.staff_id;
+                // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
             } else {
                 alert('Error: ' + data.message);
             }
