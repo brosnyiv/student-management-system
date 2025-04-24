@@ -678,4 +678,5 @@
             background-color: white;
             border-radius: 5px;
             padding: 20px;
-            box-shadow: 0 2px 5px
+            box-shadow: 0 2px 5px;
+        }
