@@ -71,37 +71,31 @@
                 <div class="autosave-text">Saving...</div>
             </div>
         
-            <form id="studentRegistration">
-                <!-- 1. Personal Information -->
-                <div class="section active" data-section="1">
+            <form id="studentRegistration" action="submit_student.php" method="POST" >
+            <div class="section active" data-section="1">
                     <div class="section-title">🔹 1. Personal Information</div>
                     
                     <div class="form-row">
                         <div class="form-col">
                             <div class="form-group">
-                                <label for="firstName" class="required">First Name (as on ID)
-                                    <span class="tooltip">
-                                        <span class="tooltip-icon">?</span>
-                                        <span class="tooltip-text">Enter your first name exactly as it appears on your official ID document</span>
-                                    </span>
-                                </label>
-                                <input type="text" id="firstName" name="firstName" required aria-describedby="firstNameError">
-                                <div id="firstNameError" class="error-message" role="alert">Please enter your first name</div>
+                                <label for="first_name" class="required">First Name (as on ID)</label>
+                                <input type="text" id="first_name" name="first_name" required>
+                                <div id="first_nameError" class="error-message">Please enter your first name</div>
                             </div>
                         </div>
                         
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="surname" class="required">Surname</label>
-                                <input type="text" id="surname" name="surname" required aria-describedby="surnameError">
-                                <div id="surnameError" class="error-message" role="alert">Please enter your surname</div>
+                                <input type="text" id="surname" name="surname" required>
+                                <div id="surnameError" class="error-message">Please enter your surname</div>
                             </div>
                         </div>
                         
                         <div class="form-col">
                             <div class="form-group">
-                                <label for="middleName">Middle Name (if any)</label>
-                                <input type="text" id="middleName" name="middleName">
+                                <label for="middle_name">Middle Name (if any)</label>
+                                <input type="text" id="middle_name" name="middle_name">
                             </div>
                         </div>
                     </div>
@@ -109,34 +103,34 @@
                     <div class="form-row">
                         <div class="form-col">
                             <div class="form-group">
-                                <label for="dob" class="required">Date of Birth</label>
-                                <input type="date" id="dob" name="dob" required aria-describedby="dobError">
-                                <div id="dobError" class="error-message" role="alert">Please enter your date of birth</div>
+                                <label for="date_of_birth" class="required">Date of Birth</label>
+                                <input type="date" id="date_of_birth" name="date_of_birth" required>
+                                <div id="dobError" class="error-message">Please enter your date of birth</div>
                             </div>
                         </div>
                         
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="gender" class="required">Gender</label>
-                                <select id="gender" name="gender" required aria-describedby="genderError">
+                                <select id="gender" name="gender" required>
                                     <option value="">Select Gender</option>
-                                    <option value="male">Male</option>
-                                    <option value="female">Female</option>
-                                    <option value="other">Other</option>
-                                    <option value="prefer-not-to-say">Prefer not to say</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                    <option value="Prefer not to say">Prefer not to say</option>
                                 </select>
-                                <div id="genderError" class="error-message" role="alert">Please select your gender</div>
+                                <div id="genderError" class="error-message">Please select your gender</div>
                             </div>
                         </div>
                     </div>
                     
                     <div class="form-group">
-                        <label for="profilePhoto" class="required">Profile Photo</label>
+                        <label for="profile_photo_path" class="required">Profile Photo</label>
                         <div class="file-upload-container">
                             <div class="file-upload-text">Click to upload or drag and drop</div>
                             <small>Maximum file size: 5MB. Accepted formats: JPG, PNG</small>
-                            <input type="file" id="profilePhoto" name="profilePhoto" accept="image/*" required aria-describedby="profilePhotoError">
-                            <div id="profilePhotoError" class="error-message" role="alert">Please upload a profile photo</div>
+                            <input type="file" id="profile_photo_path" name="profile_photo_path" accept="image/*" required>
+                            <div id="profilePhotoError" class="error-message">Please upload a profile photo</div>
                         </div>
                         <div class="file-preview" id="profilePhotoPreview">
                             <img src="" alt="Profile photo preview">
@@ -146,7 +140,7 @@
                     </div>
                     
                     <div class="button-container">
-                        <div></div> <!-- Empty div for flex spacing -->
+                        <div></div>
                         <button type="button" class="btn-next" data-next="2">Next: Contact Details</button>
                     </div>
                 </div>
@@ -159,59 +153,56 @@
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="email" class="required">Email Address</label>
-                                <input type="email" id="email" name="email" required aria-describedby="emailError">
+                                <input type="email" id="email" name="email" required>
                                 <small>This will be used for portal access and notifications</small>
-                                <div id="emailError" class="error-message" role="alert">Please enter a valid email address</div>
+                                <div id="emailError" class="error-message">Please enter a valid email address</div>
                             </div>
                         </div>
                         
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="phone" class="required">Phone Number</label>
-                                <input type="tel" id="phone" name="phone" placeholder="e.g., +1 (234) 567-8901" required aria-describedby="phoneError">
-                                <div id="phoneError" class="error-message" role="alert">
-                                    Please enter a valid phone number
-                                    <small>Format: +1 (234) 567-8901</small>    
-                                </div>
+                                <input type="tel" id="phone" name="phone" placeholder="e.g., +256 754 787909" required>
+                                <div id="phoneError" class="error-message">Please enter a valid phone number</div>
                             </div>
                         </div>
 
                         <div class="form-col">
                             <div class="form-group">
-                                <label for="altPhone">Alternative Phone Number</label>
-                                <input type="tel" id="altPhone" name="altPhone" placeholder="e.g., +1 (234) 567-8901">
+                                <label for="alt_phone">Alternative Phone Number</label>
+                                <input type="tel" id="alt_phone" name="alt_phone" placeholder="e.g., +256 754 787909">
                             </div>
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <label for="address" class="required">Current Address</label>
-                        <textarea id="address" name="address" rows="3" required aria-describedby="addressError"></textarea>
-                        <div id="addressError" class="error-message" role="alert">Please enter your current address</div>
+                        <textarea id="address" name="address" rows="3" required></textarea>
+                        <div id="addressError" class="error-message">Please enter your current address</div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="city" class="required">City</label>
-                                <input type="text" id="city" name="city" required aria-describedby="cityError">
-                                <div id="cityError" class="error-message" role="alert">Please enter your city</div>
+                                <input type="text" id="city" name="city" required>
+                                <div id="cityError" class="error-message">Please enter your city</div>
                             </div>
                         </div>
                         
                         <div class="form-col">
                             <div class="form-group">
-                                <label for="state" class="required">State/Province</label>
-                                <input type="text" id="state" name="state" required aria-describedby="stateError">
-                                <div id="stateError" class="error-message" role="alert">Please enter your state/province</div>
+                                <label for="state_province" class="required">State/Province</label>
+                                <input type="text" id="state_province" name="state_province" required>
+                                <div id="stateError" class="error-message">Please enter your state/province</div>
                             </div>
                         </div>
                         
                         <div class="form-col">
                             <div class="form-group">
-                                <label for="zipCode" class="required">Zip/Postal Code</label>
-                                <input type="text" id="zipCode" name="zipCode" required aria-describedby="zipCodeError">
-                                <div id="zipCodeError" class="error-message" role="alert">Please enter a valid zip/postal code</div>
+                                <label for="zip_postal_code" class="required">Zip/Postal Code</label>
+                                <input type="text" id="zip_postal_code" name="zip_postal_code" required>
+                                <div id="zipCodeError" class="error-message">Please enter a valid zip/postal code</div>
                             </div>
                         </div>
                     </div>
@@ -220,23 +211,23 @@
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="country" class="required">Country</label>
-                                <select id="country" name="country" required aria-describedby="countryError">
+                                <select id="country" name="country" required>
                                     <option value="">Select Country</option>
-                                    <option value="us">United States</option>
-                                    <option value="ca">Canada</option>
-                                    <option value="uk">United Kingdom</option>
-                                    <option value="au">Australia</option>
-                                    <option value="other">Other</option>
+                                    <option value="Uganda">Uganda</option>
+                                    <option value="Kenya">Kenya</option>
+                                    <option value="Tanzania">Tanzania</option>
+                                    <option value="Rwanda">Rwanda</option>
+                                    <option value="Other">Other</option>
                                 </select>
-                                <div id="countryError" class="error-message" role="alert">Please select your country</div>
+                                <div id="countryError" class="error-message">Please select your country</div>
                             </div>
                         </div>
                         
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="nationality" class="required">Nationality</label>
-                                <input type="text" id="nationality" name="nationality" required aria-describedby="nationalityError">
-                                <div id="nationalityError" class="error-message" role="alert">Please enter your nationality</div>
+                                <input type="text" id="nationality" name="nationality" required>
+                                <div id="nationalityError" class="error-message">Please enter your nationality</div>
                             </div>
                         </div>
                     </div>
@@ -247,25 +238,32 @@
                             <div class="form-row">
                                 <div class="form-col">
                                     <div class="form-group">
-                                        <label for="emergencyName" class="required">Contact Name</label>
-                                        <input type="text" id="emergencyName" name="emergencyName" required aria-describedby="emergencyNameError">
-                                        <div id="emergencyNameError" class="error-message" role="alert">Please enter emergency contact name</div>
+                                        <label for="emergency_contact_name" class="required">Contact Name</label>
+                                        <input type="text" id="emergency_contact_name" name="emergency_contact_name" required>
+                                        <div id="emergencyNameError" class="error-message">Please enter emergency contact name</div>
                                     </div>
                                 </div>
                                 
                                 <div class="form-col">
                                     <div class="form-group">
-                                        <label for="emergencyRelation" class="required">Relationship</label>
-                                        <input type="text" id="emergencyRelation" name="emergencyRelation" required aria-describedby="emergencyRelationError">
-                                        <div id="emergencyRelationError" class="error-message" role="alert">Please enter your relationship</div>
+                                        <label for="emergency_relationship" class="required">Relationship</label>
+                                        <select id="emergency_relationship" name="emergency_relationship" required>
+                                            <option value="">Select Relationship</option>
+                                            <option value="Parent">Parent</option>
+                                            <option value="Guardian">Guardian</option>
+                                            <option value="Sibling">Sibling</option>
+                                            <option value="Spouse">Spouse</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                        <div id="emergencyRelationError" class="error-message">Please enter your relationship</div>
                                     </div>
                                 </div>
                                 
                                 <div class="form-col">
                                     <div class="form-group">
-                                        <label for="emergencyPhone" class="required">Phone Number</label>
-                                        <input type="tel" id="emergencyPhone" name="emergencyPhone" required aria-describedby="emergencyPhoneError">
-                                        <div id="emergencyPhoneError" class="error-message" role="alert">Please enter a valid phone number</div>
+                                        <label for="emergency_phone" class="required">Phone Number</label>
+                                        <input type="tel" id="emergency_phone" name="emergency_phone" required>
+                                        <div id="emergencyPhoneError" class="error-message">Please enter a valid phone number</div>
                                     </div>
                                 </div>
                             </div>
@@ -285,33 +283,30 @@
                     <div class="form-row">
                         <div class="form-col">
                             <div class="form-group">
-                                <label for="programLevel" class="required">Program Level</label>
-                                <select id="programLevel" name="programLevel" required aria-describedby="programLevelError">
+                                <label for="program_level" class="required">Program Level</label>
+                                <select id="program_level" name="program_level" required>
                                     <option value="">Select Program Level</option>
-                                    <option value="undergraduate">Undergraduate</option>
-                                    <option value="graduate">Graduate</option>
-                                    <option value="doctoral">Doctoral</option>
-                                    <option value="certificate">Certificate</option>
+                                    <option value="Certificate">Certificate</option>
+                                    <option value="Diploma">Diploma</option>
+                                    <option value="Bachelor">Bachelor</option>
+                                    <option value="Master">Master</option>
+                                    <option value="PhD">PhD</option>
                                 </select>
-                                <div id="programLevelError" class="error-message" role="alert">Please select a program level</div>
+                                <div id="programLevelError" class="error-message">Please select a program level</div>
                             </div>
                         </div>
                         
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="department" class="required">Department</label>
-                                <select id="department" name="department" required aria-describedby="departmentError">
+                                <select id="department" name="department" required>
                                     <option value="">Select Department</option>
-                                    <option value="business">Business Administration</option>
-                                    <option value="engineering">Engineering</option>
-                                    <option value="arts">Arts & Humanities</option>
-                                    <option value="science">Natural Sciences</option>
-                                    <option value="social">Social Sciences</option>
-                                    <option value="education">Education</option>
-                                    <option value="medicine">Medicine</option>
-                                    <option value="law">Law</option>
+                                    <option value="Information Technology">Information Technology</option>
+                                    <option value="Business">Business</option>
+                                    <option value="Design">Design</option>
+                                    <option value="Marketing">Marketing</option>
                                 </select>
-                                <div id="departmentError" class="error-message" role="alert">Please select a department</div>
+                                <div id="departmentError" class="error-message">Please select a department</div>
                             </div>
                         </div>
                     </div>
@@ -320,23 +315,23 @@
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="major" class="required">Major/Program</label>
-                                <input type="text" id="major" name="major" required aria-describedby="majorError">
-                                <div id="majorError" class="error-message" role="alert">Please enter your major/program</div>
+                                <input type="text" id="major" name="major" required>
+                                <div id="majorError" class="error-message">Please enter your major/program</div>
                             </div>
                         </div>
                         
                         <div class="form-col">
                             <div class="form-group">
-                                <label for="yearLevel" class="required">Year Level</label>
-                                <select id="yearLevel" name="yearLevel" required aria-describedby="yearLevelError">
+                                <label for="year_level" class="required">Year Level</label>
+                                <select id="year_level" name="year_level" required>
                                     <option value="">Select Year Level</option>
                                     <option value="1">First Year</option>
                                     <option value="2">Second Year</option>
                                     <option value="3">Third Year</option>
                                     <option value="4">Fourth Year</option>
-                                    <option value="5+">Fifth Year or Above</option>
+                                    <option value="5">Fifth Year</option>
                                 </select>
-                                <div id="yearLevelError" class="error-message" role="alert">Please select your year level</div>
+                                <div id="yearLevelError" class="error-message">Please select your year level</div>
                             </div>
                         </div>
                     </div>
@@ -344,30 +339,30 @@
                     <div class="form-row">
                         <div class="form-col">
                             <div class="form-group">
-                                <label for="startDate" class="required">Expected Start Date</label>
-                                <input type="date" id="startDate" name="startDate" required aria-describedby="startDateError">
-                                <div id="startDateError" class="error-message" role="alert">Please enter your expected start date</div>
+                                <label for="expected_start_date" class="required">Expected Start Date</label>
+                                <input type="date" id="expected_start_date" name="expected_start_date" required>
+                                <div id="startDateError" class="error-message">Please enter your expected start date</div>
                             </div>
                         </div>
                         
                         <div class="form-col">
                             <div class="form-group">
-                                <label for="endDate">Expected End Date</label>
-                                <input type="date" id="endDate" name="endDate">
+                                <label for="expected_end_date">Expected End Date</label>
+                                <input type="date" id="expected_end_date" name="expected_end_date">
                             </div>
                         </div>
                     </div>
                     
                     <div class="form-group">
-                        <label for="previousSchool" class="required">Previous Institution</label>
-                        <input type="text" id="previousSchool" name="previousSchool" required aria-describedby="previousSchoolError">
-                        <div id="previousSchoolError" class="error-message" role="alert">Please enter your previous institution</div>
+                        <label for="previous_institution" class="required">Previous Institution</label>
+                        <input type="text" id="previous_institution" name="previous_institution" required>
+                        <div id="previousSchoolError" class="error-message">Please enter your previous institution</div>
                     </div>
                     
                     <div class="form-group">
-                        <label for="grades" class="required">Previous Grades/GPA</label>
-                        <input type="text" id="grades" name="grades" placeholder="e.g., 3.5/4.0" required aria-describedby="gradesError">
-                        <div id="gradesError" class="error-message" role="alert">Please enter your previous grades/GPA</div>
+                        <label for="previous_gpa" class="required">Previous Grades/GPA</label>
+                        <input type="text" id="previous_gpa" name="previous_gpa" placeholder="e.g., 3.5/4.0" required>
+                        <div id="gradesError" class="error-message">Please enter your previous grades/GPA</div>
                     </div>
                     
                     <div class="button-container">
@@ -579,29 +574,29 @@
                     <div class="form-group">
                         <div class="form-check">
                             <label class="checkbox-container required">
-                                <input type="checkbox" id="termsAgree" name="termsAgree" required aria-describedby="termsAgreeError">
+                                <input type="checkbox" id="terms_agreed" name="terms_agreed" required>
                                 <span class="checkmark"></span>
-                                I confirm that all information provided is accurate and complete. I understand that providing false information may result in the cancellation of my registration.
+                                I confirm that all information provided is accurate and complete.
                             </label>
-                            <div id="termsAgreeError" class="error-message" role="alert">You must agree to the terms to proceed</div>
+                            <div id="termsAgreeError" class="error-message">You must agree to the terms to proceed</div>
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <div class="form-check">
                             <label class="checkbox-container required">
-                                <input type="checkbox" id="policyAgree" name="policyAgree" required aria-describedby="policyAgreeError">
+                                <input type="checkbox" id="policy_agreed" name="policy_agreed" required>
                                 <span class="checkmark"></span>
                                 I have read and agree to the privacy policy and terms of service.
                             </label>
-                            <div id="policyAgreeError" class="error-message" role="alert">You must agree to the policy to proceed</div>
+                            <div id="policyAgreeError" class="error-message">You must agree to the policy to proceed</div>
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <div class="form-check">
                             <label class="checkbox-container">
-                                <input type="checkbox" id="marketing" name="marketing">
+                                <input type="checkbox" id="marketing_opt_in" name="marketing_opt_in">
                                 <span class="checkmark"></span>
                                 I would like to receive updates about programs, events, and opportunities (optional).
                             </label>
