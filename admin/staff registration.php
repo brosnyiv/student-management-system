@@ -641,14 +641,14 @@
     </div>
     
     <script>
-      // JavaScript functionality for the form
-document.addEventListener('DOMContentLoaded', function() {
+        
+        document.addEventListener('DOMContentLoaded', function() {
     // Staff Type Selection
     const teachingStaffCard = document.getElementById('teachingStaff');
     const nonTeachingStaffCard = document.getElementById('nonTeachingStaff');
     const staffTypeContainer = document.getElementById('staffTypeContainer');
     const registrationFormContainer = document.getElementById('registrationFormContainer');
-    const staffTypeInput = document.getElementById('staffType');
+    const staffTypeInput = document.getElementById('staff_type');
     const accountSetupSection = document.getElementById('accountSetupSection');
     const formTitle = document.getElementById('formTitle');
     
@@ -671,6 +671,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show teaching options in selects, hide non-teaching options
         document.querySelectorAll('.teaching-option').forEach(option => {
             option.style.display = '';
+        });
+        document.querySelectorAll('.non-teaching-option').forEach(option => {
+            option.style.display = 'none';
         });
         document.querySelectorAll('.non-teaching-only-field').forEach(field => {
             field.style.display = 'none';
@@ -699,6 +702,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show non-teaching options in selects, hide teaching options
         document.querySelectorAll('.non-teaching-option').forEach(option => {
             option.style.display = '';
+        });
+        document.querySelectorAll('.teaching-option').forEach(option => {
+            option.style.display = 'none';
         });
         document.querySelectorAll('.teaching-only-field').forEach(field => {
             field.style.display = 'none';
@@ -796,25 +802,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle file uploads
     const profilePhotoUpload = document.getElementById('profilePhotoUpload');
-    const profilePhoto = document.getElementById('profilePhoto');
+    const photoPath = document.getElementById('photo_path');
 
-    profilePhotoUpload.addEventListener('click', function() {
-        profilePhoto.click();
-    });
+    if (profilePhotoUpload && photoPath) {
+        profilePhotoUpload.addEventListener('click', function() {
+            photoPath.click();
+        });
 
-    profilePhoto.addEventListener('change', function() {
-        if (this.files && this.files[0]) {
-            const fileName = this.files[0].name;
-            profilePhotoUpload.innerHTML = `
-                <div class="upload-icon">✓</div>
-                <div>${fileName}</div>
-                <div class="help-text">File selected</div>
-            `;
-            profilePhotoUpload.classList.add('file-selected');
-        }
-    });
+        photoPath.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const fileName = this.files[0].name;
+                profilePhotoUpload.innerHTML = `
+                    <div class="upload-icon">✓</div>
+                    <div>${fileName}</div>
+                    <div class="help-text">File selected</div>
+                `;
+                profilePhotoUpload.classList.add('file-selected');
+            }
+        });
+    }
 
-    // Handle certificate uploads
+    // Handle all image uploads
     document.querySelectorAll('.image-upload').forEach(upload => {
         const input = upload.querySelector('input[type="file"]');
         if (input) {
@@ -840,232 +848,274 @@ document.addEventListener('DOMContentLoaded', function() {
     const qualificationsContainer = document.getElementById('qualifications-container');
     const addQualificationBtn = document.getElementById('addQualification');
 
-    addQualificationBtn.addEventListener('click', function() {
-        const qualificationCount = qualificationsContainer.querySelectorAll('.qualification-row').length;
-        const newRow = document.createElement('div');
-        newRow.className = 'qualification-row';
-        
-        newRow.innerHTML = `
-            <button type="button" class="remove-row">×</button>
+    if (addQualificationBtn && qualificationsContainer) {
+        addQualificationBtn.addEventListener('click', function() {
+            const qualificationCount = qualificationsContainer.querySelectorAll('.qualification-row').length;
+            const newRow = document.createElement('div');
+            newRow.className = 'qualification-row';
             
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="degree${qualificationCount + 1}" class="required">Degree/Qualification</label>
-                    <input type="text" id="degree${qualificationCount + 1}" name="qualifications[${qualificationCount}][degree]" required>
-                </div>
+            newRow.innerHTML = `
+                <button type="button" class="remove-row">×</button>
                 
-                <div class="form-group">
-                    <label for="institution${qualificationCount + 1}" class="required">Institution</label>
-                    <input type="text" id="institution${qualificationCount + 1}" name="qualifications[${qualificationCount}][institution]" required>
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="major${qualificationCount + 1}" class="required">Major/Area of Specialization</label>
-                    <input type="text" id="major${qualificationCount + 1}" name="qualifications[${qualificationCount}][major]" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="gradYear${qualificationCount + 1}" class="required">Year of Graduation</label>
-                    <input type="number" id="gradYear${qualificationCount + 1}" name="qualifications[${qualificationCount}][gradYear]" min="1950" max="2030" required>
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group-full">
-                    <label for="certificateUpload${qualificationCount + 1}" class="required">Upload Certificate</label>
-                    <div class="image-upload" id="certificateUploadWrapper${qualificationCount + 1}">
-                        <div class="upload-icon">📄</div>
-                        <div>Click to upload certificate</div>
-                        <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
-                        <input type="file" id="certificateUpload${qualificationCount + 1}" name="qualifications[${qualificationCount}][certificate]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="degree${qualificationCount + 1}" class="required">Degree/Qualification</label>
+                        <input type="text" id="degree${qualificationCount + 1}" name="qualifications[${qualificationCount}][degree]" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="institution${qualificationCount + 1}" class="required">Institution</label>
+                        <input type="text" id="institution${qualificationCount + 1}" name="qualifications[${qualificationCount}][institution]" required>
                     </div>
                 </div>
-            </div>
-        `;
-        
-        qualificationsContainer.appendChild(newRow);
-        
-        // Add event listeners for the new file upload
-        const newUpload = newRow.querySelector('.image-upload');
-        const newInput = newRow.querySelector('input[type="file"]');
-        
-        newUpload.addEventListener('click', function() {
-            newInput.click();
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="major${qualificationCount + 1}" class="required">Major/Area of Specialization</label>
+                        <input type="text" id="major${qualificationCount + 1}" name="qualifications[${qualificationCount}][major]" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="gradYear${qualificationCount + 1}" class="required">Year of Graduation</label>
+                        <input type="number" id="gradYear${qualificationCount + 1}" name="qualifications[${qualificationCount}][gradYear]" min="1950" max="2030" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group-full">
+                        <label for="certificateUpload${qualificationCount + 1}" class="required">Upload Certificate</label>
+                        <div class="image-upload" id="certificateUploadWrapper${qualificationCount + 1}">
+                            <div class="upload-icon">📄</div>
+                            <div>Click to upload certificate</div>
+                            <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
+                            <input type="file" id="certificateUpload${qualificationCount + 1}" name="qualifications[${qualificationCount}][certificate]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            qualificationsContainer.appendChild(newRow);
+            
+            // Add event listeners for the new file upload
+            const newUpload = newRow.querySelector('.image-upload');
+            const newInput = newRow.querySelector('input[type="file"]');
+            
+            newUpload.addEventListener('click', function() {
+                newInput.click();
+            });
+            
+            newInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const fileName = this.files[0].name;
+                    newUpload.innerHTML = `
+                        <div class="upload-icon">✓</div>
+                        <div>${fileName}</div>
+                        <div class="help-text">File selected</div>
+                    `;
+                    newUpload.classList.add('file-selected');
+                }
+            });
+            
+            // Add event listener for remove button
+            const removeBtn = newRow.querySelector('.remove-row');
+            removeBtn.addEventListener('click', function() {
+                qualificationsContainer.removeChild(newRow);
+            });
         });
-        
-        newInput.addEventListener('change', function() {
-            if (this.files && this.files[0]) {
-                const fileName = this.files[0].name;
-                newUpload.innerHTML = `
-                    <div class="upload-icon">✓</div>
-                    <div>${fileName}</div>
-                    <div class="help-text">File selected</div>
-                `;
-                newUpload.classList.add('file-selected');
-            }
-        });
-        
-        // Add event listener for remove button
-        const removeBtn = newRow.querySelector('.remove-row');
-        removeBtn.addEventListener('click', function() {
-            qualificationsContainer.removeChild(newRow);
-        });
-    });
+    }
 
     // Add employment field
     const employmentFieldsContainer = document.getElementById('employment-additional-fields');
     const addEmploymentFieldBtn = document.getElementById('addEmploymentField');
 
-    addEmploymentFieldBtn.addEventListener('click', function() {
-        const fieldCount = employmentFieldsContainer.querySelectorAll('.additional-field-row').length;
-        
-        const fieldName = prompt('Enter field name:');
-        if (fieldName) {
-            const newRow = document.createElement('div');
-            newRow.className = 'additional-field-row';
+    if (addEmploymentFieldBtn && employmentFieldsContainer) {
+        addEmploymentFieldBtn.addEventListener('click', function() {
+            const fieldCount = employmentFieldsContainer.querySelectorAll('.additional-field-row').length;
             
-            newRow.innerHTML = `
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="additionalField${fieldCount + 1}">${fieldName}</label>
-                        <input type="text" id="additionalField${fieldCount + 1}" name="additionalFields[${fieldCount}][value]">
-                        <input type="hidden" name="additionalFields[${fieldCount}][name]" value="${fieldName}">
+            const fieldName = prompt('Enter field name:');
+            if (fieldName) {
+                const newRow = document.createElement('div');
+                newRow.className = 'additional-field-row';
+                
+                newRow.innerHTML = `
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="additionalField${fieldCount + 1}">${fieldName}</label>
+                            <input type="text" id="additionalField${fieldCount + 1}" name="additionalFields[${fieldCount}][value]">
+                            <input type="hidden" name="additionalFields[${fieldCount}][name]" value="${fieldName}">
+                        </div>
+                        <button type="button" class="remove-field-btn">Remove</button>
                     </div>
-                    <button type="button" class="remove-field-btn">Remove</button>
-                </div>
-            `;
-            
-            employmentFieldsContainer.appendChild(newRow);
-            
-            // Add event listener for remove button
-            const removeBtn = newRow.querySelector('.remove-field-btn');
-            removeBtn.addEventListener('click', function() {
-                employmentFieldsContainer.removeChild(newRow);
-            });
-        }
-    });
+                `;
+                
+                employmentFieldsContainer.appendChild(newRow);
+                
+                // Add event listener for remove button
+                const removeBtn = newRow.querySelector('.remove-field-btn');
+                removeBtn.addEventListener('click', function() {
+                    employmentFieldsContainer.removeChild(newRow);
+                });
+            }
+        });
+    }
 
     // Add document upload
     const documentsContainer = document.getElementById('documents-container');
     const addDocumentBtn = document.getElementById('addDocument');
 
-    addDocumentBtn.addEventListener('click', function() {
-        const documentCount = documentsContainer.querySelectorAll('.document-row').length;
-        
-        const newRow = document.createElement('div');
-        newRow.className = 'document-row';
-        
-        newRow.innerHTML = `
-            <button type="button" class="remove-row">×</button>
+    if (addDocumentBtn && documentsContainer) {
+        addDocumentBtn.addEventListener('click', function() {
+            const documentCount = documentsContainer.querySelectorAll('.document-row').length;
             
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="document${documentCount + 1}" class="required">Document</label>
-                    <div class="image-upload" id="documentUpload${documentCount + 1}">
-                        <div class="upload-icon">📄</div>
-                        <div>Click to upload document</div>
-                        <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
-                        <input type="file" id="document${documentCount + 1}" name="documents[${documentCount}][file]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
+            const newRow = document.createElement('div');
+            newRow.className = 'document-row';
+            
+            newRow.innerHTML = `
+                <button type="button" class="remove-row">×</button>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="document${documentCount + 1}" class="required">Document</label>
+                        <div class="image-upload" id="documentUpload${documentCount + 1}">
+                            <div class="upload-icon">📄</div>
+                            <div>Click to upload document</div>
+                            <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
+                            <input type="file" id="document${documentCount + 1}" name="documents[${documentCount}][file]" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="documentType${documentCount + 1}" class="required">Document Type</label>
+                        <select id="documentType${documentCount + 1}" name="documents[${documentCount}][type]" required>
+                            <option value="employment">Employment Contract</option>
+                            <option value="certificate">Academic Certificate</option>
+                            <option value="reference">Reference Letter</option>
+                            <option value="medical">Medical Certificate</option>
+                            <option value="other">Other Document</option>
+                        </select>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="documentType${documentCount + 1}" class="required">Document Type</label>
-                    <select id="documentType${documentCount + 1}" name="documents[${documentCount}][type]" required>
-                        <option value="employment">Employment Contract</option>
-                        <option value="certificate">Academic Certificate</option>
-                        <option value="reference">Reference Letter</option>
-                        <option value="medical">Medical Certificate</option>
-                        <option value="other">Other Document</option>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="documentDescription${documentCount + 1}">Document Description</label>
+                        <input type="text" id="documentDescription${documentCount + 1}" name="documents[${documentCount}][description]">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="documentExpiry${documentCount + 1}">Expiry Date (if applicable)</label>
+                        <input type="date" id="documentExpiry${documentCount + 1}" name="documents[${documentCount}][expiry]">
+                    </div>
                 </div>
-            </div>
+            `;
             
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="documentDescription${documentCount + 1}">Document Description</label>
-                    <input type="text" id="documentDescription${documentCount + 1}" name="documents[${documentCount}][description]">
-                </div>
-                
-                <div class="form-group">
-                    <label for="documentExpiry${documentCount + 1}">Expiry Date (if applicable)</label>
-                    <input type="date" id="documentExpiry${documentCount + 1}" name="documents[${documentCount}][expiry]">
-                </div>
-            </div>
-        `;
-        
-        documentsContainer.appendChild(newRow);
-        
-        // Add event listeners for the new file upload
-        const newUpload = newRow.querySelector('.image-upload');
-        const newInput = newRow.querySelector('input[type="file"]');
-        
-        newUpload.addEventListener('click', function() {
-            newInput.click();
+            documentsContainer.appendChild(newRow);
+            
+            // Add event listeners for the new file upload
+            const newUpload = newRow.querySelector('.image-upload');
+            const newInput = newRow.querySelector('input[type="file"]');
+            
+            newUpload.addEventListener('click', function() {
+                newInput.click();
+            });
+            
+            newInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const fileName = this.files[0].name;
+                    newUpload.innerHTML = `
+                        <div class="upload-icon">✓</div>
+                        <div>${fileName}</div>
+                        <div class="help-text">File selected</div>
+                    `;
+                    newUpload.classList.add('file-selected');
+                }
+            });
+            
+            // Add event listener for remove button
+            const removeBtn = newRow.querySelector('.remove-row');
+            removeBtn.addEventListener('click', function() {
+                documentsContainer.removeChild(newRow);
+            });
         });
-        
-        newInput.addEventListener('change', function() {
-            if (this.files && this.files[0]) {
-                const fileName = this.files[0].name;
-                newUpload.innerHTML = `
-                    <div class="upload-icon">✓</div>
-                    <div>${fileName}</div>
-                    <div class="help-text">File selected</div>
-                `;
-                newUpload.classList.add('file-selected');
+    }
+
+    // Form submission
+    const staffRegistrationForm = document.getElementById('staffRegistrationForm');
+    const saveAsDraftBtn = document.getElementById('saveAsDraft');
+
+    if (staffRegistrationForm) {
+        staffRegistrationForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log("Form submission triggered");
+            
+            // Validate form before submission
+            const requiredFields = document.querySelectorAll('[required]');
+            let isValid = true;
+            
+            requiredFields.forEach(field => {
+                if (!field.value) {
+                    field.classList.add('invalid');
+                    isValid = false;
+                    console.log("Invalid field:", field.id);
+                } else {
+                    field.classList.remove('invalid');
+                }
+            });
+            
+            if (isValid) {
+                console.log("Form is valid, preparing to submit");
+                // Collect form data
+                const formData = new FormData(this);
+                
+                // Add file uploads to form data
+                const photoPathInput = document.getElementById('photo_path');
+                if (photoPathInput && photoPathInput.files.length > 0) {
+                    formData.append('profilePhoto', photoPathInput.files[0]);
+                }
+                
+                // Log formData keys for debugging
+                for (let key of formData.keys()) {
+                    console.log("FormData includes key:", key);
+                }
+                
+                // Submit via AJAX with better error handling
+                fetch('submit_staff.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    console.log("Response status:", response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Server response:", data);
+                    if (data.success) {
+                        alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
+                        // Redirect to confirmation page or clear form
+                        // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while submitting the form.');
+                });
+            } else {
+                alert('Please fill in all required fields before submitting.');
             }
         });
-        
-        // Add event listener for remove button
-        const removeBtn = newRow.querySelector('.remove-row');
-        removeBtn.addEventListener('click', function() {
-            documentsContainer.removeChild(newRow);
-        });
-    });
-
-// Form submission
-const staffRegistrationForm = document.getElementById('staffRegistrationForm');
-const saveAsDraftBtn = document.getElementById('saveAsDraft');
-
-staffRegistrationForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    // Validate form before submission
-    const requiredFields = document.querySelectorAll('[required]');
-    let isValid = true;
-    
-    requiredFields.forEach(field => {
-        if (!field.value) {
-            field.classList.add('invalid');
-            isValid = false;
-        } else {
-            field.classList.remove('invalid');
-        }
-    });
-    
-    if (isValid) {
-        // In a real application, you would collect form data and submit via AJAX
-        const formData = new FormData(this);
-        
-        // For demo purposes, show success message
-        alert('Registration submitted successfully!');
-        
-        // Redirect to confirmation page (in a real app)
-        // window.location.href = 'confirmation.html';
-    } else {
-        alert('Please fill in all required fields before submitting.');
     }
-});
 
-    // Save as draft
-    saveAsDraftBtn.addEventListener('click', function() {
-        // In a real application, you would save the current state to localStorage or server
-        alert('Your registration has been saved as draft. You can continue later.');
-    });
+    // Save as draft functionality
+    if (saveAsDraftBtn) {
+        saveAsDraftBtn.addEventListener('click', function() {
+            // In a real application, you would save the current state to localStorage or server
+            alert('Your registration has been saved as draft. You can continue later.');
+        });
+    }
 
-    // Remove first qualification row (if needed)
+    // Remove qualification row functionality
     const firstRemoveRowBtn = document.querySelector('.qualification-row .remove-row');
     if (firstRemoveRowBtn) {
         firstRemoveRowBtn.addEventListener('click', function() {
@@ -1082,139 +1132,21 @@ staffRegistrationForm.addEventListener('submit', function(e) {
     const password = document.getElementById('password');
     const confirmPassword = document.getElementById('confirmPassword');
 
-    confirmPassword.addEventListener('input', function() {
-        if (password.value !== this.value) {
-            this.setCustomValidity('Passwords do not match');
-        } else {
-            this.setCustomValidity('');
-        }
-    });
-
-// Initialize date fields with current date
-const today = new Date().toISOString().split('T')[0];
-document.getElementById('signatureDate').value = today;
-});
-
-// Form submission
-const staffRegistrationForm = document.getElementById('staffRegistrationForm');
-const saveAsDraftBtn = document.getElementById('saveAsDraft');
-
-staffRegistrationForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-   // Inside your DOMContentLoaded event listener
-// Keep this event listener and remove the duplicate one outside the DOMContentLoaded
-staffRegistrationForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    console.log("Form submission triggered");
-    
-    // Validate form before submission
-    const requiredFields = document.querySelectorAll('[required]');
-    let isValid = true;
-    
-    requiredFields.forEach(field => {
-        if (!field.value) {
-            field.classList.add('invalid');
-            isValid = false;
-            console.log("Invalid field:", field.id);
-        } else {
-            field.classList.remove('invalid');
-        }
-    });
-    
-    if (isValid) {
-        console.log("Form is valid, preparing to submit");
-        // Collect form data
-        const formData = new FormData(this);
-        
-        // Add files to form data
-        const profilePhoto = document.getElementById('profilePhoto');
-        if (profilePhoto.files.length > 0) {
-            formData.append('profilePhoto', profilePhoto.files[0]);
-        }
-        
-        // Log formData keys for debugging
-        for (let key of formData.keys()) {
-            console.log("FormData includes key:", key);
-        }
-        
-        // Submit via AJAX with better error handling
-        fetch('submit_staff.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            console.log("Response status:", response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log("Server response:", data);
-            if (data.success) {
-                alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
-                // Redirect to confirmation page or clear form
-                // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
+    if (password && confirmPassword) {
+        confirmPassword.addEventListener('input', function() {
+            if (password.value !== this.value) {
+                this.setCustomValidity('Passwords do not match');
             } else {
-                alert('Error: ' + data.message);
+                this.setCustomValidity('');
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while submitting the form.');
         });
-    } else {
-        alert('Please fill in all required fields before submitting.');
     }
-});
 
-
-    
-    if (isValid) {
-        // Collect form data
-        const formData = new FormData(this);
-        
-        // Add files to form data
-        const profilePhoto = document.getElementById('profilePhoto');
-        if (profilePhoto.files.length > 0) {
-            formData.append('profilePhoto', profilePhoto.files[0]);
-        }
-        
-        // Add qualification certificates
-        const qualificationCertificates = document.querySelectorAll('input[name^="qualifications["][name$="][certificate]"]');
-        qualificationCertificates.forEach((cert, index) => {
-            if (cert.files.length > 0) {
-                formData.append(`qualifications[${index}][certificate]`, cert.files[0]);
-            }
-        });
-        
-        // Add document files
-        const documentFiles = document.querySelectorAll('input[name^="documents["][name$="][file]"]');
-        documentFiles.forEach((doc, index) => {
-            if (doc.files.length > 0) {
-                formData.append(`documents[${index}][file]`, doc.files[0]);
-            }
-        });
-        
-        // Submit via AJAX
-        fetch('submit_staff.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
-                // Redirect to confirmation page or clear form
-                // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while submitting the form.');
-        });
-    } else {
-        alert('Please fill in all required fields before submitting.');
+    // Initialize date fields with current date
+    const today = new Date().toISOString().split('T')[0];
+    const dateField = document.getElementById('date');
+    if (dateField) {
+        dateField.value = today;
     }
 });
 </script>
