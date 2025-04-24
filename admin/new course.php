@@ -434,7 +434,7 @@
                             </div>
                             <div class="unit-credits">
                                 <label>Credits</label>
-                                <input type="number" min="1" max="3" value="3" required>
+                                <input type="number"min="1" max="10" value="10" required>
                             </div>
                             <div class="unit-action">
                                 <button type="button" class="btn-remove-unit"><i class="fas fa-trash"></i></button>
@@ -473,7 +473,7 @@
                             </div>
                             <div class="unit-credits">
                                 <label>Credits</label>
-                                <input type="number" min="1" max="3" value="3" required>
+                                <input type="number" min="1" max="10" value="10" required>
                             </div>
                             <div class="unit-action">
                                 <button type="button" class="btn-remove-unit"><i class="fas fa-trash"></i></button>
@@ -512,7 +512,7 @@
                             </div>
                             <div class="unit-credits">
                                 <label>Credits</label>
-                                <input type="number" min="1" max="3" value="3" required>
+                                <input type="number" min="1" max="10" value="10" required>
                             </div>
                             <div class="unit-action">
                                 <button type="button" class="btn-remove-unit"><i class="fas fa-trash"></i></button>
@@ -551,7 +551,7 @@
                             </div>
                             <div class="unit-credits">
                                 <label>Credits*</label>
-                                <input type="number" min="1" max="3" value="3" required>
+                                <input type="number" min="1" max="10" value="10" required>
                             </div>
                             <div class="unit-action">
                                 <button type="button" class="btn-remove-unit"><i class="fas fa-trash"></i></button>
@@ -577,7 +577,7 @@
             button.addEventListener('click', function() {
                 // Only remove if there's more than one unit in the semester
                 const unitContainer = this.closest('.unit-container');
-                if (unitContainer.querySelectorAll('.unit-row').length > 1) {
+                if (unitContainer.querySelectorAll('.unit-row').length > 2) {
                     this.closest('.unit-row').remove();
                 } else {
                     alert('At least one unit is required per semester.');
@@ -595,7 +595,7 @@
                 // Clear inputs in the new row
                 newUnitRow.querySelectorAll('input').forEach(input => {
                     if (input.type === 'number') {
-                        input.value = '3';
+                        input.value = '10';
                     } else {
                         input.value = '';
                     }
