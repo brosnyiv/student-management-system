@@ -876,8 +876,8 @@
             statusRadios.forEach(radio => {
                 radio.addEventListener('change', updateStaffCounts);
             });
-        }
-        
+        });
+
         // Function to update attendance counts
         function updateStaffCounts() {
             const staffTable = document.querySelector('#staffTable tbody');

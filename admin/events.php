@@ -517,7 +517,7 @@
                 } else {
                     recurrenceOptions.style.display = 'none';
                 }
-            });
+            // Removed the extra closing brace and parenthesis
             
             // Add participant functionality
             const addButton = document.getElementById('addParticipant');
