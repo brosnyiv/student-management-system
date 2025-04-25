@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 24, 2025 at 02:27 PM
+-- Generation Time: Apr 25, 2025 at 10:53 AM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- PHP Version: 8.0.30
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -19,12 +19,6 @@ SET time_zone = "+00:00";
 
 --
 -- Database: `monaco_student_registration`
-
-CREATE DATABASE monaco_student_registration 
-CHARACTER SET utf8mb4 
-COLLATE utf8mb4_unicode_ci;
-
-USE monaco_student_registration;
 --
 
 DELIMITER $$
@@ -229,7 +223,7 @@ CREATE TABLE `contact_details` (
 --
 DELIMITER $$
 CREATE TRIGGER `before_contact_insert` BEFORE INSERT ON `contact_details` FOR EACH ROW BEGIN
-    IF NEW.email NOT REGEXP '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$' THEN
+    IF NEW.email NOT REGEXP '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+.[A-Za-z]{2,4}$' THEN
         SIGNAL SQLSTATE '45000' 
         SET MESSAGE_TEXT = 'Invalid email format';
     END IF;
@@ -238,7 +232,7 @@ $$
 DELIMITER ;
 DELIMITER $$
 CREATE TRIGGER `before_contact_update` BEFORE UPDATE ON `contact_details` FOR EACH ROW BEGIN
-    IF NEW.email NOT REGEXP '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$' THEN
+    IF NEW.email NOT REGEXP '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+.[A-Za-z]{2,4}$' THEN
         SIGNAL SQLSTATE '45000' 
         SET MESSAGE_TEXT = 'Invalid email format';
     END IF;

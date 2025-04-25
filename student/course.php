@@ -1,3 +1,15 @@
+<?php
+ob_start();
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+include 'dbconnect.php'; // Include the database connection file
+
+
+$conn->close();
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
