@@ -19,6 +19,12 @@ SET time_zone = "+00:00";
 
 --
 -- Database: `monaco_student_registration`
+
+CREATE DATABASE monaco_student_registration 
+CHARACTER SET utf8mb4 
+COLLATE utf8mb4_unicode_ci;
+
+USE monaco_student_registration;
 --
 
 DELIMITER $$

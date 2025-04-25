@@ -1,5 +1,6 @@
 <?php
 
+
 ob_start();
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -14,7 +15,193 @@ if (empty($_SESSION['userid'])) {
     exit();
 }
 
+// Count total students
+$student_query = "SELECT COUNT(*) as total_students FROM students";
+$student_result = mysqli_query($conn, $student_query);
+if ($student_result) {
+    $student_count = mysqli_fetch_assoc($student_result)['total_students'];
+} else {
+    $student_count = 0;
+    // For debugging
+    // echo "Error in student query: " . mysqli_error($conn);
+}
 
+// Count total faculty
+$faculty_query = "SELECT COUNT(*) as total_faculty FROM staff WHERE role = 'faculty'";
+$faculty_result = mysqli_query($conn, $faculty_query);
+if ($faculty_result) {
+    $faculty_count = mysqli_fetch_assoc($faculty_result)['total_faculty'];
+} else {
+    $faculty_count = 0;
+    // For debugging
+    // echo "Error in faculty query: " . mysqli_error($conn);
+}
+
+// Count total notices
+$notice_query = "SELECT COUNT(*) as total_notices FROM notices";
+$notice_result = mysqli_query($conn, $notice_query);
+if ($notice_result) {
+    $notice_count = mysqli_fetch_assoc($notice_result)['total_notices'];
+} else {
+    $notice_count = 0;
+    // For debugging
+    // echo "Error in notice query: " . mysqli_error($conn);
+}
+
+// Count total courses
+$course_query = "SELECT COUNT(*) as total_courses FROM courses";
+$course_result = mysqli_query($conn, $course_query);
+if ($course_result) {
+    $course_count = mysqli_fetch_assoc($course_result)['total_courses'];
+} else {
+    $course_count = 0;
+    // For debugging
+    // echo "Error in course query: " . mysqli_error($conn);
+}
+
+// Count total rooms (as study items)
+$rooms_query = "SELECT COUNT(*) as total_rooms FROM rooms";
+$rooms_result = mysqli_query($conn, $rooms_query);
+if ($rooms_result) {
+    $rooms_count = mysqli_fetch_assoc($rooms_result)['total_rooms'];
+} else {
+    $rooms_count = 0;
+    // For debugging
+    // echo "Error in rooms query: " . mysqli_error($conn);
+}
+
+
+// Fetch upcoming events from the database
+$events_query = "SELECT * FROM events ORDER BY date ASC LIMIT 4";
+$events_result = mysqli_query($conn, $events_query);
+
+// Check if query was successful
+$events_data = [];
+if ($events_result) {
+    while ($event = mysqli_fetch_assoc($events_result)) {
+        $events_data[] = $event;
+    }
+}
+
+// Calculate student attendance percentage
+$student_attendance_query = "SELECT 
+    (COUNT(CASE WHEN status = 'present' THEN 1 END) * 100.0 / COUNT(*)) as present_percentage,
+    (COUNT(CASE WHEN status = 'absent' THEN 1 END) * 100.0 / COUNT(*)) as absent_percentage,
+    (COUNT(CASE WHEN status = 'leave' THEN 1 END) * 100.0 / COUNT(*)) as leave_percentage
+FROM student_attendance 
+WHERE date = CURRENT_DATE()";
+
+$student_att_result = mysqli_query($conn, $student_attendance_query);
+if ($student_att_result) {
+    $student_att_data = mysqli_fetch_assoc($student_att_result);
+    $student_present = round($student_att_data['present_percentage'] ?? 0);
+    $student_absent = round($student_att_data['absent_percentage'] ?? 0);
+    $student_leave = round($student_att_data['leave_percentage'] ?? 0);
+} else {
+    $student_present = 65; // Default value
+    $student_absent = 25;
+    $student_leave = 10;
+}
+
+// Calculate staff attendance percentage
+$staff_attendance_query = "SELECT 
+    (COUNT(CASE WHEN status = 'present' THEN 1 END) * 100.0 / COUNT(*)) as present_percentage,
+    (COUNT(CASE WHEN status = 'absent' THEN 1 END) * 100.0 / COUNT(*)) as absent_percentage,
+    (COUNT(CASE WHEN status = 'leave' THEN 1 END) * 100.0 / COUNT(*)) as leave_percentage
+FROM staff_attendance 
+WHERE date = CURRENT_DATE()";
+
+$staff_att_result = mysqli_query($conn, $staff_attendance_query);
+if ($staff_att_result) {
+    $staff_att_data = mysqli_fetch_assoc($staff_att_result);
+    $staff_present = round($staff_att_data['present_percentage'] ?? 0);
+    $staff_absent = round($staff_att_data['absent_percentage'] ?? 0);
+    $staff_leave = round($staff_att_data['leave_percentage'] ?? 0);
+} else {
+    $staff_present = 85; // Default value
+    $staff_absent = 5;
+    $staff_leave = 10;
+}
+
+// Fetch today's classes
+$today = date('Y-m-d');
+$classes_query = "SELECT 
+    c.class_name, 
+    c.start_time, 
+    c.end_time, 
+    c.room, 
+    CONCAT(s.title, ' ', s.firstname, ' ', s.lastname) as instructor,
+    CASE 
+        WHEN c.start_time <= CURRENT_TIME() AND c.end_time >= CURRENT_TIME() THEN 'ongoing'
+        WHEN c.end_time < CURRENT_TIME() THEN 'completed'
+        ELSE 'upcoming'
+    END as status
+FROM classes c
+JOIN staff s ON c.instructor_id = s.id
+WHERE c.class_date = '$today'
+ORDER BY c.start_time ASC";
+
+$classes_result = mysqli_query($conn, $classes_query);
+$classes_data = [];
+if ($classes_result) {
+    while ($class = mysqli_fetch_assoc($classes_result)) {
+        $classes_data[] = $class;
+    }
+}
+
+// Function to get events for the calendar
+function getCalendarEvents($conn, $month, $year) {
+    $start_date = "$year-$month-01";
+    $end_date = date('Y-m-t', strtotime($start_date)); // Last day of month
+    
+    $events_query = "SELECT date, event_name FROM events 
+                     WHERE date BETWEEN '$start_date' AND '$end_date'";
+    $events_result = mysqli_query($conn, $events_query);
+    
+    $events = [];
+    if ($events_result) {
+        while ($row = mysqli_fetch_assoc($events_result)) {
+            $event_day = date('j', strtotime($row['date']));
+            $events[$event_day] = true;
+        }
+    }
+    
+    return $events;
+}
+
+// Get current month and year
+$current_month = date('n');
+$current_year = date('Y');
+$current_day = date('j');
+
+// Get events for current month
+$calendar_events = getCalendarEvents($conn, $current_month, $current_year);
+
+// Fetch notifications from the database
+$notifications_query = "SELECT * FROM notifications 
+                       WHERE user_id = {$_SESSION['userid']} 
+                       AND is_read = 0 
+                       ORDER BY created_at DESC 
+                       LIMIT 5";
+$notifications_result = mysqli_query($conn, $notifications_query);
+
+$notifications = [];
+$notification_count = 0;
+
+if ($notifications_result) {
+    while ($row = mysqli_fetch_assoc($notifications_result)) {
+        $notifications[] = $row;
+    }
+    $notification_count = count($notifications);
+    
+    // Get total count of unread notifications
+    $count_query = "SELECT COUNT(*) as total FROM notifications 
+                   WHERE user_id = {$_SESSION['userid']} AND is_read = 0";
+    $count_result = mysqli_query($conn, $count_query);
+    if ($count_result) {
+        $notification_count = mysqli_fetch_assoc($count_result)['total'];
+    }
+}
 
 ?>
 
@@ -70,11 +257,71 @@ if (empty($_SESSION['userid'])) {
                     </div>
                 </div>
             </div>
+            
             <div class="user-section" style="display:flex; align-items:center;">
-                <div class="notification-bell">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-count">3</span>
-                </div>
+            <div class="notification-bell" id="notificationBell">
+    <i class="fas fa-bell"></i>
+    <span class="notification-count"><?php echo $notification_count; ?></span>
+    
+    <!-- Notifications dropdown -->
+    <div class="notifications-dropdown" id="notificationsDropdown">
+        <div class="notifications-header">
+            <h3></h3>
+            <?php if ($notification_count > 0): ?>
+                <a href="mark_all_read.php" class="mark-all-read">Mark all as read</a>
+            <?php endif; ?>
+        </div>
+        
+        <div class="notifications-list">
+            <?php if (empty($notifications)): ?>
+                <div class="no-notifications"></div>
+            <?php else: ?>
+                <?php foreach ($notifications as $notification): ?>
+                    <div class="notification-item" data-id="<?php echo $notification['id']; ?>">
+                        <div class="notification-icon">
+                            <?php if ($notification['type'] == 'message'): ?>
+                                <i class="fas fa-envelope"></i>
+                            <?php elseif ($notification['type'] == 'event'): ?>
+                                <i class="fas fa-calendar-alt"></i>
+                            <?php elseif ($notification['type'] == 'alert'): ?>
+                                <i class="fas fa-exclamation-circle"></i>
+                            <?php else: ?>
+                                <i class="fas fa-bell"></i>
+                            <?php endif; ?>
+                        </div>
+                        <div class="notification-content">
+                            <div class="notification-text"><?php echo htmlspecialchars($notification['message']); ?></div>
+                            <div class="notification-time">
+                                <?php 
+                                    $time_diff = time() - strtotime($notification['created_at']);
+                                    if ($time_diff < 60) {
+                                        echo "Just now";
+                                    } elseif ($time_diff < 3600) {
+                                        echo floor($time_diff / 60) . " min ago";
+                                    } elseif ($time_diff < 86400) {
+                                        echo floor($time_diff / 3600) . " hrs ago";
+                                    } else {
+                                        echo floor($time_diff / 86400) . " days ago";
+                                    }
+                                ?>
+                            </div>
+                        </div>
+                        <button class="mark-read" onclick="markAsRead(<?php echo $notification['id']; ?>)">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                <?php endforeach; ?>
+                
+                <?php if ($notification_count > count($notifications)): ?>
+                    <a href="all_notifications.php" class="view-all-notifications">
+                        View all notifications (<?php echo $notification_count; ?>)
+                    </a>
+                <?php endif; ?>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+
                 <div class="user-profile">
                     <div class="user-avatar">J</div>
                     <div class="user-info">
@@ -116,35 +363,35 @@ if (empty($_SESSION['userid'])) {
         <div class="stats-container">
             <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-user-graduate"></i></div>
-                <div class="stat-value">10,000</div>
+                <div class="stat-value"> <?php echo $student_count; ?></div>
                 <div class="stat-label">Total Students</div>
                 <div class="progress-bar"><div class="progress" style="width:80%"></div></div>
                 <button class="view-details">View Details</button>
             </div>
             <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-user-tie"></i></div>
-                <div class="stat-value">50</div>
+                <div class="stat-value"><?php echo $faculty_count; ?></div>
                 <div class="stat-label">Total Faculty</div>
                 <div class="progress-bar"><div class="progress" style="width:65%"></div></div>
                 <button class="view-details">View Details</button>
             </div>
             <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-bullhorn"></i></div>
-                <div class="stat-value">10</div>
+                <div class="stat-value"><?php echo $notice_count; ?></div>
                 <div class="stat-label">Notice Board (New)</div>
                 <div class="progress-bar"><div class="progress" style="width:40%"></div></div>
                 <button class="view-details">View Details</button>
             </div>
             <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-book"></i></div>
-                <div class="stat-value">10</div>
+                <div class="stat-value"><?php echo $course_count; ?></div>
                 <div class="stat-label">Total Courses</div>
                 <div class="progress-bar"><div class="progress" style="width:90%"></div></div>
                 <button class="view-details">View Details</button>
             </div>
             <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-graduation-cap"></i></div>
-                <div class="stat-value">10</div>
+                <div class="stat-value"><?php echo $rooms_count; ?></div>
                 <div class="stat-label">Total Study Items</div>
                 <div class="progress-bar"><div class="progress" style="width:55%"></div></div>
                 <button class="view-details">View Details</button>
@@ -170,40 +417,40 @@ if (empty($_SESSION['userid'])) {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>Digital Technology Workshop</td>
-                        <td>8:30am</td>
-                        <td>B12</td>
-                        <td>Mr. Murage Charles</td>
-                        <td>Today</td>
-                        <td>
-                            <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                            <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Career Development Seminar</td>
-                        <td>10:30am</td>
-                        <td>Main Hall</td>
-                        <td>Ms. Sarah Johnson</td>
-                        <td>Tomorrow</td>
-                        <td>
-                            <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                            <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Data Science Master Class</td>
-                        <td>2:00pm</td>
-                        <td>Lab C3</td>
-                        <td>Dr. James Wilson</td>
-                        <td>Apr 15, 2025</td>
-                        <td>
-                            <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                            <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                </tbody>
+    <?php if (empty($events_data)): ?>
+        <tr>
+            <td colspan="6">No upcoming events found</td>
+        </tr>
+    <?php else: ?>
+        <?php foreach ($events_data as $event): ?>
+            <tr>
+                <td><?php echo htmlspecialchars($event['event_name']); ?></td>
+                <td><?php echo htmlspecialchars($event['time']); ?></td>
+                <td><?php echo htmlspecialchars($event['venue']); ?></td>
+                <td><?php echo htmlspecialchars($event['instructor']); ?></td>
+                <td>
+                    <?php 
+                        $event_date = new DateTime($event['date']);
+                        $today = new DateTime('today');
+                        $tomorrow = new DateTime('tomorrow');
+                        
+                        if ($event_date->format('Y-m-d') == $today->format('Y-m-d')) {
+                            echo 'Today';
+                        } elseif ($event_date->format('Y-m-d') == $tomorrow->format('Y-m-d')) {
+                            echo 'Tomorrow';
+                        } else {
+                            echo $event_date->format('M d, Y');
+                        }
+                    ?>
+                </td>
+                <td>
+                    <button class="action-icon edit" onclick="location.href='edit_event.php?id=<?php echo $event['id']; ?>'"><i class="fas fa-edit"></i></button>
+                    <button class="action-icon delete" onclick="if(confirm('Are you sure you want to delete this event?')) location.href='delete_event.php?id=<?php echo $event['id']; ?>'"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</tbody>
             </table>
         </div>
 
@@ -212,10 +459,15 @@ if (empty($_SESSION['userid'])) {
                 <div class="section-header">
                     <div class="section-title"><i class="fas fa-user-graduate"></i> Student Attendance</div>
                 </div>
+                <!-- Student Attendance Chart -->
                 <div class="chart">
-                    <div class="pie-chart"></div>
-                    <div class="percentage">65%</div>
-                </div>
+                <div class="pie-chart" style="background: conic-gradient(
+                    #8B1818 0% <?php echo $student_present; ?>%, 
+                    #E74C3C <?php echo $student_present; ?>% <?php echo ($student_present + $student_absent); ?>%, 
+                    #ddd <?php echo ($student_present + $student_absent); ?>% 100%);"></div>
+                <div class="percentage"><?php echo $student_present; ?>%</div>
+            </div>
+
                 <div class="chart-legend">
                     <div class="legend-item">
                         <div class="legend-color" style="background-color: #8B1818;"></div>
@@ -235,9 +487,13 @@ if (empty($_SESSION['userid'])) {
                 <div class="section-header">
                     <div class="section-title"><i class="fas fa-user-tie"></i> Staff Attendance</div>
                 </div>
+                <!-- Staff Attendance Chart -->
                 <div class="chart">
-                    <div class="pie-chart" style="background: conic-gradient(#8B1818 0% 85%, #E74C3C 85% 90%, #ddd 90% 100%);"></div>
-                    <div class="percentage">85%</div>
+                    <div class="pie-chart" style="background: conic-gradient(
+                        #8B1818 0% <?php echo $staff_present; ?>%, 
+                        #E74C3C <?php echo $staff_present; ?>% <?php echo ($staff_present + $staff_absent); ?>%, 
+                        #ddd <?php echo ($staff_present + $staff_absent); ?>% 100%);"></div>
+                    <div class="percentage"><?php echo $staff_present; ?>%</div>
                 </div>
                 <div class="chart-legend">
                     <div class="legend-item">
@@ -329,39 +585,21 @@ if (empty($_SESSION['userid'])) {
                     </div>
                 </div>
                 <ul class="classes-list">
-                    <li class="class-item">
-                        <div class="class-time">08:00 - 10:00</div>
-                        <div class="class-details">
-                            <div class="class-name">Introduction to Programming</div>
-                            <div class="class-info">Room B12 • Prof. Anderson</div>
-                        </div>
-                        <div class="class-status completed">Completed</div>
-                    </li>
-                    <li class="class-item active">
-                        <div class="class-time">10:30 - 12:30</div>
-                        <div class="class-details">
-                            <div class="class-name">Data Structures & Algorithms</div>
-                            <div class="class-info">Room A5 • Dr. Smith</div>
-                        </div>
-                        <div class="class-status ongoing">Ongoing</div>
-                    </li>
-                    <li class="class-item">
-                        <div class="class-time">13:30 - 15:30</div>
-                        <div class="class-details">
-                            <div class="class-name">Database Management</div>
-                            <div class="class-info">Lab C3 • Ms. Johnson</div>
-                        </div>
-                        <div class="class-status upcoming">Upcoming</div>
-                    </li>
-                    <li class="class-item">
-                        <div class="class-time">16:00 - 18:00</div>
-                        <div class="class-details">
-                            <div class="class-name">Web Development</div>
-                            <div class="class-info">Room D7 • Mr. Williams</div>
-                        </div>
-                        <div class="class-status upcoming">Upcoming</div>
-                    </li>
-                </ul>
+    <?php if (empty($classes_data)): ?>
+        <li class="class-item">No classes scheduled for today</li>
+    <?php else: ?>
+        <?php foreach ($classes_data as $class): ?>
+            <li class="class-item <?php echo ($class['status'] == 'ongoing') ? 'active' : ''; ?>">
+                <div class="class-time"><?php echo date('H:i', strtotime($class['start_time'])); ?> - <?php echo date('H:i', strtotime($class['end_time'])); ?></div>
+                <div class="class-details">
+                    <div class="class-name"><?php echo htmlspecialchars($class['class_name']); ?></div>
+                    <div class="class-info">Room <?php echo htmlspecialchars($class['room']); ?> • <?php echo htmlspecialchars($class['instructor']); ?></div>
+                </div>
+                <div class="class-status <?php echo $class['status']; ?>"><?php echo ucfirst($class['status']); ?></div>
+            </li>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</ul>
             </div>
         </div>
 
@@ -407,6 +645,210 @@ if (empty($_SESSION['userid'])) {
                 }
             });
         }
+
+         // Notification dropdown toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const notificationBell = document.getElementById('notificationBell');
+        const notificationsDropdown = document.getElementById('notificationsDropdown');
+        
+        notificationBell.addEventListener('click', function(e) {
+            e.stopPropagation();
+            notificationsDropdown.classList.toggle('show');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!notificationBell.contains(e.target)) {
+                notificationsDropdown.classList.remove('show');
+            }
+        });
+        
+        // Prevent clicks inside dropdown from closing it
+        notificationsDropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    });
+    
+    // Mark notification as read
+    function markAsRead(notificationId) {
+        fetch('mark_notification_read.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'notification_id=' + notificationId
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove notification from list
+                const notificationItem = document.querySelector(`.notification-item[data-id="${notificationId}"]`);
+                if (notificationItem) {
+                    notificationItem.remove();
+                    
+                    // Update notification count
+                    const countElement = document.querySelector('.notification-count');
+                    let currentCount = parseInt(countElement.textContent);
+                    countElement.textContent = currentCount - 1;
+                    
+                    // Show "no notifications" message if needed
+                    const notificationsList = document.querySelector('.notifications-list');
+                    if (notificationsList.children.length === 0) {
+                        notificationsList.innerHTML = '<div class="no-notifications">No new notifications</div>';
+                    }
+                }
+            }
+        });
+    }
+        
+          // Calendar functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        let currentMonth = <?php echo $current_month; ?>;
+        let currentYear = <?php echo $current_year; ?>;
+        let currentDay = <?php echo $current_day; ?>;
+        
+        // Initial calendar events from PHP
+        let calendarEvents = <?php echo json_encode($calendar_events); ?>;
+        
+        // Update calendar title
+        function updateCalendarTitle() {
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+            document.getElementById('calendarTitle').textContent = months[currentMonth-1] + ' ' + currentYear;
+        }
+        
+        // Generate calendar days
+        function generateCalendarDays() {
+            const firstDay = new Date(currentYear, currentMonth-1, 1).getDay(); // Day of week for 1st day (0=Sun, 6=Sat)
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate(); // Days in current month
+            const daysInPrevMonth = new Date(currentYear, currentMonth-1, 0).getDate(); // Days in previous month
+            
+            let html = '';
+            
+            // Headers for days of week
+            const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            dayHeaders.forEach(day => {
+                html += `<div class="day-header">${day}</div>`;
+            });
+            
+            // Previous month days
+            for (let i = firstDay - 1; i >= 0; i--) {
+                html += `<div class="calendar-day other-month">${daysInPrevMonth - i}</div>`;
+            }
+            
+            // Current month days
+            let today = new Date();
+            let isCurrentMonth = (today.getMonth() + 1 === currentMonth && today.getFullYear() === currentYear);
+            
+            for (let i = 1; i <= daysInMonth; i++) {
+                let classes = 'calendar-day';
+                if (isCurrentMonth && i === today.getDate()) {
+                    classes += ' current';
+                }
+                if (calendarEvents[i]) {
+                    classes += ' has-event';
+                }
+                html += `<div class="${classes}" data-day="${i}">${i}</div>`;
+            }
+            
+            // Next month days
+            const totalDaysShown = firstDay + daysInMonth;
+            const remainingDays = 42 - totalDaysShown; // 42 = 6 rows of 7 days
+            
+            for (let i = 1; i <= remainingDays; i++) {
+                if (i <= (42 - totalDaysShown)) {
+                    html += `<div class="calendar-day other-month">${i}</div>`;
+                }
+            }
+            
+            document.querySelector('.calendar-grid').innerHTML = html;
+            
+            // Add event listeners to calendar days
+            document.querySelectorAll('.calendar-day:not(.other-month)').forEach(day => {
+                day.addEventListener('click', function() {
+                    const selectedDay = this.getAttribute('data-day');
+                    showDayEvents(selectedDay);
+                });
+            });
+        }
+        
+        // Show events for a specific day
+        function showDayEvents(day) {
+            if (calendarEvents[day]) {
+                // Fetch events for this day via AJAX
+                fetch(`get_day_events.php?date=${currentYear}-${currentMonth}-${day}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.events.length > 0) {
+                            let eventsHTML = '<div class="day-events-popup">';
+                            eventsHTML += `<h4>Events on ${currentMonth}/${day}/${currentYear}</h4>`;
+                            eventsHTML += '<ul>';
+                            data.events.forEach(event => {
+                                eventsHTML += `<li>${event.time} - ${event.event_name}</li>`;
+                            });
+                            eventsHTML += '</ul>';
+                            eventsHTML += '<button class="close-popup">Close</button>';
+                            eventsHTML += '</div>';
+                            
+                            // Show popup
+                            const popup = document.createElement('div');
+                            popup.className = 'events-popup-overlay';
+                            popup.innerHTML = eventsHTML;
+                            document.body.appendChild(popup);
+                            
+                            // Close button event
+                            popup.querySelector('.close-popup').addEventListener('click', function() {
+                                document.body.removeChild(popup);
+                            });
+                        }
+                    });
+            } else {
+                // Ask if user wants to add an event on this day
+                if (confirm(`Add an event on ${currentMonth}/${day}/${currentYear}?`)) {
+                    window.location.href = `events.php?date=${currentYear}-${currentMonth}-${day}`;
+                }
+            }
+        }
+        
+        // Navigate to previous month
+        document.getElementById('prevMonth').addEventListener('click', function() {
+            currentMonth--;
+            if (currentMonth < 1) {
+                currentMonth = 12;
+                currentYear--;
+            }
+            updateCalendar();
+        });
+        
+        // Navigate to next month
+        document.getElementById('nextMonth').addEventListener('click', function() {
+            currentMonth++;
+            if (currentMonth > 12) {
+                currentMonth = 1;
+                currentYear++;
+            }
+            updateCalendar();
+        });
+        
+        // Update calendar (title and days)
+        function updateCalendar() {
+            updateCalendarTitle();
+            
+            // Fetch events for new month via AJAX
+            fetch(`get_calendar_events.php?month=${currentMonth}&year=${currentYear}`)
+                .then(response => response.json())
+                .then(data => {
+                    calendarEvents = data.events;
+                    generateCalendarDays();
+                });
+        }
+        
+        // Initialize calendar
+        updateCalendarTitle();
+        generateCalendarDays();
+    });
+    
+    
     </script>
 </body>
 </html>
