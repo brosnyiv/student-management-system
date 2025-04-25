@@ -203,6 +203,27 @@ if ($notifications_result) {
     }
 }
 
+// Get user profile image or first letter for avatar
+$user_id = $_SESSION['userid'];
+$profile_query = "SELECT profile_image, firstname FROM users WHERE id = $user_id";
+$profile_result = mysqli_query($conn, $profile_query);
+
+$profile_image = null;
+$first_letter = "U"; // Default
+
+if ($profile_result && mysqli_num_rows($profile_result) > 0) {
+    $user_data = mysqli_fetch_assoc($profile_result);
+    $profile_image = $user_data['profile_image'];
+    
+    // Get first letter of first name if available
+    if (!empty($user_data['firstname'])) {
+        $first_letter = strtoupper(substr($user_data['firstname'], 0, 1));
+    }
+}
+else {
+    // For debugging
+    // echo "Error in profile query: " . mysqli_error($conn);
+}
 ?>
 
 <!DOCTYPE html>
@@ -323,7 +344,15 @@ if ($notifications_result) {
 </div>
 
                 <div class="user-profile">
-                    <div class="user-avatar">J</div>
+
+                <div class="user-avatar">
+        <?php if (!empty($profile_image)): ?>
+            <img src="<?php echo htmlspecialchars($profile_image); ?>" alt="Profile Image">
+        <?php else: ?>
+            <?php echo $first_letter; ?>
+        <?php endif; ?>
+    </div>
+                    
                     <div class="user-info">
                     <?php echo isset($_SESSION['fullname']) ? htmlspecialchars($_SESSION['fullname']) : "User"; ?><br>
                         <span class="role"><?php echo isset($_SESSION['user_role']) ? htmlspecialchars($_SESSION['user_role']) : "undefined"; ?></span>
