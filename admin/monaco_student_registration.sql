@@ -6,27 +6,17 @@ COLLATE utf8mb4_unicode_ci;
 USE monaco_student_registration;
 
 -- Roles table (needs to be created early since it's referenced by users)
-CREATE TABLE roles (
-    role_id INT PRIMARY KEY AUTO_INCREMENT,
-    role_name VARCHAR(50) NOT NULL,
-    role_description TEXT,
-    is_teaching_role BOOLEAN DEFAULT FALSE
-);
+
 
 -- Users table (for login credentials)
-CREATE TABLE users (
-    user_id INT PRIMARY KEY AUTO_INCREMENT,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    role_id INT NOT NULL,
-    access_level ENUM('basic', 'standard', 'advanced', 'admin') DEFAULT 'standard',
-    access_start_date DATE,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_login TIMESTAMP,
-    FOREIGN KEY (role_id) REFERENCES roles(role_id)
-);
+CREATE TABLE `users` (
+  `userid` int(11) NOT NULL,
+  `user_role` varchar(50) NOT NULL,
+  `fullname` varchar(255) NOT NULL,
+  `email` varchar(50) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'Active'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Faculties table (create early as it's referenced by departments)
 CREATE TABLE faculties (
@@ -56,7 +46,6 @@ INSERT INTO departments (department_id, department_name, department_code) VALUES
 -- Staff table (common info for all staff)
 CREATE TABLE staff (
     staff_id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT UNIQUE,
     staff_type ENUM('teaching', 'non-teaching') NOT NULL,
     staff_number VARCHAR(20) UNIQUE,
     full_name VARCHAR(100) NOT NULL,
@@ -75,7 +64,6 @@ CREATE TABLE staff (
     supervisor VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (department_id) REFERENCES departments(department_id)
 );
 
@@ -1035,8 +1023,6 @@ CREATE TABLE messages (
     message_content TEXT NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (sender_id) REFERENCES users(user_id),
-    FOREIGN KEY (receiver_id) REFERENCES users(user_id),
     INDEX idx_message_conversation (sender_id, receiver_id),
     INDEX idx_message_timeline (created_at)
 ) COMMENT='Private messages between users';
@@ -1085,7 +1071,7 @@ CREATE TABLE payment_method_details (
 ALTER TABLE users ADD COLUMN last_message_check TIMESTAMP;
 
 -- Create a view for unread message counts
-CREATE VIEW user_unread_counts AS
+/* CREATE VIEW user_unread_counts AS
 SELECT 
     u.user_id,
     COUNT(m.message_id) AS unread_count
@@ -1107,7 +1093,7 @@ BEGIN
     INSERT INTO messages (sender_id, receiver_id, message_content)
     VALUES (p_sender_id, p_receiver_id, p_content);
 END //
-DELIMITER ;
+DELIMITER ; */
 
 CREATE TABLE attendance_records (
     record_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -1257,7 +1243,7 @@ CREATE TABLE expense_approvals (
     FOREIGN KEY (approver_id) REFERENCES staff(staff_id)
 );
 
-CREATE TABLE broadcast_messages (
+/* CREATE TABLE broadcast_messages (
     broadcast_id INT PRIMARY KEY AUTO_INCREMENT,
     sender_id INT NOT NULL,
     title VARCHAR(100) NOT NULL,
@@ -1298,7 +1284,7 @@ CREATE TABLE notification_settings (
 ) COMMENT='User notification settings';
 
 ALTER TABLE broadcast_messages 
-MODIFY COLUMN recipient_ids JSON COMMENT 'Specific IDs if not sent to all';
+MODIFY COLUMN recipient_ids JSON COMMENT 'Specific IDs if not sent to all'; */
 
 CREATE TABLE notices (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -1313,3 +1299,7 @@ CREATE TABLE notices (
     attachments TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+INSERT INTO `users` (`userid`, `user_role`, `fullname`, `email`, `password`, `status`) VALUES
+(1, 'Admin', 'charles', 'charles@gmail.com', 'charles', 'Active'),
+(2, 'Admin', 'jae', 'jae@gmail.com', 'Jae', 'Active');
