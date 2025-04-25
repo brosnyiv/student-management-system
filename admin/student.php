@@ -1,3 +1,67 @@
+<?php
+ 
+ ob_start();
+
+ if (session_status() === PHP_SESSION_NONE) {
+     session_start();
+ }
+ 
+ include 'dbconnect.php'; // Include the database connection file
+
+// Count total students
+$student_query = "SELECT COUNT(*) as total_students FROM students";
+$student_result = mysqli_query($conn, $student_query);
+if ($student_result) {
+    $student_count = mysqli_fetch_assoc($student_result)['total_students'];
+} else {
+    $student_count = 0;
+    // For debugging
+    // echo "Error in student query: " . mysqli_error($conn);
+}
+
+// Count male students
+$male_query = "SELECT COUNT(*) as male_students FROM students WHERE gender = 'Male'";
+$male_result = mysqli_query($conn, $male_query);
+if ($male_result) {
+    $male_count = mysqli_fetch_assoc($male_result)['male_students'];
+} else {
+    $male_count = 0;
+}
+
+// Count female students
+$female_query = "SELECT COUNT(*) as female_students FROM students WHERE gender = 'Female'";
+$female_result = mysqli_query($conn, $female_query);
+if ($female_result) {
+    $female_count = mysqli_fetch_assoc($female_result)['female_students'];
+} else {
+    $female_count = 0;
+}
+
+// Count active students
+$active_query = "SELECT COUNT(*) as active_students FROM students WHERE status = 'Active'";
+$active_result = mysqli_query($conn, $active_query);
+if ($active_result) {
+    $active_count = mysqli_fetch_assoc($active_result)['active_students'];
+} else {
+    $active_count = 0;
+}
+
+// Count inactive students
+$inactive_query = "SELECT COUNT(*) as inactive_students FROM students WHERE status = 'Inactive'";
+$inactive_result = mysqli_query($conn, $inactive_query);
+if ($inactive_result) {
+    $inactive_count = mysqli_fetch_assoc($inactive_result)['inactive_students'];
+} else {
+    $inactive_count = 0;
+}
+
+// Fetch all students for the table
+$students_list_query = "SELECT * FROM students ORDER BY id DESC LIMIT 10";
+$students_list_result = mysqli_query($conn, $students_list_query);
+
+
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -393,34 +457,36 @@
 
         <div class="student-tabs">
             <div class="student-tab active">All Students</div>
+
             <div class="student-tab">Import/Export</div>
+            
             <div class="student-tab">Reports</div>
         </div>
 
         <div class="student-stats">
             <div class="stat-box">
                 <div class="stat-icon"><i class="fas fa-user-graduate"></i></div>
-                <div class="stat-value">10,000</div>
+                <div class="stat-value"><?php echo $student_count; ?></div>
                 <div class="stat-label">Total Students</div>
             </div>
             <div class="stat-box">
                 <div class="stat-icon"><i class="fas fa-male"></i></div>
-                <div class="stat-value">6,240</div>
+                <div class="stat-value"><?php echo $male_count; ?></div>
                 <div class="stat-label">Male Students</div>
             </div>
             <div class="stat-box">
                 <div class="stat-icon"><i class="fas fa-female"></i></div>
-                <div class="stat-value">3,760</div>
+                <div class="stat-value"><?php echo $female_count; ?></div>
                 <div class="stat-label">Female Students</div>
             </div>
             <div class="stat-box">
                 <div class="stat-icon"><i class="fas fa-user-check"></i></div>
-                <div class="stat-value">9,850</div>
+                <div class="stat-value"><?php echo $active_count; ?></div>
                 <div class="stat-label">Active Students</div>
             </div>
             <div class="stat-box">
                 <div class="stat-icon"><i class="fas fa-user-times"></i></div>
-                <div class="stat-value">150</div>
+                <div class="stat-value"><?php echo $inactive_count; ?></div>
                 <div class="stat-label">Inactive Students</div>
             </div>
         </div>
@@ -448,87 +514,50 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>
-                        <div class="student-avatar">M</div>
-                    </td>
-                    <td>Michael Johnson</td>
-                    <td>MI-2025-001</td>
-                    <td>Computer Science</td>
-                    <td>michael.j@example.com</td>
-                    <td><span class="status-badge status-active">Active</span></td>
-                    <td class="balance-positive">$250.00</td>
-                    <td>
-                        <button class="action-button view-button"><i class="fas fa-eye"></i></button>
-                        <button class="action-button edit-button"><i class="fas fa-edit"></i></button>
-                        <button class="action-button delete-button"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <div class="student-avatar">S</div>
-                    </td>
-                    <td>Sarah Williams</td>
-                    <td>MI-2025-002</td>
-                    <td>Business Administration</td>
-                    <td>sarah.w@example.com</td>
-                    <td><span class="status-badge status-active">Active</span></td>
-                    <td class="balance-negative">-$120.00</td>
-                    <td>
-                        <button class="action-button view-button"><i class="fas fa-eye"></i></button>
-                        <button class="action-button edit-button"><i class="fas fa-edit"></i></button>
-                        <button class="action-button delete-button"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <div class="student-avatar">D</div>
-                    </td>
-                    <td>David Brown</td>
-                    <td>MI-2025-003</td>
-                    <td>Digital Marketing</td>
-                    <td>david.b@example.com</td>
-                    <td><span class="status-badge status-onleave">On Leave</span></td>
-                    <td class="balance-positive">$0.00</td>
-                    <td>
-                        <button class="action-button view-button"><i class="fas fa-eye"></i></button>
-                        <button class="action-button edit-button"><i class="fas fa-edit"></i></button>
-                        <button class="action-button delete-button"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <div class="student-avatar">E</div>
-                    </td>
-                    <td>Emily Davis</td>
-                    <td>MI-2025-004</td>
-                    <td>Graphic Design</td>
-                    <td>emily.d@example.com</td>
-                    <td><span class="status-badge status-active">Active</span></td>
-                    <td class="balance-positive">$520.00</td>
-                    <td>
-                        <button class="action-button view-button"><i class="fas fa-eye"></i></button>
-                        <button class="action-button edit-button"><i class="fas fa-edit"></i></button>
-                        <button class="action-button delete-button"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <div class="student-avatar">J</div>
-                    </td>
-                    <td>James Wilson</td>
-                    <td>MI-2025-005</td>
-                    <td>Computer Science</td>
-                    <td>james.w@example.com</td>
-                    <td><span class="status-badge status-inactive">Inactive</span></td>
-                    <td class="balance-negative">-$75.50</td>
-                    <td>
-                        <button class="action-button view-button"><i class="fas fa-eye"></i></button>
-                        <button class="action-button edit-button"><i class="fas fa-edit"></i></button>
-                        <button class="action-button delete-button"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-            </tbody>
+    <?php 
+    if(mysqli_num_rows($students_list_result) > 0) {
+        while($student = mysqli_fetch_assoc($students_list_result)) {
+            // Get first letter of name for avatar
+            $first_letter = substr($student['first_name'], 0, 1);
+            
+            // Determine balance class
+            $balance_class = ($student['balance'] >= 0) ? 'balance-positive' : 'balance-negative';
+            
+            // Determine status class
+            $status_class = 'status-active';
+            if($student['status'] == 'Inactive') {
+                $status_class = 'status-inactive';
+            } elseif($student['status'] == 'On Leave') {
+                $status_class = 'status-onleave';
+            }
+    ?>
+    <tr>
+        <td>
+            <div class="student-avatar"><?php echo $first_letter; ?></div>
+        </td>
+        <td><?php echo $student['first_name'] . ' ' . $student['last_name']; ?></td>
+        <td><?php echo $student['student_id']; ?></td>
+        <td><?php echo $student['course']; ?></td>
+        <td><?php echo $student['email']; ?></td>
+        <td><span class="status-badge <?php echo $status_class; ?>"><?php echo $student['status']; ?></span></td>
+        <td class="<?php echo $balance_class; ?>"><?php echo '$' . number_format($student['balance'], 2); ?></td>
+        <td>
+            <button class="action-button view-button" onclick="viewStudent(<?php echo $student['id']; ?>)"><i class="fas fa-eye"></i></button>
+            <button class="action-button edit-button" onclick="editStudent(<?php echo $student['id']; ?>)"><i class="fas fa-edit"></i></button>
+            <button class="action-button delete-button" onclick="deleteStudent(<?php echo $student['id']; ?>)"><i class="fas fa-trash"></i></button>
+        </td>
+    </tr>
+    <?php
+        }
+    } else {
+    ?>
+    <tr>
+        <td colspan="8" style="text-align: center;">No students found</td>
+    </tr>
+    <?php
+    }
+    ?>
+</tbody>
         </table>
 
         <div class="pagination">

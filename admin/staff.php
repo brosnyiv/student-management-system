@@ -1,3 +1,76 @@
+<?php
+ob_start();
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+include 'dbconnect.php'; // Include the database connection file
+
+// Initialize staff count variables
+$totalStaff = 0;
+$teachingStaff = 0;
+$nonTeachingStaff = 0;
+$activeStaff = 0;
+$inactiveStaff = 0;
+
+// Query to count total staff
+$totalStaffQuery = "SELECT COUNT(*) AS total FROM staff";
+$result = $conn->query($totalStaffQuery);
+if ($result && $row = $result->fetch_assoc()) {
+    $totalStaff = $row['total'];
+}
+
+// Query to count teaching staff
+$teachingStaffQuery = "SELECT COUNT(*) AS teaching FROM staff WHERE staff_type = 'teaching'";
+$result = $conn->query($teachingStaffQuery);
+if ($result && $row = $result->fetch_assoc()) {
+    $teachingStaff = $row['teaching'];
+}
+
+// Query to count non-teaching staff
+$nonTeachingStaffQuery = "SELECT COUNT(*) AS nonteaching FROM staff WHERE staff_type = 'non-teaching'";
+$result = $conn->query($nonTeachingStaffQuery);
+if ($result && $row = $result->fetch_assoc()) {
+    $nonTeachingStaff = $row['nonteaching'];
+}
+
+// Query to count active staff
+$activeStaffQuery = "SELECT COUNT(*) AS active FROM staff WHERE status = 'active'";
+$result = $conn->query($activeStaffQuery);
+if ($result && $row = $result->fetch_assoc()) {
+    $activeStaff = $row['active'];
+}
+
+// Query to count inactive staff
+$inactiveStaffQuery = "SELECT COUNT(*) AS inactive FROM staff WHERE status = 'inactive'";
+$result = $conn->query($inactiveStaffQuery);
+if ($result && $row = $result->fetch_assoc()) {
+    $inactiveStaff = $row['inactive'];
+}
+
+// Set up pagination
+$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$resultsPerPage = 10;
+$offset = ($currentPage - 1) * $resultsPerPage;
+
+// Get staff data for table display
+$staffQuery = "SELECT * FROM staff ORDER BY name LIMIT $offset, $resultsPerPage";
+$staffResult = $conn->query($staffQuery);
+
+// Store staff data in an array for display
+$staffData = [];
+if ($staffResult) {
+    while ($row = $staffResult->fetch_assoc()) {
+        $staffData[] = $row;
+    }
+}
+
+$conn->close();
+?>
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -585,27 +658,27 @@
         <div class="staff-stats">
             <div class="stat-box">
                 <div class="stat-icon"><i class="fas fa-user-tie"></i></div>
-                <div class="stat-value">320</div>
+                <div class="stat-value"><?php echo $totalStaff; ?></div>
                 <div class="stat-label">Total Staff</div>
             </div>
             <div class="stat-box">
                 <div class="stat-icon"><i class="fas fa-chalkboard-teacher"></i></div>
-                <div class="stat-value">180</div>
+                <div class="stat-value"><?php echo $teachingStaff; ?></div>
                 <div class="stat-label">Teaching Staff</div>
             </div>
             <div class="stat-box">
                 <div class="stat-icon"><i class="fas fa-user-cog"></i></div>
-                <div class="stat-value">140</div>
+                <div class="stat-value"><?php echo $nonTeachingStaff; ?></div>
                 <div class="stat-label">Non-Teaching Staff</div>
             </div>
             <div class="stat-box">
                 <div class="stat-icon"><i class="fas fa-user-check"></i></div>
-                <div class="stat-value">305</div>
+                <div class="stat-value"><?php echo $activeStaff; ?></div>
                 <div class="stat-label">Active Staff</div>
             </div>
             <div class="stat-box">
                 <div class="stat-icon"><i class="fas fa-user-times"></i></div>
-                <div class="stat-value">15</div>
+                <div class="stat-value"><?php echo $inactiveStaff; ?></div>
                 <div class="stat-label">Inactive Staff</div>
             </div>
         </div>
@@ -623,240 +696,181 @@
         </div>
 
        
-        <div class="staff-form" id="addTeachingStaffForm">
-            <div class="form-title" onclick="window.location.href='staff registration.php'">Add New  Staff</div>
             
          
-        <!-- Staff listing with actions -->
-        <div class="staff-list-header">
-            <div class="filter-controls">
-                <div class="filter-group">
-                    <label for="searchStaff">Search:</label>
-                    <input type="text" id="searchStaff" placeholder="Search by name, ID...">
+            <!-- Staff listing with actions -->
+            <div class="staff-list-header">
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label for="searchStaff">Search:</label>
+                        <input type="text" id="searchStaff" placeholder="Search by name, ID...">
+                    </div>
+                    <div class="filter-group">
+                        <label for="departmentFilter">Department:</label>
+                        <select id="departmentFilter">
+                            <option value="">All Departments</option>
+                            <option value="ComputerScience">Computer Science</option>
+                            <option value="Business">Business Administration</option>
+                            <option value="DigitalMarketing">Digital Marketing</option>
+                            <option value="GraphicDesign">Graphic Design</option>
+                            <option value="Languages">Languages</option>
+                            <option value="Mathematics">Mathematics</option>
+                            <option value="Administration">Administration</option>
+                            <option value="Finance">Finance & Accounting</option>
+                            <option value="HR">Human Resources</option>
+                            <option value="IT">IT Support</option>
+                            <option value="Library">Library</option>
+                            <option value="Maintenance">Maintenance</option>
+                            <option value="Security">Security</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="statusFilter">Status:</label>
+                        <select id="statusFilter">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="onLeave">On Leave</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="filter-group">
-                    <label for="departmentFilter">Department:</label>
-                    <select id="departmentFilter">
-                        <option value="">All Departments</option>
-                        <option value="ComputerScience">Computer Science</option>
-                        <option value="Business">Business Administration</option>
-                        <option value="DigitalMarketing">Digital Marketing</option>
-                        <option value="GraphicDesign">Graphic Design</option>
-                        <option value="Languages">Languages</option>
-                        <option value="Mathematics">Mathematics</option>
-                        <option value="Administration">Administration</option>
-                        <option value="Finance">Finance & Accounting</option>
-                        <option value="HR">Human Resources</option>
-                        <option value="IT">IT Support</option>
-                        <option value="Library">Library</option>
-                        <option value="Maintenance">Maintenance</option>
-                        <option value="Security">Security</option>
-                    </select>
+                
+                <div class="import-export">
+                    <button id="exportButton"><i class="fas fa-file-export"></i> Export</button>
+                    <button id="addStaffButton" class="add-button"><i class="fas fa-plus"></i> Add Staff</button>
                 </div>
-                <div class="filter-group">
-                    <label for="statusFilter">Status:</label>
-                    <select id="statusFilter">
-                        <option value="">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="onLeave">On Leave</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="import-export">
-                <button id="exportButton"><i class="fas fa-file-export"></i> Export</button>
-                <button id="addStaffButton" class="add-button"><i class="fas fa-plus"></i> Add Staff</button>
-            </div>
-        </div>
 
         <!-- Staff data table -->
-        <table class="staff-table">
-            <thead>
-                <tr>
-                    <th>Staff ID</th>
-                    <th>Name</th>
-                    <th>Department</th>
-                    <th>Designation</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Teaching Staff -->
-                <tr>
-                    <td>T001</td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="staff-avatar">J</div>
-                            <div>John Smith</div>
-                        </div>
-                    </td>
-                    <td><span class="department-tag"><i class="fas fa-laptop teaching-icon"></i> Computer Science</span></td>
-                    <td>Professor</td>
-                    <td>john.smith@monaco.edu</td>
-                    <td>+1 (555) 123-4567</td>
-                    <td><span class="status-badge status-active">Active</span></td>
-                    <td>
-                        <button class="action-button view-button"><i class="fas fa-eye"></i></button>
-                        <button class="action-button edit-button"><i class="fas fa-pen"></i></button>
-                        <button class="action-button delete-button"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>T002</td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="staff-avatar">M</div>
-                            <div>Maria Rodriguez</div>
-                        </div>
-                    </td>
-                    <td><span class="department-tag"><i class="fas fa-chart-bar teaching-icon"></i> Business Administration</span></td>
-                    <td>Associate Professor</td>
-                    <td>maria.r@monaco.edu</td>
-                    <td>+1 (555) 234-5678</td>
-                    <td><span class="status-badge status-active">Active</span></td>
-                    <td>
-                        <button class="action-button view-button"><i class="fas fa-eye"></i></button>
-                        <button class="action-button edit-button"><i class="fas fa-pen"></i></button>
-                        <button class="action-button delete-button"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>T003</td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="staff-avatar">D</div>
-                            <div>David Chen</div>
-                        </div>
-                    </td>
-                    <td><span class="department-tag"><i class="fas fa-bullhorn teaching-icon"></i> Digital Marketing</span></td>
-                    <td>Assistant Professor</td>
-                    <td>david.chen@monaco.edu</td>
-                    <td>+1 (555) 345-6789</td>
-                    <td><span class="status-badge status-onleave">On Leave</span></td>
-                    <td>
-                        <button class="action-button view-button"><i class="fas fa-eye"></i></button>
-                        <button class="action-button edit-button"><i class="fas fa-pen"></i></button>
-                        <button class="action-button delete-button"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
+        <tbody>
+    <?php
+    // Check if we have results
+    if (!empty($staffData)) {
+        // Fetch staff data
+        foreach ($staffData as $row) {
+            // Get first letter of name for avatar
+            $firstLetter = substr($row['name'], 0, 1);
+            
+            // Determine department icon based on department
+            $deptIcon = 'fas fa-laptop';
+            $iconClass = 'teaching-icon';
+            
+            if (isset($row['staff_type']) && $row['staff_type'] == 'non-teaching') {
+                $iconClass = 'non-teaching-icon';
                 
-                <!-- Non-Teaching Staff -->
-                <tr>
-                    <td>NT001</td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="staff-avatar">S</div>
-                            <div>Sarah Johnson</div>
-                        </div>
-                    </td>
-                    <td><span class="department-tag"><i class="fas fa-user-tie non-teaching-icon"></i> Administration</span></td>
-                    <td>Manager</td>
-                    <td>sarah.j@monaco.edu</td>
-                    <td>+1 (555) 456-7890</td>
-                    <td><span class="status-badge status-active">Active</span></td>
-                    <td>
-                        <button class="action-button view-button"><i class="fas fa-eye"></i></button>
-                        <button class="action-button edit-button"><i class="fas fa-pen"></i></button>
-                        <button class="action-button delete-button"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>NT002</td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="staff-avatar">R</div>
-                            <div>Robert Lee</div>
-                        </div>
-                        <td><span class="department-tag"><i class="fas fa-server non-teaching-icon"></i> IT Support</span></td>
-                        <td>IT Officer</td>
-                        <td>robert.lee@monaco.edu</td>
-                        <td>+1 (555) 567-8901</td>
-                        <td><span class="status-badge status-active">Active</span></td>
-                        <td>
-                            <button class="action-button view-button"><i class="fas fa-eye"></i></button>
-                            <button class="action-button edit-button"><i class="fas fa-pen"></i></button>
-                            <button class="action-button delete-button"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>NT003</td>
-                        <td>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <div class="staff-avatar">P</div>
-                                <div>Patricia Williams</div>
-                            </div>
-                        </td>
-                        <td><span class="department-tag"><i class="fas fa-book non-teaching-icon"></i> Library</span></td>
-                        <td>Head Librarian</td>
-                        <td>patricia.w@monaco.edu</td>
-                        <td>+1 (555) 678-9012</td>
-                        <td><span class="status-badge status-inactive">Inactive</span></td>
-                        <td>
-                            <button class="action-button view-button"><i class="fas fa-eye"></i></button>
-                            <button class="action-button edit-button"><i class="fas fa-pen"></i></button>
-                            <button class="action-button delete-button"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>NT004</td>
-                        <td>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <div class="staff-avatar">A</div>
-                                <div>Ahmed Hassan</div>
-                            </div>
-                        </td>
-                        <td><span class="department-tag"><i class="fas fa-shield-alt non-teaching-icon"></i> Security</span></td>
-                        <td>Security Officer</td>
-                        <td>ahmed.h@monaco.edu</td>
-                        <td>+1 (555) 789-0123</td>
-                        <td><span class="status-badge status-active">Active</span></td>
-                        <td>
-                            <button class="action-button view-button"><i class="fas fa-eye"></i></button>
-                            <button class="action-button edit-button"><i class="fas fa-pen"></i></button>
-                            <button class="action-button delete-button"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>T004</td>
-                        <td>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <div class="staff-avatar">L</div>
-                                <div>Lisa Zhang</div>
-                            </div>
-                        </td>
-                        <td><span class="department-tag"><i class="fas fa-calculator teaching-icon"></i> Mathematics</span></td>
-                        <td>Associate Professor</td>
-                        <td>lisa.z@monaco.edu</td>
-                        <td>+1 (555) 890-1234</td>
-                        <td><span class="status-badge status-active">Active</span></td>
-                        <td>
-                            <button class="action-button view-button"><i class="fas fa-eye"></i></button>
-                            <button class="action-button edit-button"><i class="fas fa-pen"></i></button>
-                            <button class="action-button delete-button"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-    
-            <!-- Pagination -->
-            <div class="pagination">
-                <button class="page-button"><i class="fas fa-angle-double-left"></i></button>
-                <button class="page-button"><i class="fas fa-angle-left"></i></button>
-                <button class="page-button active">1</button>
-                <button class="page-button">2</button>
-                <button class="page-button">3</button>
-                <button class="page-button">4</button>
-                <button class="page-button">5</button>
-                <button class="page-button"><i class="fas fa-angle-right"></i></button>
-                <button class="page-button"><i class="fas fa-angle-double-right"></i></button>
-                <div class="page-info">Showing 1-9 of 320 staff members</div>
+                // Set appropriate icon for non-teaching departments
+                switch(strtolower($row['department'])) {
+                    case 'administration':
+                        $deptIcon = 'fas fa-user-tie';
+                        break;
+                    case 'it support':
+                        $deptIcon = 'fas fa-server';
+                        break;
+                    case 'library':
+                        $deptIcon = 'fas fa-book';
+                        break;
+                    case 'security':
+                        $deptIcon = 'fas fa-shield-alt';
+                        break;
+                    case 'finance & accounting':
+                        $deptIcon = 'fas fa-dollar-sign';
+                        break;
+                    case 'human resources':
+                        $deptIcon = 'fas fa-users-cog';
+                        break;
+                    case 'maintenance':
+                        $deptIcon = 'fas fa-tools';
+                        break;
+                    default:
+                        $deptIcon = 'fas fa-building';
+                }
+            } else {
+                // Set appropriate icon for teaching departments
+                switch(strtolower($row['department'])) {
+                    case 'computer science':
+                        $deptIcon = 'fas fa-laptop';
+                        break;
+                    case 'business administration':
+                        $deptIcon = 'fas fa-chart-bar';
+                        break;
+                    case 'digital marketing':
+                        $deptIcon = 'fas fa-bullhorn';
+                        break;
+                    case 'graphic design':
+                        $deptIcon = 'fas fa-paint-brush';
+                        break;
+                    case 'languages':
+                        $deptIcon = 'fas fa-language';
+                        break;
+                    case 'mathematics':
+                        $deptIcon = 'fas fa-calculator';
+                        break;
+                    default:
+                        $deptIcon = 'fas fa-chalkboard-teacher';
+                }
+            }
+            
+            // Determine status class
+            $statusClass = 'status-active';
+            if(isset($row['status'])) {
+                if($row['status'] == 'inactive') {
+                    $statusClass = 'status-inactive';
+                } else if($row['status'] == 'on leave') {
+                    $statusClass = 'status-onleave';
+                }
+            }
+    ?>
+    <tr>
+        <td><?php echo htmlspecialchars($row['staff_id']); ?></td>
+        <td>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="staff-avatar"><?php echo htmlspecialchars($firstLetter); ?></div>
+                <div><?php echo htmlspecialchars($row['name']); ?></div>
             </div>
-        </div>  
+        </td>
+        <td>
+            <span class="department-tag">
+                <i class="<?php echo $deptIcon.' '.$iconClass; ?>"></i> 
+                <?php echo htmlspecialchars($row['department']); ?>
+            </span>
+        </td>
+        <td><?php echo htmlspecialchars($row['designation']); ?></td>
+        <td><?php echo htmlspecialchars($row['email']); ?></td>
+        <td><?php echo htmlspecialchars($row['phone']); ?></td>
+        <td><span class="status-badge <?php echo $statusClass; ?>"><?php echo ucfirst(htmlspecialchars($row['status'])); ?></span></td>
+        <td>
+            <button class="action-button view-button" onclick="viewStaff('<?php echo $row['staff_id']; ?>')"><i class="fas fa-eye"></i></button>
+            <button class="action-button edit-button" onclick="editStaff('<?php echo $row['staff_id']; ?>')"><i class="fas fa-pen"></i></button>
+            <button class="action-button delete-button" onclick="deleteStaff('<?php echo $row['staff_id']; ?>')"><i class="fas fa-trash"></i></button>
+        </td>
+    </tr>
+    <?php
+        }
+    } else {
+        // No results found
+        echo '<tr><td colspan="8" style="text-align:center;">No staff members found</td></tr>';
+    }
+    ?>
+</tbody>
 
+</table>
+
+<div class="pagination">
+    <button class="page-button"><i class="fas fa-angle-double-left"></i></button>
+    <button class="page-button"><i class="fas fa-angle-left"></i></button>
+    <?php
+    // Calculate total pages
+    $totalPages = ceil($totalStaff / $resultsPerPage);
+    
+    // Show page numbers
+    for($i = 1; $i <= min(5, $totalPages); $i++) {
+        $activeClass = ($i == $currentPage) ? 'active' : '';
+        echo '<button class="page-button '.$activeClass.'">'.$i.'</button>';
+    }
+    ?>
+    <button class="page-button"><i class="fas fa-angle-right"></i></button>
+    <button class="page-button"><i class="fas fa-angle-double-right"></i></button>
+    <div class="page-info">Showing <?php echo min(($currentPage-1)*$resultsPerPage + 1, $totalStaff); ?>-<?php echo min($currentPage*$resultsPerPage, $totalStaff); ?> of <?php echo $totalStaff; ?> staff members</div>
+</div>
 
         
     
@@ -897,6 +911,48 @@
                 // Implement status filtering
                 console.log('Filtering by status:', this.value);
             });
+
+            // Staff tab switching
+document.querySelectorAll('.staff-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.staff-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        // Implement tab switching logic here
+    });
+});
+
+// Staff type filter buttons
+document.querySelectorAll('.staff-type-button').forEach(button => {
+    button.addEventListener('click', function() {
+        document.querySelectorAll('.staff-type-button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        // Implement staff type filtering logic here
+    });
+});
+
+// Add staff button functionality
+document.getElementById('addStaffButton').addEventListener('click', function() {
+    window.location.href = 'staff registration.php';
+});
+
+// Staff action functions
+function viewStaff(staffId) {
+    console.log('View staff with ID:', staffId);
+    // Implement view staff functionality
+}
+
+function editStaff(staffId) {
+    console.log('Edit staff with ID:', staffId);
+    // Implement edit staff functionality
+    window.location.href = 'staff registration.php?edit=' + staffId;
+}
+
+function deleteStaff(staffId) {
+    if(confirm('Are you sure you want to delete this staff member?')) {
+        console.log('Delete staff with ID:', staffId);
+        // Implement delete staff functionality
+    }
+}
         </script>
     </body>
     </html>
