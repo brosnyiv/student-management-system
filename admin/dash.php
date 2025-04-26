@@ -1,6 +1,6 @@
 <?php
 
-
+session_start(); // Start the session
 ob_start();
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -16,214 +16,118 @@ include 'dbconnect.php'; // Include the database connection file
 // }
 
 // Count total students
-$student_query = "SELECT COUNT(*) as total_students FROM students";
-$student_result = mysqli_query($conn, $student_query);
-if ($student_result) {
-    $student_count = mysqli_fetch_assoc($student_result)['total_students'];
+ $sql = "SELECT COUNT(*) as total_students FROM students";
+$result = mysqli_query($conn, $sql);
+ if ($result) {
+  $student_count = mysqli_fetch_assoc($result)['total_students'];
 } else {
-    $student_count = 0;
+   $student_count = 0;
+     // For debugging
+  // echo "Error in student query: " . mysqli_error($conn);
+}
+
+$sql = "SELECT COUNT(*) as total_faculties FROM faculties";
+$result = mysqli_query($conn, $sql);
+ if ($result) {
+  $faculty_count = mysqli_fetch_assoc($result)['total_faculties'];
+} else {
+   $faculty_count = 0;
+     // For debugging
+  // echo "Error in student query: " . mysqli_error($conn);
+}
+$sql = "SELECT COUNT(*) as total_notices FROM notices";
+$result = mysqli_query($conn, $sql);
+ if ($result) {
+  $notice_count = mysqli_fetch_assoc($result)['total_notices'];
+} else {
+   $notice_count = 0;
+     // For debugging
+  // echo "Error in student query: " . mysqli_error($conn);
+}
+
+$sql = "SELECT COUNT(*) as total_courses FROM courses";
+$result = mysqli_query($conn, $sql);
+ if ($result) {
+  $course_count = mysqli_fetch_assoc($result)['total_courses'];
+} else {
+   $course_count = 0;
+     // For debugging
+  // echo "Error in student query: " . mysqli_error($conn);
+}
+
+$sql = "SELECT COUNT(*) as total_rooms FROM rooms";
+$result = mysqli_query($conn, $sql);
+ if ($result) {
+  $rooms_count = mysqli_fetch_assoc($result)['total_rooms'];
+} else {
+   $rooms_count = 0;
+     // For debugging
+  // echo "Error in student query: " . mysqli_error($conn);
+}
+//calculate student attendance and display it as a percentage on front end
+$sql = "SELECT COUNT(*) as total_present FROM student_attendance WHERE status = 'present'";
+$result = mysqli_query($conn, $sql);
+if ($result) {
+    $student_present = mysqli_fetch_assoc($result)['total_present'];
+} else {
+    $student_present = 0;
     // For debugging
     // echo "Error in student query: " . mysqli_error($conn);
 }
 
-// Count total faculty
-$faculty_query = "SELECT COUNT(*) as total_faculty FROM staff WHERE role = 'faculty'";
-$faculty_result = mysqli_query($conn, $faculty_query);
-if ($faculty_result) {
-    $faculty_count = mysqli_fetch_assoc($faculty_result)['total_faculty'];
+// $sql = "SELECT COUNT(*) as total_absent FROM student_attendance WHERE status = 'absent'";
+// $result = mysqli_query($conn, $sql);
+// if ($result) {
+//     $student_absent = mysqli_fetch_assoc($result)['total_absent'];
+// } else {
+//     $student_absent = 0;
+//     // For debugging
+//     // echo "Error in student query: " . mysqli_error($conn);
+// }
+
+// //calculate student attendance for status excused and display it as a percentage on front end
+// $sql = "SELECT COUNT(*) as total_excused FROM student_attendance WHERE status = 'excused'";
+// $result = mysqli_query($conn, $sql);
+// if ($result) {
+//     $student_excused = mysqli_fetch_assoc($result)['total_excused'];
+// } else {
+//     $student_excused = 0;
+//     // For debugging
+//     // echo "Error in student query: " . mysqli_error($conn);
+// }
+
+//staff attendance in a similar manner as students attendance
+$sql = "SELECT COUNT(*) as total_present FROM staff_attendance_records WHERE status = 'present'";
+$result = mysqli_query($conn, $sql);
+if ($result) {
+    $staff_present = mysqli_fetch_assoc($result)['total_present'];
 } else {
-    $faculty_count = 0;
+    $staff_present = 0;
     // For debugging
-    // echo "Error in faculty query: " . mysqli_error($conn);
+    // echo "Error in student query: " . mysqli_error($conn);
 }
+// $sql = "SELECT COUNT(*) as total_absent FROM staff_attendance_records WHERE status = 'absent'";
+// $result = mysqli_query($conn, $sql);
+// if ($result) {
+    // $staff_absent = mysqli_fetch_assoc($result)['total_absent'];
+// } else {
+//     $staff_absent = 0;
+// }
 
-// Count total notices
-$notice_query = "SELECT COUNT(*) as total_notices FROM notices";
-$notice_result = mysqli_query($conn, $notice_query);
-if ($notice_result) {
-    $notice_count = mysqli_fetch_assoc($notice_result)['total_notices'];
+//pull notifications count from notifications table where the user_id is the same as the current session user_id
+$user_notified=$_SESSION['user_id'];
+$sql="select count(*) from notifications where user_id is not null and user_id='$user_notified' and is_read='unread' order by created_at desc";
+$result=mysqli_query($conn,$sql);
+if ($result) {
+   $notification_count= mysqli_fetch_assoc($result)['count(*)'];
 } else {
-    $notice_count = 0;
+    $notifications_count = 0;
     // For debugging
-    // echo "Error in notice query: " . mysqli_error($conn);
-}
-
-// Count total courses
-$course_query = "SELECT COUNT(*) as total_courses FROM courses";
-$course_result = mysqli_query($conn, $course_query);
-if ($course_result) {
-    $course_count = mysqli_fetch_assoc($course_result)['total_courses'];
-} else {
-    $course_count = 0;
-    // For debugging
-    // echo "Error in course query: " . mysqli_error($conn);
-}
-
-// Count total rooms (as study items)
-$rooms_query = "SELECT COUNT(*) as total_rooms FROM rooms";
-$rooms_result = mysqli_query($conn, $rooms_query);
-if ($rooms_result) {
-    $rooms_count = mysqli_fetch_assoc($rooms_result)['total_rooms'];
-} else {
-    $rooms_count = 0;
-    // For debugging
-    // echo "Error in rooms query: " . mysqli_error($conn);
+    // echo "Error in student query: " . mysqli_error($conn);
 }
 
 
-// Fetch upcoming events from the database
-$events_query = "SELECT * FROM events ORDER BY date ASC LIMIT 4";
-$events_result = mysqli_query($conn, $events_query);
 
-// Check if query was successful
-$events_data = [];
-if ($events_result) {
-    while ($event = mysqli_fetch_assoc($events_result)) {
-        $events_data[] = $event;
-    }
-}
-
-// Calculate student attendance percentage
-$student_attendance_query = "SELECT 
-    (COUNT(CASE WHEN status = 'present' THEN 1 END) * 100.0 / COUNT(*)) as present_percentage,
-    (COUNT(CASE WHEN status = 'absent' THEN 1 END) * 100.0 / COUNT(*)) as absent_percentage,
-    (COUNT(CASE WHEN status = 'leave' THEN 1 END) * 100.0 / COUNT(*)) as leave_percentage
-FROM student_attendance 
-WHERE date = CURRENT_DATE()";
-
-$student_att_result = mysqli_query($conn, $student_attendance_query);
-if ($student_att_result) {
-    $student_att_data = mysqli_fetch_assoc($student_att_result);
-    $student_present = round($student_att_data['present_percentage'] ?? 0);
-    $student_absent = round($student_att_data['absent_percentage'] ?? 0);
-    $student_leave = round($student_att_data['leave_percentage'] ?? 0);
-} else {
-    $student_present = 65; // Default value
-    $student_absent = 25;
-    $student_leave = 10;
-}
-
-// Calculate staff attendance percentage
-$staff_attendance_query = "SELECT 
-    (COUNT(CASE WHEN status = 'present' THEN 1 END) * 100.0 / COUNT(*)) as present_percentage,
-    (COUNT(CASE WHEN status = 'absent' THEN 1 END) * 100.0 / COUNT(*)) as absent_percentage,
-    (COUNT(CASE WHEN status = 'leave' THEN 1 END) * 100.0 / COUNT(*)) as leave_percentage
-FROM staff_attendance 
-WHERE date = CURRENT_DATE()";
-
-$staff_att_result = mysqli_query($conn, $staff_attendance_query);
-if ($staff_att_result) {
-    $staff_att_data = mysqli_fetch_assoc($staff_att_result);
-    $staff_present = round($staff_att_data['present_percentage'] ?? 0);
-    $staff_absent = round($staff_att_data['absent_percentage'] ?? 0);
-    $staff_leave = round($staff_att_data['leave_percentage'] ?? 0);
-} else {
-    $staff_present = 85; // Default value
-    $staff_absent = 5;
-    $staff_leave = 10;
-}
-
-// Fetch today's classes
-$today = date('Y-m-d');
-$classes_query = "SELECT 
-    c.class_name, 
-    c.start_time, 
-    c.end_time, 
-    c.room, 
-    CONCAT(s.title, ' ', s.firstname, ' ', s.lastname) as instructor,
-    CASE 
-        WHEN c.start_time <= CURRENT_TIME() AND c.end_time >= CURRENT_TIME() THEN 'ongoing'
-        WHEN c.end_time < CURRENT_TIME() THEN 'completed'
-        ELSE 'upcoming'
-    END as status
-FROM classes c
-JOIN staff s ON c.instructor_id = s.id
-WHERE c.class_date = '$today'
-ORDER BY c.start_time ASC";
-
-$classes_result = mysqli_query($conn, $classes_query);
-$classes_data = [];
-if ($classes_result) {
-    while ($class = mysqli_fetch_assoc($classes_result)) {
-        $classes_data[] = $class;
-    }
-}
-
-// Function to get events for the calendar
-function getCalendarEvents($conn, $month, $year) {
-    $start_date = "$year-$month-01";
-    $end_date = date('Y-m-t', strtotime($start_date)); // Last day of month
-    
-    $events_query = "SELECT date, event_name FROM events 
-                     WHERE date BETWEEN '$start_date' AND '$end_date'";
-    $events_result = mysqli_query($conn, $events_query);
-    
-    $events = [];
-    if ($events_result) {
-        while ($row = mysqli_fetch_assoc($events_result)) {
-            $event_day = date('j', strtotime($row['date']));
-            $events[$event_day] = true;
-        }
-    }
-    
-    return $events;
-}
-
-// Get current month and year
-$current_month = date('n');
-$current_year = date('Y');
-$current_day = date('j');
-
-// Get events for current month
-$calendar_events = getCalendarEvents($conn, $current_month, $current_year);
-
-// Fetch notifications from the database
-$notifications_query = "SELECT * FROM notifications 
-                       WHERE user_id = {$_SESSION['userid']} 
-                       AND is_read = 0 
-                       ORDER BY created_at DESC 
-                       LIMIT 5";
-$notifications_result = mysqli_query($conn, $notifications_query);
-
-$notifications = [];
-$notification_count = 0;
-
-if ($notifications_result) {
-    while ($row = mysqli_fetch_assoc($notifications_result)) {
-        $notifications[] = $row;
-    }
-    $notification_count = count($notifications);
-    
-    // Get total count of unread notifications
-    $count_query = "SELECT COUNT(*) as total FROM notifications 
-                   WHERE user_id = {$_SESSION['userid']} AND is_read = 0";
-    $count_result = mysqli_query($conn, $count_query);
-    if ($count_result) {
-        $notification_count = mysqli_fetch_assoc($count_result)['total'];
-    }
-}
-
-// Get user profile image or first letter for avatar
-$user_id = $_SESSION['userid'];
-$profile_query = "SELECT profile_image, firstname FROM users WHERE id = $user_id";
-$profile_result = mysqli_query($conn, $profile_query);
-
-$profile_image = null;
-$first_letter = "U"; // Default
-
-if ($profile_result && mysqli_num_rows($profile_result) > 0) {
-    $user_data = mysqli_fetch_assoc($profile_result);
-    $profile_image = $user_data['profile_image'];
-    
-    // Get first letter of first name if available
-    if (!empty($user_data['firstname'])) {
-        $first_letter = strtoupper(substr($user_data['firstname'], 0, 1));
-    }
-}
-else {
-    // For debugging
-    // echo "Error in profile query: " . mysqli_error($conn);
-}
 ?>
 
 <!DOCTYPE html>
@@ -349,7 +253,7 @@ else {
         <?php if (!empty($profile_image)): ?>
             <img src="<?php echo htmlspecialchars($profile_image); ?>" alt="Profile Image">
         <?php else: ?>
-            <?php echo $first_letter; ?>
+            <?php null /* echo  $first_letter */; ?>
         <?php endif; ?>
     </div>
                     

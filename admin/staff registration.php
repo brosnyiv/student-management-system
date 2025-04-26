@@ -1,3 +1,35 @@
+<?php
+
+// staff register.php
+// staff_id 	user_id 	staff_type 	staff_number 	full_name 	date_of_birth 	gender 	marital_status 	national_id 	profile_photo_path 	phone_number 	
+// personal_email 	residential_address 	department_id 	designation 	hire_date 	employment_type 	supervisor 	created_at 	updated_at 	
+//fetch data from role table
+session_start();
+include 'dbconnect.php';
+
+
+// Check if user is not logged in
+if (empty($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
+
+$sql = "SELECT * FROM roles";
+$result = mysqli_query($conn, $sql);
+if ($result) {
+    $roles = mysqli_fetch_all($result, MYSQLI_ASSOC);
+} else {
+    echo "Error: " . mysqli_error($conn);
+}
+
+$stafftype=$staffnumber=$fullname=$dob=$gender=$maritalstatus=$nationalid=$profilephotopath=$phonenumber=$personalemail=$residentialaddress=$departmentid=
+$designation=$hiredate=$employmenttype=$supervisor="";
+
+
+
+?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -59,7 +91,7 @@
                 <div class="step">4</div>
             </div>
             
-            <form id="staffRegistrationForm" action="submit_staff.php" method="POST">
+            <form id="staffRegistrationForm" action="" method="POST">
                 <!-- Staff Type Hidden Field -->
                 <input type="hidden" id="staff_type" name="staff_type" value="">
                 
@@ -81,12 +113,23 @@
                             <label for="email" class="required">Email Address</label>
                             <input type="email" id="email" name="email" required>
                         </div>
+
+                        <div class="form-group">
+                                    <label for="userRole">Role</label>
+                                    <select id="userRole" name="role_name" required>
+                                        <option value="">Select a role</option>
+                                            <?php foreach($roles as $r): ?>
+                                                <option value="<?= $r['role_id']; ?>"><?= $r['role_name']; ?></option>
+                                            <?php endforeach; ?>
+                                        </option>
+                                    </select>
+                        </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
                             <label for="password" class="required">Password</label>
-                            <input type="password" id="password" name="password" required>
+                            <input type="password" id="password" name="password_hash" required>
                             <div class="help-text">Must be at least 8 characters with numbers and special characters</div>
                         </div>
                         
@@ -112,7 +155,7 @@
                         
                         <div class="form-group">
                             <label for="dob" class="required">Date of Birth</label>
-                            <input type="date" id="dob" name="dob" required>
+                            <input type="date" id="dob" name="date_of_birth" required>
                         </div>
                     </div>
                     
@@ -153,7 +196,7 @@
                                 <div class="upload-icon">📷</div>
                                 <div>Click to upload photo</div>
                                 <div class="help-text">JPEG or PNG, max 2MB</div>
-                                <input type="file" id="photo_path" name="photo_path" accept="image/*" style="display: none;" required>
+                                <input type="file" id="photo_path" name="profile_photo_path" accept="image/*" style="display: none;" required>
                             </div>
                         </div>
                     </div>
@@ -169,7 +212,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="phone" class="required">Phone Number</label>
-                            <input type="tel" id="phone" name="phone" required>
+                            <input type="tel" id="phone" name="phone_number" required>
                         </div>
                         
                         <div class="form-group">
@@ -181,26 +224,7 @@
                     <div class="form-row">
                         <div class="form-group-full">
                             <label for="address" class="required">Residential Address</label>
-                            <textarea id="address" name="address" rows="3" required></textarea>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="emergency_name" class="required">Emergency Contact Person Name</label>
-                            <input type="text" id="emergency_name" name="emergency_name" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="emergency_phone" class="required">Emergency Contact Phone</label>
-                            <input type="tel" id="emergency_phone" name="emergency_phone" required>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="emergency_relationship" class="required">Relationship to Emergency Contact</label>
-                            <input type="text" id="emergency_relationship" name="emergency_relationship" required>
+                            <textarea id="address" name="residential_address" rows="3" required></textarea>
                         </div>
                     </div>
                 </div>
@@ -236,7 +260,7 @@
                                 
                                 <div class="form-group">
                                     <label for="year1" class="required">Year of Graduation</label>
-                                    <input type="number" id="year1" name="year" min="1950" max="2030" required>
+                                    <input type="number" id="year1" name="graduation_year" min="1950" max="2030" required>
                                 </div>
                             </div>
                             
@@ -247,7 +271,7 @@
                                         <div class="upload-icon">📄</div>
                                         <div>Click to upload certificate</div>
                                         <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
-                                        <input type="file" id="certificate1" name="certificate" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
+                                        <input type="file" id="certificate1" name="certification_path" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
                                     </div>
                                 </div>
                             </div>
@@ -274,26 +298,14 @@
                         </div>
                         
                         <div class="form-group">
-                            <label for="dept_id" class="required">Department</label>
-                            <select id="dept_id" name="dept_id" required>
-                                <option value="">Select Department</option>
-                                <option value="computer-science">Computer Science</option>
-                                <option value="mathematics">Mathematics</option>
-                                <option value="physics">Physics</option>
-                                <option value="chemistry">Chemistry</option>
-                                <option value="biology">Biology</option>
-                                <option value="languages">Languages</option>
-                                <option value="social-studies">Social Studies</option>
-                                <option value="physical-education">Physical Education</option>
-                                <option value="arts">Arts</option>
-                                <option value="music">Music</option>
-                                <option value="admin">Administration</option>
-                                <option value="finance">Finance</option>
-                                <option value="it">IT Support</option>
-                                <option value="maintenance">Maintenance</option>
-                                <option value="security">Security</option>
-                                <option value="other">Other</option>
-                            </select>
+                                    <label for="userRole">Department</label>
+                                    <select id="userRole" name="role_name" required>
+                                        <option value="">Select a role</option>
+                                            <?php foreach($roles as $r): ?>
+                                                <option value="<?= $r['role_id']; ?>"><?= $r['role_name']; ?></option>
+                                            <?php endforeach; ?>
+                                        </option>
+                                    </select>
                         </div>
                     </div>
                     
