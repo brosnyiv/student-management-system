@@ -170,7 +170,7 @@ if ($result) {
         <div class="welcome-banner">
             <div class="welcome-text">
                 <h1>MONACO INSTITUTE</h1>
-                <p>Welcome back, <?php echo isset($_SESSION['fullname']) ? htmlspecialchars($_SESSION['fullname']) : "User"; ?></p>
+                <p>Welcome back, <?php echo isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : "User"; ?></p>
                 <div class="date-display">
                     <i class="fas fa-calendar-alt"></i> <span id="currentDate"></span>
                     <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
@@ -256,7 +256,7 @@ if ($result) {
     </div>
                     
                     <div class="user-info">
-                    <?php echo isset($_SESSION['fullname']) ? htmlspecialchars($_SESSION['fullname']) : "User"; ?><br>
+                    <?php echo isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : "User"; ?><br>
                         <span class="role"><?php echo isset($_SESSION['user_role']) ? htmlspecialchars($_SESSION['user_role']) : "undefined"; ?></span>
                     </div>
                 </div>
