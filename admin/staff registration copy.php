@@ -108,47 +108,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 if($password_hash==$confirmPassword){
     $sql="insert into users(suernem,email,password_hash,role_id,access_level) values('$username','$email','$password_hash','$role_name','$access_level')";
     $result=mysqli_query($conn,$sql);
-    
-    if($result){
-        //get the last inserted user id
-        $user_id=mysqli_insert_id($conn);
-        //insert into staff table
-        $sql="insert into staff() values('$user_id','$staff_type','$staff_number','$full_name','$date_of_birth','$gender','$marital_status','$national_id','$profile_photo_path','$phone_number',
-        '$personal_email','$residential_address','$department_id','$designation','$hire_date','$employment_type','$supervisor',now(),now())";
-        $result=mysqli_query($conn,$sql);
-        if($result){
-            //get the last inserted staff id
-            $staff_id=mysqli_insert_id($conn);
-            //insert into academic qualifications table
-            $sql="insert into academic_qualifications(staff_id,degree,institution,major,graduation_year,certification_path) values('$staff_id','$degree','$institution','$major','$graduation_year','$certification_path')";
-            $result=mysqli_query($conn,$sql);
-            if($result){
-                //insert into payroll and bank details table
-                $sql="insert into payroll_and_bank_details(staff_id,bank_name,account_number,tax_id,tin_number,salary_scale,payment_frequency) values('$staff_id','$bank_name','$account_number','$tax_id','$tin_number','$salary_scale','$payment_frequency')";
-                $result=mysqli_query($conn,$sql);
-                if($result){
-                    //insert into document uploads table
-                    $sql="insert into document_uploads(staff_id,document_path,document_type,document_number,expiry_date,document_description) values('$staff_id','$document_path','$document_type','$document_number','$expiry_date','$document_description')";
-                    $result=mysqli_query($conn,$sql);
-                    if($result){
-                        //insert into consent and declaration table
-                        $sql="insert into staff_consent()values('$staff_id','$terms_consent','$data_consent','$update_consent','$digital_signature','$digital_date')";
-                        $result=mysqli_query($conn,$sql);
-                        
-                    }else{
-                        echo "Error: ".mysqli_error($conn);
-                    }
-                }else{
-                    echo "Error: ".mysqli_error($conn);
-                }
-            }else{
-                echo "Error: ".mysqli_error($conn);
-            }
-    }
 }
 
 
-}}
+
+}
+
 
 ?>
 
