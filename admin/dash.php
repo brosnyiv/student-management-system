@@ -126,8 +126,6 @@ if ($result) {
     // echo "Error in student query: " . mysqli_error($conn);
 }
 
-
-
 ?>
 
 <!DOCTYPE html>

@@ -223,6 +223,15 @@ if ($result) {
                                     </select>
                                 </div>
                                 <div class="form-group">
+                                    <label for="userStatus">Access Level</label>
+                                    <select id="userStatus" required name="access_level">                                        
+                                        <option value="standard">Standard</option>
+                                        <option value="basic">Basic</option>
+                                        <option value="advanced">Advanced</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
                                     <label for="userPassword">Password</label>
                                     <input type="password" id="userPassword" placeholder="Enter password" required name="password_hash">
                                 </div>
