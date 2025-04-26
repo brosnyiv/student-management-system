@@ -41,40 +41,13 @@ function getCourseIcon($department) {
     }
 }
 
-// Prepare query to fetch courses - Let's simplify and debug this query
+// Prepare and execute query to fetch courses
 $sql = "SELECT * FROM courses";
-
-// Execute query and check for errors
 $result = $conn->query($sql);
 
-// If query fails, display error
+// Check for errors
 if ($result === false) {
-    echo "Error executing query: " . $conn->error;
-}
-
-// For debugging - check your table structure
-$tables_query = "SHOW TABLES";
-$tables_result = $conn->query($tables_query);
-$tables = [];
-if ($tables_result) {
-    while ($row = $tables_result->fetch_array()) {
-        $tables[] = $row[0];
-    }
-}
-
-// Check if courses table exists
-$courses_exists = in_array('courses', $tables);
-
-// Get courses table structure if it exists
-$structure = [];
-if ($courses_exists) {
-    $structure_query = "DESCRIBE courses";
-    $structure_result = $conn->query($structure_query);
-    if ($structure_result) {
-        while ($row = $structure_result->fetch_assoc()) {
-            $structure[] = $row;
-        }
-    }
+    die("Error executing query: " . $conn->error);
 }
 ?>
 
@@ -228,10 +201,10 @@ if ($courses_exists) {
             <button class="support-button"><i class="fas fa-headset"></i> Support</button>
         </div>
         <ul class="sidebar-menu">
-            <li onclick="window.location.href='dash.php'"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></li>
+            <li class="active" onclick="window.location.href='dash.php'"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></li>
             <li onclick="window.location.href='student.php'"><i class="fas fa-user-graduate"></i> <span>Student Management</span></li>
             <li onclick="window.location.href='staff.php'"><i class="fas fa-user-tie"></i> <span>Staff Management</span></li>
-            <li  class="active" onclick="window.location.href='courses.php'"><i class="fas fa-book"></i> <span>Courses</span></li>
+            <li onclick="window.location.href='courses.php'"><i class="fas fa-book"></i> <span>Courses</span></li>
             <li onclick="window.location.href='payments.php'"><i class="fas fa-money-bill-wave"></i> <span>Payments Info</span></li>
             <li onclick="window.location.href='marks&exams.php'"><i class="fas fa-file-alt"></i> <span>Marks & Exams</span></li>
             <li onclick="window.location.href='results.php'"><i class="fas fa-search"></i> <span>Result</span></li>
@@ -240,7 +213,7 @@ if ($courses_exists) {
             <li onclick="window.location.href='classes.php'"><i class="fas fa-chalkboard-teacher"></i> <span>Classes</span></li>
             <li onclick="window.location.href='messages.php'"><i class="fas fa-envelope"></i> <span>Messages</span></li>
             <li onclick="window.location.href='settings page.php'"><i class="fas fa-cog"></i> <span>Settings</span></li>
-            <li ><i class="fas fa-sign-out-alt"></i> <span>Logout</span></li>
+            <li onclick="window.location.href='logout.php'"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></li>
         </ul>
     </div>
 
@@ -360,7 +333,7 @@ if ($courses_exists) {
                 </tr>
             </thead>
             <tbody>
-                <?php if($result && $result !== false && $result->num_rows > 0): ?>
+                <?php if($result && $result->num_rows > 0): ?>
                     <?php while($row = $result->fetch_assoc()): ?>
                         <tr>
                             <td>
@@ -403,11 +376,7 @@ if ($courses_exists) {
                 <?php else: ?>
                     <tr>
                         <td colspan="7" style="text-align: center;">
-                            <?php if($result === false): ?>
-                                Database query error: <?php echo htmlspecialchars($conn->error); ?>
-                            <?php else: ?>
-                                No courses found
-                            <?php endif; ?>
+                            No courses found in the database
                         </td>
                     </tr>
                 <?php endif; ?>

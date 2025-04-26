@@ -55,10 +55,35 @@ if ($inactive_result) {
     $inactive_count = 0;
 }
 
-// Fetch all students for the table
-$students_list_query = "SELECT * FROM students ORDER BY id DESC LIMIT 10";
-$students_list_result = mysqli_query($conn, $students_list_query);
 
+// Query to fetch all required student data
+$query = "SELECT 
+            s.id,
+            s.student_id,
+            s.first_name,
+            s.middle_name,
+            s.surname,
+            s.status,
+            c.course_name AS course,
+            cd.email,
+            IFNULL((
+                SELECT SUM(pr.amount) 
+                FROM payment_receipts pr 
+                WHERE pr.student_id = s.student_id
+                AND pr.payment_type = 'tuition'
+            ), 0) AS balance
+          FROM students s
+          LEFT JOIN enrollments e ON s.student_id = e.student_id
+          LEFT JOIN courses c ON e.course_id = c.course_id
+          LEFT JOIN contact_details cd ON s.student_id = cd.student_id
+          ORDER BY s.id DESC 
+          LIMIT 10";
+
+$result = mysqli_query($conn, $query);
+
+if (!$result) {
+    die("Database error: " . mysqli_error($conn));
+}
 
 ?>
 
@@ -313,30 +338,38 @@ $students_list_result = mysqli_query($conn, $students_list_query);
             margin-bottom: 15px;
         }
         
-        /* New styles for table view */
+        /* Improved styles for table view */
+        .table-responsive {
+            overflow-x: auto;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
         .student-table {
             width: 100%;
             border-collapse: collapse;
             background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             border-radius: 8px;
             overflow: hidden;
-            margin-bottom: 20px;
         }
         
         .student-table th {
-            background-color: #f5f5f5;
-            padding: 12px 15px;
+            background-color: #f0f0f0;
+            padding: 15px;
             text-align: left;
             font-weight: 600;
             color: #333;
             border-bottom: 2px solid #ddd;
+            text-transform: uppercase;
+            font-size: 13px;
         }
         
         .student-table td {
-            padding: 12px 15px;
+            padding: 15px;
             border-bottom: 1px solid #eee;
             vertical-align: middle;
+            font-size: 14px;
         }
         
         .student-table tr:hover {
@@ -348,12 +381,13 @@ $students_list_result = mysqli_query($conn, $students_list_query);
         }
         
         .status-badge {
-            padding: 4px 8px;
-            border-radius: 12px;
+            padding: 5px 10px;
+            border-radius: 20px;
             font-size: 12px;
             font-weight: 500;
             display: inline-block;
             text-align: center;
+            min-width: 80px;
         }
         
         .status-active {
@@ -373,27 +407,51 @@ $students_list_result = mysqli_query($conn, $students_list_query);
         
         .balance-positive {
             color: #155724;
+            font-weight: 600;
         }
         
         .balance-negative {
             color: #721c24;
+            font-weight: 600;
         }
         
         .add-button {
             background-color: #8B1818;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
+            padding: 10px 18px;
+            border-radius: 5px;
             cursor: pointer;
             font-weight: 500;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
+            transition: all 0.3s ease;
         }
         
         .add-button:hover {
             background-color: #6d1212;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* Additional improvements */
+        .actions-cell {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .student-name {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .empty-table-message {
+            padding: 30px;
+            text-align: center;
+            color: #666;
+            font-style: italic;
         }
     </style>
 </head>
@@ -457,9 +515,7 @@ $students_list_result = mysqli_query($conn, $students_list_query);
 
         <div class="student-tabs">
             <div class="student-tab active">All Students</div>
-
             <div class="student-tab">Import/Export</div>
-            
             <div class="student-tab">Reports</div>
         </div>
 
@@ -491,74 +547,105 @@ $students_list_result = mysqli_query($conn, $students_list_query);
             </div>
         </div>
 
-        
-           
+        <!-- Filter Controls -->
+        <div class="filter-controls">
+            <div class="filter-group">
+                <label>Search:</label>
+                <input type="text" placeholder="Student name or ID">
+            </div>
+            <div class="filter-group">
+                <label>Status:</label>
+                <select>
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Course:</label>
+                <select>
+                    <option value="">All Courses</option>
+                    <option value="cs">Computer Science</option>
+                    <option value="business">Business</option>
+                    <option value="engineering">Engineering</option>
+                </select>
+            </div>
+            <div class="import-export">
+                <button><i class="fas fa-download"></i> Export</button>
+                <button><i class="fas fa-filter"></i> More Filters</button>
+            </div>
+        </div>
 
         <div class="student-list-header">
             <h3>Students List</h3>
-            <button class="add-button" id="addStudentButton" onclick="window.location.href='student registration.php'"  ><i class="fas fa-plus"></i> Add New Student</button>
+            <button class="add-button" id="addStudentButton" onclick="window.location.href='student registration.php'"><i class="fas fa-plus"></i> Add New Student</button>
         </div>
 
-        <!-- New Table Layout -->
-        <table class="student-table">
-            <thead>
-                <tr>
-                    <th>Image</th>
-                    <th>Name</th>
-                    <th>Student ID</th>
-                    <th>Course</th>
-                    <th>Email</th>
-                    <th>Status</th>
-                    <th>Balance</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-    <?php 
-    if(mysqli_num_rows($students_list_result) > 0) {
-        while($student = mysqli_fetch_assoc($students_list_result)) {
-            // Get first letter of name for avatar
-            $first_letter = substr($student['first_name'], 0, 1);
-            
-            // Determine balance class
-            $balance_class = ($student['balance'] >= 0) ? 'balance-positive' : 'balance-negative';
-            
-            // Determine status class
-            $status_class = 'status-active';
-            if($student['status'] == 'Inactive') {
-                $status_class = 'status-inactive';
-            } elseif($student['status'] == 'On Leave') {
-                $status_class = 'status-onleave';
-            }
-    ?>
-    <tr>
-        <td>
-            <div class="student-avatar"><?php echo $first_letter; ?></div>
-        </td>
-        <td><?php echo $student['first_name'] . ' ' . $student['last_name']; ?></td>
-        <td><?php echo $student['student_id']; ?></td>
-        <td><?php echo $student['course']; ?></td>
-        <td><?php echo $student['email']; ?></td>
-        <td><span class="status-badge <?php echo $status_class; ?>"><?php echo $student['status']; ?></span></td>
-        <td class="<?php echo $balance_class; ?>"><?php echo '$' . number_format($student['balance'], 2); ?></td>
-        <td>
-            <button class="action-button view-button" onclick="viewStudent(<?php echo $student['id']; ?>)"><i class="fas fa-eye"></i></button>
-            <button class="action-button edit-button" onclick="editStudent(<?php echo $student['id']; ?>)"><i class="fas fa-edit"></i></button>
-            <button class="action-button delete-button" onclick="deleteStudent(<?php echo $student['id']; ?>)"><i class="fas fa-trash"></i></button>
-        </td>
-    </tr>
-    <?php
-        }
-    } else {
-    ?>
-    <tr>
-        <td colspan="8" style="text-align: center;">No students found</td>
-    </tr>
-    <?php
-    }
-    ?>
-</tbody>
-        </table>
+        <!-- Improved Student Table -->
+        <div class="table-responsive">
+            <table class="student-table">
+                <thead>
+                    <tr>
+                        <th>Avatar</th>
+                        <th>Name</th>
+                        <th>Student ID</th>
+                        <th>Course</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Balance</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    if (mysqli_num_rows($result) > 0) {
+                        while ($student = mysqli_fetch_assoc($result)) {
+                            // Prepare the data
+                            $first_letter = substr($student['first_name'], 0, 1);
+                            $full_name = $student['first_name'];
+                            if (!empty($student['middle_name'])) {
+                                $full_name .= ' ' . $student['middle_name'];
+                            }
+                            $full_name .= ' ' . $student['surname'];
+                            
+                            $status_class = 'status-' . strtolower($student['status']);
+                            $balance_class = ($student['balance'] >= 0) ? 'balance-positive' : 'balance-negative';
+                    ?>
+                    <tr>
+                        <td>
+                            <div class="student-avatar"><?php echo htmlspecialchars($first_letter); ?></div>
+                        </td>
+                        <td class="student-name"><?php echo htmlspecialchars($full_name); ?></td>
+                        <td><?php echo htmlspecialchars($student['student_id']); ?></td>
+                        <td><?php echo htmlspecialchars($student['course'] ?? 'Not enrolled'); ?></td>
+                        <td><?php echo htmlspecialchars($student['email'] ?? 'No email'); ?></td>
+                        <td><span class="status-badge <?php echo $status_class; ?>"><?php echo htmlspecialchars($student['status']); ?></span></td>
+                        <td class="<?php echo $balance_class; ?>">$<?php echo number_format($student['balance'], 2); ?></td>
+                        <td class="actions-cell">
+                            <button class="action-button view-button" onclick="viewStudent(<?php echo $student['id']; ?>)" title="View Student">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="action-button edit-button" onclick="editStudent(<?php echo $student['id']; ?>)" title="Edit Student">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="action-button delete-button" onclick="deleteStudent(<?php echo $student['id']; ?>)" title="Delete Student">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    <?php 
+                        }
+                    } else {
+                    ?>
+                    <tr>
+                        <td colspan="8" class="empty-table-message">No students found in the database.</td>
+                    </tr>
+                    <?php
+                    }
+                    ?>
+                </tbody>
+            </table>
+        </div>
 
         <div class="pagination">
             <button class="pagination-button"><i class="fas fa-angle-double-left"></i></button>
@@ -588,9 +675,42 @@ $students_list_result = mysqli_query($conn, $students_list_query);
             document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', timeOptions);
         }
         
+        updateDateTime(); // Call immediately
         setInterval(updateDateTime, 1000);
         
-       
+        // Student action functions
+        function viewStudent(studentId) {
+            // Implement view student functionality
+            console.log("View student with ID: " + studentId);
+            // You can add code to redirect to a student view page or show a modal
+            alert("Viewing student details for ID: " + studentId);
+        }
+        
+        function editStudent(studentId) {
+            // Implement edit student functionality
+            console.log("Edit student with ID: " + studentId);
+            // You can add code to redirect to a student edit page or show a modal
+            window.location.href = "edit-student.php?id=" + studentId;
+        }
+        
+        function deleteStudent(studentId) {
+            // Implement delete student functionality
+            if(confirm("Are you sure you want to delete this student?")) {
+                console.log("Delete student with ID: " + studentId);
+                // Add AJAX code to delete the student and update the table
+                alert("Student deleted successfully!");
+            }
+        }
+        
+        // Tab switching functionality
+        document.querySelectorAll('.student-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.student-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                // You can add code to show different content based on the active tab
+            });
+        });
     </script>
 </body>
 </html>

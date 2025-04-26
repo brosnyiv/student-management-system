@@ -35,15 +35,15 @@ if ($result && $row = $result->fetch_assoc()) {
     $nonTeachingStaff = $row['nonteaching'];
 }
 
-// Query to count active staff
-$activeStaffQuery = "SELECT COUNT(*) AS active FROM staff WHERE status = 'active'";
+// Query to count active staff - assuming employment_type 'full-time', 'part-time', or 'visiting' means active
+$activeStaffQuery = "SELECT COUNT(*) AS active FROM staff WHERE employment_type IN ('full-time', 'part-time', 'visiting')";
 $result = $conn->query($activeStaffQuery);
 if ($result && $row = $result->fetch_assoc()) {
     $activeStaff = $row['active'];
 }
 
-// Query to count inactive staff
-$inactiveStaffQuery = "SELECT COUNT(*) AS inactive FROM staff WHERE status = 'inactive'";
+// Query to count inactive staff - assuming employment_type 'temporary' or 'contract' that has expired means inactive
+$inactiveStaffQuery = "SELECT COUNT(*) AS inactive FROM staff WHERE employment_type IN ('temporary', 'contract')";
 $result = $conn->query($inactiveStaffQuery);
 if ($result && $row = $result->fetch_assoc()) {
     $inactiveStaff = $row['inactive'];
@@ -54,8 +54,12 @@ $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $resultsPerPage = 10;
 $offset = ($currentPage - 1) * $resultsPerPage;
 
-// Get staff data for table display
-$staffQuery = "SELECT * FROM staff ORDER BY name LIMIT $offset, $resultsPerPage";
+// Get staff data for table display with department name
+$staffQuery = "SELECT s.*, d.department_name 
+               FROM staff s
+               LEFT JOIN departments d ON s.department_id = d.department_id
+               ORDER BY s.full_name 
+               LIMIT $offset, $resultsPerPage";
 $staffResult = $conn->query($staffQuery);
 
 // Store staff data in an array for display
@@ -70,7 +74,6 @@ $conn->close();
 ?>
 
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -78,517 +81,512 @@ $conn->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monaco Institute - Staff Management</title>
     <link rel="stylesheet" href="dash.css">
-   
-    
-
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* Staff Management Specific Styles */
-
-/* Staff Tabs */
-.staff-tabs {
-    display: flex;
-    background-color: #f7f7f7;
-    border-radius: 8px;
-    overflow: hidden;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.staff-tab {
-    padding: 12px 24px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.3s ease;
-}
-
-.staff-tab.active {
-    background-color: #8B1818;
-    color: white;
-}
-
-.staff-tab:hover:not(.active) {
-    background-color: #e9e9e9;
-}
-
-/* Staff Statistics */
-.staff-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-}
-
-.stat-box {
-    background: linear-gradient(145deg, #ffffff, #f5f5f5);
-    border-radius: 12px;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.stat-box:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
-}
-
-.stat-icon {
-    width: 48px;
-    height: 48px;
-    background-color: rgba(139, 24, 24, 0.1);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 12px;
-}
-
-.stat-icon i {
-    color: #8B1818;
-    font-size: 22px;
-}
-
-.stat-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: #333;
-    margin-bottom: 4px;
-}
-
-.stat-label {
-    font-size: 14px;
-    color: #666;
-}
-
-/* Staff Type Buttons */
-.staff-type-buttons {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 24px;
-}
-
-.staff-type-button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 6px;
-    background-color: #f5f5f5;
-    color: #444;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.staff-type-button i {
-    font-size: 16px;
-}
-
-.staff-type-button.active {
-    background-color: #8B1818;
-    color: white;
-}
-
-.staff-type-button:hover:not(.active) {
-    background-color: #e0e0e0;
-}
-
-/* Staff Forms */
-.staff-form {
-    background-color: white;
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 24px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    display: none;
-}
-
-.form-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 24px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #eaeaea;
-}
-
-.form-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-bottom: 20px;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.form-group label {
-    font-size: 14px;
-    font-weight: 500;
-    color: #555;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-    padding: 10px 14px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 14px;
-    transition: border-color 0.3s ease;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-    border-color: #8B1818;
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(139, 24, 24, 0.1);
-}
-
-.form-group select[multiple] {
-    height: 120px;
-}
-
-.form-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 24px;
-}
-
-.save-button, .cancel-button {
-    padding: 12px 24px;
-    border-radius: 6px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border: none;
-}
-
-.save-button {
-    background-color: #8B1818;
-    color: white;
-}
-
-.save-button:hover {
-    background-color: #7a1515;
-}
-
-.cancel-button {
-    background-color: #f5f5f5;
-    color: #444;
-}
-
-.cancel-button:hover {
-    background-color: #e0e0e0;
-}
-
-/* Filter and Search Section */
-.staff-list-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 12px;
-}
-
-.filter-controls {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-}
-
-.filter-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.filter-group label {
-    font-size: 14px;
-    font-weight: 500;
-    color: #555;
-}
-
-.filter-group input,
-.filter-group select {
-    padding: 10px 14px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 14px;
-    transition: border-color 0.3s ease;
-}
-
-.filter-group input:focus,
-.filter-group select:focus {
-    border-color: #8B1818;
-    outline: none;
-}
-
-.import-export {
-    display: flex;
-    gap: 12px;
-}
-
-.import-export button {
-    padding: 10px 16px;
-    border-radius: 6px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    border: none;
-}
-
-#exportButton {
-    background-color: #f5f5f5;
-    color: #444;
-}
-
-#exportButton:hover {
-    background-color: #e0e0e0;
-}
-
-.add-button {
-    background-color: #8B1818;
-    color: white;
-}
-
-.add-button:hover {
-    background-color: #7a1515;
-}
-
-/* Staff Table */
-.staff-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-    margin-bottom: 24px;
-}
-
-.staff-table thead th {
-    background-color: #f7f7f7;
-    padding: 8px;
-    text-align: left;
-    font-weight: 400;
-    color: #333;
-    border-bottom: 1px solid #eaeaea;
-}
-
-.staff-table tbody tr {
-    transition: background-color 0.3s ease;
-}
-
-.staff-table tbody tr:nth-child(even) {
-    background-color: #fafafa;
-}
-
-.staff-table tbody tr:hover {
-    background-color: rgba(139, 24, 24, 0.05);
-}
-
-.staff-table td {
-    padding: 14px;
-    border-bottom: 1px solid #eaeaea;
-}
-
-.staff-avatar {
-    width: 36px;
-    height: 36px;
-    background-color: #8B1818;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-weight: 400;
-}
-
-.department-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    background-color: #f0f0f0;
-    color: #555;
-}
-
-.teaching-icon {
-    color: #8B1818;
-}
-
-.non-teaching-icon {
-    color: #2a5394;
-}
-
-.status-badge {
-    display: inline-block;
-    padding: 4px 4px;
-    border-radius: 12px;
-    font-size: 10px;
-    font-weight: 300;
-}
-
-.status-active {
-    background-color: rgba(0, 150, 0, 0.1);
-    color: #008000;
-}
-
-.status-inactive {
-    background-color: rgba(150, 0, 0, 0.1);
-    color: #b00000;
-}
-
-.status-onleave {
-    background-color: rgba(255, 165, 0, 0.1);
-    color: #e67e00;
-}
-
-.action-button {
-    width: 20px;
-    height: 20px;
-    border-radius: 2px;
-    border: none;
-    background-color: transparent;
-    color: #555;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-right: 4px;
-    display: inline-flex;
-}
-
-.view-button:hover {
-    background-color: rgba(0, 150, 0, 0.1);
-    color: #008000;
-}
-
-.edit-button:hover {
-    background-color: rgba(0, 100, 200, 0.1);
-    color: #0064c8;
-}
-
-.delete-button:hover {
-    background-color: rgba(220, 0, 0, 0.1);
-    color: #dc0000;
-}
-
-/* Responsive Adjustments */
-@media (max-width: 1200px) {
-    .form-row {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 992px) {
-    .stat-box {
-        padding: 14px;
-    }
-    
-    .stat-value {
-        font-size: 24px;
-    }
-}
-
-@media (max-width: 768px) {
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-    
-    .staff-list-header {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .filter-controls {
-        flex-direction: column;
-    }
-    
-    .import-export {
-        justify-content: space-between;
-    }
-    
-    .staff-table {
-        display: block;
-        overflow-x: auto;
-    }
-}
-
-/* Pagination Styles */
-.pagination {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 24px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-    position: relative;
-}
-
-.page-button {
-    width: 36px;
-    height: 36px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: white;
-    border: 1px solid #e0e0e0;
-    color: #555;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.page-button:hover {
-    background-color: #f5f5f5;
-    border-color: #ccc;
-}
-
-.page-button.active {
-    background-color: #8B1818;
-    color: white;
-    border-color: #8B1818;
-}
-
-.page-info {
-    font-size: 14px;
-    color: #666;
-    margin-left: 12px;
-}
-
-/* Responsive adjustments for pagination */
-@media (max-width: 576px) {
-    .pagination {
-        flex-direction: column;
-        gap: 12px;
-    }
-    
-    .page-info {
-        margin-left: 0;
-    }
-}
-     
+        /* (Keep all the CSS styles from the original file) */
+        /* Staff Tabs */
+        .staff-tabs {
+            display: flex;
+            background-color: #f7f7f7;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .staff-tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .staff-tab.active {
+            background-color: #8B1818;
+            color: white;
+        }
+
+        .staff-tab:hover:not(.active) {
+            background-color: #e9e9e9;
+        }
+
+        /* Staff Statistics */
+        .staff-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-box {
+            background: linear-gradient(145deg, #ffffff, #f5f5f5);
+            border-radius: 12px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            background-color: rgba(139, 24, 24, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .stat-icon i {
+            color: #8B1818;
+            font-size: 22px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        /* Staff Type Buttons */
+        .staff-type-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .staff-type-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            background-color: #f5f5f5;
+            color: #444;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .staff-type-button i {
+            font-size: 16px;
+        }
+
+        .staff-type-button.active {
+            background-color: #8B1818;
+            color: white;
+        }
+
+        .staff-type-button:hover:not(.active) {
+            background-color: #e0e0e0;
+        }
+
+        /* Staff Forms */
+        .staff-form {
+            background-color: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            display: none;
+        }
+
+        .form-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #eaeaea;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: #8B1818;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(139, 24, 24, 0.1);
+        }
+
+        .form-group select[multiple] {
+            height: 120px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .save-button, .cancel-button {
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .save-button {
+            background-color: #8B1818;
+            color: white;
+        }
+
+        .save-button:hover {
+            background-color: #7a1515;
+        }
+
+        .cancel-button {
+            background-color: #f5f5f5;
+            color: #444;
+        }
+
+        .cancel-button:hover {
+            background-color: #e0e0e0;
+        }
+
+        /* Filter and Search Section */
+        .staff-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .filter-group input:focus,
+        .filter-group select:focus {
+            border-color: #8B1818;
+            outline: none;
+        }
+
+        .import-export {
+            display: flex;
+            gap: 12px;
+        }
+
+        .import-export button {
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+        }
+
+        #exportButton {
+            background-color: #f5f5f5;
+            color: #444;
+        }
+
+        #exportButton:hover {
+            background-color: #e0e0e0;
+        }
+
+        .add-button {
+            background-color: #8B1818;
+            color: white;
+        }
+
+        .add-button:hover {
+            background-color: #7a1515;
+        }
+
+        /* Staff Table */
+        .staff-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 24px;
+        }
+
+        .staff-table thead th {
+            background-color: #f7f7f7;
+            padding: 8px;
+            text-align: left;
+            font-weight: 400;
+            color: #333;
+            border-bottom: 1px solid #eaeaea;
+        }
+
+        .staff-table tbody tr {
+            transition: background-color 0.3s ease;
+        }
+
+        .staff-table tbody tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+
+        .staff-table tbody tr:hover {
+            background-color: rgba(139, 24, 24, 0.05);
+        }
+
+        .staff-table td {
+            padding: 14px;
+            border-bottom: 1px solid #eaeaea;
+        }
+
+        .staff-avatar {
+            width: 36px;
+            height: 36px;
+            background-color: #8B1818;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-weight: 400;
+        }
+
+        .department-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            background-color: #f0f0f0;
+            color: #555;
+        }
+
+        .teaching-icon {
+            color: #8B1818;
+        }
+
+        .non-teaching-icon {
+            color: #2a5394;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 4px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 300;
+        }
+
+        .status-active {
+            background-color: rgba(0, 150, 0, 0.1);
+            color: #008000;
+        }
+
+        .status-inactive {
+            background-color: rgba(150, 0, 0, 0.1);
+            color: #b00000;
+        }
+
+        .status-onleave {
+            background-color: rgba(255, 165, 0, 0.1);
+            color: #e67e00;
+        }
+
+        .action-button {
+            width: 20px;
+            height: 20px;
+            border-radius: 2px;
+            border: none;
+            background-color: transparent;
+            color: #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-right: 4px;
+            display: inline-flex;
+        }
+
+        .view-button:hover {
+            background-color: rgba(0, 150, 0, 0.1);
+            color: #008000;
+        }
+
+        .edit-button:hover {
+            background-color: rgba(0, 100, 200, 0.1);
+            color: #0064c8;
+        }
+
+        .delete-button:hover {
+            background-color: rgba(220, 0, 0, 0.1);
+            color: #dc0000;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 1200px) {
+            .form-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 992px) {
+            .stat-box {
+                padding: 14px;
+            }
+            
+            .stat-value {
+                font-size: 24px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .staff-list-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filter-controls {
+                flex-direction: column;
+            }
+            
+            .import-export {
+                justify-content: space-between;
+            }
+            
+            .staff-table {
+                display: block;
+                overflow-x: auto;
+            }
+        }
+
+        /* Pagination Styles */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 24px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .page-button {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            color: #555;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .page-button:hover {
+            background-color: #f5f5f5;
+            border-color: #ccc;
+        }
+
+        .page-button.active {
+            background-color: #8B1818;
+            color: white;
+            border-color: #8B1818;
+        }
+
+        .page-info {
+            font-size: 14px;
+            color: #666;
+            margin-left: 12px;
+        }
+
+        /* Responsive adjustments for pagination */
+        @media (max-width: 576px) {
+            .pagination {
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            .page-info {
+                margin-left: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -699,58 +697,79 @@ $conn->close();
             
          
             <!-- Staff listing with actions -->
-            <div class="staff-list-header">
-                <div class="filter-controls">
-                    <div class="filter-group">
-                        <label for="searchStaff">Search:</label>
-                        <input type="text" id="searchStaff" placeholder="Search by name, ID...">
-                    </div>
-                    <div class="filter-group">
-                        <label for="departmentFilter">Department:</label>
-                        <select id="departmentFilter">
-                            <option value="">All Departments</option>
-                            <option value="ComputerScience">Computer Science</option>
-                            <option value="Business">Business Administration</option>
-                            <option value="DigitalMarketing">Digital Marketing</option>
-                            <option value="GraphicDesign">Graphic Design</option>
-                            <option value="Languages">Languages</option>
-                            <option value="Mathematics">Mathematics</option>
-                            <option value="Administration">Administration</option>
-                            <option value="Finance">Finance & Accounting</option>
-                            <option value="HR">Human Resources</option>
-                            <option value="IT">IT Support</option>
-                            <option value="Library">Library</option>
-                            <option value="Maintenance">Maintenance</option>
-                            <option value="Security">Security</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="statusFilter">Status:</label>
-                        <select id="statusFilter">
-                            <option value="">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="onLeave">On Leave</option>
-                        </select>
-                    </div>
-                </div>
+<div class="staff-list-header">
+    <div class="filter-controls">
+        <div class="filter-group">
+            <label for="searchStaff">Search:</label>
+            <input type="text" id="searchStaff" placeholder="Search by name, ID...">
+        </div>
+        <div class="filter-group">
+            <label for="departmentFilter">Department:</label>
+            <select id="departmentFilter">
+                <option value="">All Departments</option>
+                <?php
+                // Connect to database
+                include 'dbconnect.php';
                 
-                <div class="import-export">
-                    <button id="exportButton"><i class="fas fa-file-export"></i> Export</button>
-                    <button id="addStaffButton" class="add-button"><i class="fas fa-plus"></i> Add Staff</button>
-                </div>
+                // Query to get all departments from the database
+                $deptQuery = "SELECT department_id, department_name FROM departments ORDER BY department_name";
+                $deptResult = $conn->query($deptQuery);
+                
+                // Loop through departments and create options
+                if ($deptResult && $deptResult->num_rows > 0) {
+                    while ($deptRow = $deptResult->fetch_assoc()) {
+                        echo '<option value="' . $deptRow['department_id'] . '">' . 
+                             htmlspecialchars($deptRow['department_name']) . '</option>';
+                    }
+                }
+                
+                // Close this database connection as we already have one active in the main code
+                $deptResult->close();
+                ?>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="statusFilter">Status:</label>
+            <select id="statusFilter">
+                <option value="">All Status</option>
+                <option value="full-time">Full-Time</option>
+                <option value="part-time">Part-Time</option>
+                <option value="visiting">Visiting</option>
+                <option value="contract">Contract</option>
+                <option value="temporary">Temporary</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="import-export">
+        <button id="exportButton"><i class="fas fa-file-export"></i> Export</button>
+        <button id="addStaffButton" class="add-button"><i class="fas fa-plus"></i> Add Staff</button>
+    </div>
+</div>
 
-        <!-- Staff data table -->
-        <tbody>
+<table class="staff-table">
+    <thead>
+        <tr>
+            <th>Staff ID</th>
+            <th>Full Name</th>
+            <th>Department</th>
+            <th>Designation</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
     <?php
     // Check if we have results
     if (!empty($staffData)) {
         // Fetch staff data
         foreach ($staffData as $row) {
             // Get first letter of name for avatar
-            $firstLetter = substr($row['name'], 0, 1);
+            $firstLetter = substr($row['full_name'], 0, 1);
             
-            // Determine department icon based on department
+            // Determine department icon based on staff type
             $deptIcon = 'fas fa-laptop';
             $iconClass = 'teaching-icon';
             
@@ -758,7 +777,7 @@ $conn->close();
                 $iconClass = 'non-teaching-icon';
                 
                 // Set appropriate icon for non-teaching departments
-                switch(strtolower($row['department'])) {
+                switch(strtolower($row['department_name'] ?? '')) {
                     case 'administration':
                         $deptIcon = 'fas fa-user-tie';
                         break;
@@ -785,7 +804,7 @@ $conn->close();
                 }
             } else {
                 // Set appropriate icon for teaching departments
-                switch(strtolower($row['department'])) {
+                switch(strtolower($row['department_name'] ?? '')) {
                     case 'computer science':
                         $deptIcon = 'fas fa-laptop';
                         break;
@@ -809,34 +828,47 @@ $conn->close();
                 }
             }
             
-            // Determine status class
+            // Determine status class based on employment type
             $statusClass = 'status-active';
-            if(isset($row['status'])) {
-                if($row['status'] == 'inactive') {
-                    $statusClass = 'status-inactive';
-                } else if($row['status'] == 'on leave') {
-                    $statusClass = 'status-onleave';
+            $statusText = 'Active';
+            
+            if(isset($row['employment_type'])) {
+                switch($row['employment_type']) {
+                    case 'full-time':
+                    case 'part-time':
+                    case 'visiting':
+                        $statusClass = 'status-active';
+                        $statusText = ucfirst($row['employment_type']);
+                        break;
+                    case 'contract':
+                        $statusClass = 'status-onleave';
+                        $statusText = 'Contract';
+                        break;
+                    case 'temporary':
+                        $statusClass = 'status-inactive';
+                        $statusText = 'Temporary';
+                        break;
                 }
             }
     ?>
     <tr>
-        <td><?php echo htmlspecialchars($row['staff_id']); ?></td>
+        <td><?php echo htmlspecialchars($row['staff_number']); ?></td>
         <td>
             <div style="display: flex; align-items: center; gap: 10px;">
                 <div class="staff-avatar"><?php echo htmlspecialchars($firstLetter); ?></div>
-                <div><?php echo htmlspecialchars($row['name']); ?></div>
+                <div><?php echo htmlspecialchars($row['full_name']); ?></div>
             </div>
         </td>
         <td>
             <span class="department-tag">
                 <i class="<?php echo $deptIcon.' '.$iconClass; ?>"></i> 
-                <?php echo htmlspecialchars($row['department']); ?>
+                <?php echo htmlspecialchars($row['department_name'] ?? 'Not Assigned'); ?>
             </span>
         </td>
         <td><?php echo htmlspecialchars($row['designation']); ?></td>
         <td><?php echo htmlspecialchars($row['email']); ?></td>
         <td><?php echo htmlspecialchars($row['phone']); ?></td>
-        <td><span class="status-badge <?php echo $statusClass; ?>"><?php echo ucfirst(htmlspecialchars($row['status'])); ?></span></td>
+        <td><span class="status-badge <?php echo $statusClass; ?>"><?php echo $statusText; ?></span></td>
         <td>
             <button class="action-button view-button" onclick="viewStaff('<?php echo $row['staff_id']; ?>')"><i class="fas fa-eye"></i></button>
             <button class="action-button edit-button" onclick="editStaff('<?php echo $row['staff_id']; ?>')"><i class="fas fa-pen"></i></button>
@@ -850,8 +882,7 @@ $conn->close();
         echo '<tr><td colspan="8" style="text-align:center;">No staff members found</td></tr>';
     }
     ?>
-</tbody>
-
+    </tbody>
 </table>
 
 <div class="pagination">
