@@ -1,3 +1,86 @@
+<?php
+
+
+ob_start();
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+include 'dbconnect.php'; // Include the database connection file
+
+// Check if user is not logged in
+if (empty($_SESSION['userid'])) {
+    header("Location: index.php");
+    exit();
+}
+
+// Function to get course icon based on department
+function getCourseIcon($department) {
+    switch(strtolower($department)) {
+        case 'it department':
+        case 'information technology':
+            return 'fas fa-laptop-code';
+        case 'business':
+        case 'business department':
+            return 'fas fa-chart-line';
+        case 'marketing':
+        case 'marketing department':
+            return 'fas fa-bullhorn';
+        case 'design':
+        case 'design department':
+            return 'fas fa-paint-brush';
+        case 'computer science':
+            return 'fas fa-code';
+        case 'data science':
+            return 'fas fa-database';
+        case 'artificial intelligence':
+            return 'fas fa-robot';
+        default:
+            return 'fas fa-book';
+    }
+}
+
+// Prepare query to fetch courses - Let's simplify and debug this query
+$sql = "SELECT * FROM courses";
+
+// Execute query and check for errors
+$result = $conn->query($sql);
+
+// If query fails, display error
+if ($result === false) {
+    echo "Error executing query: " . $conn->error;
+}
+
+// For debugging - check your table structure
+$tables_query = "SHOW TABLES";
+$tables_result = $conn->query($tables_query);
+$tables = [];
+if ($tables_result) {
+    while ($row = $tables_result->fetch_array()) {
+        $tables[] = $row[0];
+    }
+}
+
+// Check if courses table exists
+$courses_exists = in_array('courses', $tables);
+
+// Get courses table structure if it exists
+$structure = [];
+if ($courses_exists) {
+    $structure_query = "DESCRIBE courses";
+    $structure_result = $conn->query($structure_query);
+    if ($structure_result) {
+        while ($row = $structure_result->fetch_assoc()) {
+            $structure[] = $row;
+        }
+    }
+}
+?>
+
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -230,199 +313,109 @@
             
         </div>
 
-        <!-- List View (Initially visible) -->
-        <div class="detailed-courses">
-            <table>
-                <thead>
+       <!-- This part goes in your HTML where you display the course table -->
+<<div style="margin: 20px; padding: 15px; border: 1px solid #ddd; background-color: #f9f9f9;">
+        <h3>Database Debug Information:</h3>
+        <p>Tables in database:</p>
+        <ul>
+            <?php foreach($tables as $table): ?>
+                <li><?php echo htmlspecialchars($table); ?></li>
+            <?php endforeach; ?>
+        </ul>
+        
+        <?php if($courses_exists): ?>
+            <p>Structure of courses table:</p>
+            <table border="1" cellpadding="5" cellspacing="0">
+                <tr>
+                    <th>Field</th>
+                    <th>Type</th>
+                    <th>Null</th>
+                    <th>Key</th>
+                </tr>
+                <?php foreach($structure as $field): ?>
                     <tr>
-                        <th>Course</th>
-                        <th>Level</th>
-                        <th>Duration</th>
-                        <th>Students</th>
-                        <th>Faculty leader</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <td><?php echo htmlspecialchars($field['Field']); ?></td>
+                        <td><?php echo htmlspecialchars($field['Type']); ?></td>
+                        <td><?php echo htmlspecialchars($field['Null']); ?></td>
+                        <td><?php echo htmlspecialchars($field['Key']); ?></td>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>
-                            <div class="course-badge">
-                                <div class="course-icon">
-                                    <i class="fas fa-laptop-code"></i>
-                                </div>
-                                <div>
-                                    Computer Science
-                                    <div style="font-size: 12px; color: #777;">IT Department</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Diploma</td>
-                        <td>16 Weeks</td>
-                        <td>125</td>
-                        <td>Dr. John Smith</td>
-                        <td><span class="status-tag status-active">Active</span></td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="btn-icon btn-view"><i class="fas fa-eye"></i></button>
-                                <button class="btn-icon btn-edit"><i class="fas fa-edit"></i></button>
-                                <button class="btn-icon btn-delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="course-badge">
-                                <div class="course-icon">
-                                    <i class="fas fa-chart-line"></i>
-                                </div>
-                                <div>
-                                    Business Administration
-                                    <div style="font-size: 12px; color: #777;">Business Department</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Diploma</td>
-                        <td>14 Weeks</td>
-                        <td>98</td>
-                        <td>Sarah Johnson</td>
-                        <td><span class="status-tag status-active">Active</span></td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="btn-icon btn-view"><i class="fas fa-eye"></i></button>
-                                <button class="btn-icon btn-edit"><i class="fas fa-edit"></i></button>
-                                <button class="btn-icon btn-delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="course-badge">
-                                <div class="course-icon">
-                                    <i class="fas fa-bullhorn"></i>
-                                </div>
-                                <div>
-                                    Digital Marketing
-                                    <div style="font-size: 12px; color: #777;">Marketing Department</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Certificate</td>
-                        <td>8 Weeks</td>
-                        <td>76</td>
-                        <td>Mark Cooper</td>
-                        <td><span class="status-tag status-active">Active</span></td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="btn-icon btn-view"><i class="fas fa-eye"></i></button>
-                                <button class="btn-icon btn-edit"><i class="fas fa-edit"></i></button>
-                                <button class="btn-icon btn-delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="course-badge">
-                                <div class="course-icon">
-                                    <i class="fas fa-paint-brush"></i>
-                                </div>
-                                <div>
-                                    Graphic Design
-                                    <div style="font-size: 12px; color: #777;">Design Department</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Certificate</td>
-                        <td>10 Weeks</td>
-                        <td>82</td>
-                        <td>Lisa Taylor</td>
-                        <td><span class="status-tag status-active">Active</span></td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="btn-icon btn-view"><i class="fas fa-eye"></i></button>
-                                <button class="btn-icon btn-edit"><i class="fas fa-edit"></i></button>
-                                <button class="btn-icon btn-delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="course-badge">
-                                <div class="course-icon">
-                                    <i class="fas fa-code"></i>
-                                </div>
-                                <div>
-                                    Web Development
-                                    <div style="font-size: 12px; color: #777;">IT Department</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Diploma</td>
-                        <td>16 Weeks</td>
-                        <td>110</td>
-                        <td>Robert Williams</td>
-                        <td><span class="status-tag status-active">Active</span></td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="btn-icon btn-view"><i class="fas fa-eye"></i></button>
-                                <button class="btn-icon btn-edit"><i class="fas fa-edit"></i></button>
-                                <button class="btn-icon btn-delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="course-badge">
-                                <div class="course-icon">
-                                    <i class="fas fa-database"></i>
-                                </div>
-                                <div>
-                                    Data Science
-                                    <div style="font-size: 12px; color: #777;">IT Department</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Degree</td>
-                        <td>24 Weeks</td>
-                        <td>65</td>
-                        <td>Dr. James Wilson</td>
-                        <td><span class="status-tag status-active">Active</span></td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="btn-icon btn-view"><i class="fas fa-eye"></i></button>
-                                <button class="btn-icon btn-edit"><i class="fas fa-edit"></i></button>
-                                <button class="btn-icon btn-delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="course-badge">
-                                <div class="course-icon">
-                                    <i class="fas fa-robot"></i>
-                                </div>
-                                <div>
-                                    Artificial Intelligence
-                                    <div style="font-size: 12px; color: #777;">IT Department</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Degree</td>
-                        <td>20 Weeks</td>
-                        <td>42</td>
-                        <td>Dr. Emily Chen</td>
-                        <td><span class="status-tag status-upcoming">Upcoming</span></td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="btn-icon btn-view"><i class="fas fa-eye"></i></button>
-                                <button class="btn-icon btn-edit"><i class="fas fa-edit"></i></button>
-                                <button class="btn-icon btn-delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
+                <?php endforeach; ?>
             </table>
-        </div>
+        <?php else: ?>
+            <p style="color: red;">Courses table does not exist!</p>
+        <?php endif; ?>
+    </div>
+    
+    <div class="detailed-courses">
+        <table>
+            <thead>
+                <tr>
+                    <th>Course</th>
+                    <th>Level</th>
+                    <th>Duration</th>
+                    <th>Students</th>
+                    <th>Faculty leader</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if($result && $result !== false && $result->num_rows > 0): ?>
+                    <?php while($row = $result->fetch_assoc()): ?>
+                        <tr>
+                            <td>
+                                <div class="course-badge">
+                                    <div class="course-icon">
+                                        <i class="<?php echo getCourseIcon($row['department_name'] ?? ''); ?>"></i>
+                                    </div>
+                                    <div>
+                                        <?php echo htmlspecialchars($row['course_name'] ?? 'Unknown Course'); ?>
+                                        <div style="font-size: 12px; color: #777;">
+                                            <?php echo htmlspecialchars($row['department_name'] ?? 'Unknown Department'); ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><?php echo htmlspecialchars($row['level'] ?? 'N/A'); ?></td>
+                            <td><?php echo htmlspecialchars($row['duration'] ?? 'N/A'); ?></td>
+                            <td><?php echo htmlspecialchars($row['student_count'] ?? '0'); ?></td>
+                            <td><?php echo htmlspecialchars($row['faculty_leader'] ?? 'Unassigned'); ?></td>
+                            <td>
+                                <span class="status-tag status-<?php echo strtolower($row['status'] ?? 'unknown'); ?>">
+                                    <?php echo htmlspecialchars($row['status'] ?? 'Unknown'); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn-icon btn-view" onclick="viewCourse(<?php echo $row['course_id'] ?? 0; ?>)">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn-icon btn-edit" onclick="editCourse(<?php echo $row['course_id'] ?? 0; ?>)">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn-icon btn-delete" onclick="deleteCourse(<?php echo $row['course_id'] ?? 0; ?>)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="7" style="text-align: center;">
+                            <?php if($result === false): ?>
+                                Database query error: <?php echo htmlspecialchars($conn->error); ?>
+                            <?php else: ?>
+                                No courses found
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+
+
 
        
         <div class="add-course-form">
@@ -451,7 +444,20 @@
         updateDateTime();
         setInterval(updateDateTime, 60000); // Update every minute
         
-        
+          // Functions for course actions
+    function viewCourse(courseId) {
+        window.location.href = 'view_course.php?id=' + courseId;
+    }
+    
+    function editCourse(courseId) {
+        window.location.href = 'edit_course.php?id=' + courseId;
+    }
+    
+    function deleteCourse(courseId) {
+        if(confirm('Are you sure you want to delete this course?')) {
+            window.location.href = 'delete_course.php?id=' + courseId;
+        }
+    }
 </script>
 </body>
 </html>
