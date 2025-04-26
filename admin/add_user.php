@@ -5,20 +5,21 @@ require_once 'dbconnect.php';
 //define variables
 $role = $fullname = $email = $password = $status = "";'';
 
+
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     //pick variables from the form
-    $role = $_POST['user_role'];
-    $fullname = $_POST['fullname'];
+    $fullname = $_POST['username'];
     $email = $_POST['email'];
-    $password = $_POST['password'];
-    $status = $_POST['status'];
+    $role=$_POST['role_name'];
+    $password = $_POST['password_hash'];
+    $status = $_POST['is_active'];
 
     // Hash the password
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
     // Insert user into the database using sql query
-    $sql = "INSERT INTO users (user_role, fullname, email, password, status) values ('$role', '$fullname', '$email', '$hashed_password', '$status')";
+    $sql = "INSERT INTO users (username, email, password_hash, role_id, is_active) values ('$fullname', '$email', '$hashed_password','$role', '$status')";
     $result=mysqli_query($conn, $sql);
     if($result) {
         echo "User added successfully!";

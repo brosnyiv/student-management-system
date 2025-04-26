@@ -4,7 +4,7 @@ session_start();
 include('dbconnect.php'); 
 
 
-if (isset($_SESSION['userid'])) {
+if (isset($_SESSION['user_id'])) {
     header("Location: dash.php");
     exit();
 }
@@ -12,7 +12,7 @@ if (isset($_SESSION['userid'])) {
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     $username = $_POST['email'];
-    $password = $_POST['password'];
+    $password = $_POST['password_hash'];
 
     if (empty($username) || empty($password)) {
         $error = "Please fill in all fields.";
@@ -24,12 +24,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $result = mysqli_query($conn, $sql);
         $user = mysqli_fetch_assoc($result);
 
-        if ($user && password_verify($password, $user['password'])) {
+        // password_verify($password, $user['password_hash'])
+        if ($user && password_verify($password, $user['password_hash'])) {
           // Password is correct
-          $_SESSION['fullname'] = $user['fullname'];
-          $_SESSION['userid'] = $user['userid'];
+          $_SESSION['user_id'] = $user['user_id'];
+          $_SESSION['username'] = $user['username'];
           $_SESSION['email'] = $user['email'];
-          $_SESSION['user_role'] = $user['user_role'];
+          $_SESSION['role_id'] = $user['role_id'];
+          $_SESSION['access_level'] = $user['access_level'];
+          $_SESSION['is_active'] = $user['is_active'];
           header("Location: dash.php");
           exit();
       } else {
@@ -415,7 +418,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" placeholder="Enter your password" name="password">
+                    <input type="password" id="password" placeholder="Enter your password" name="password_hash">
                     <button type="button" class="password-toggle" id="togglePassword">
                         <i class="far fa-eye"></i>
                     </button>

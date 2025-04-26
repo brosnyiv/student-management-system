@@ -4,10 +4,20 @@ include 'dbconnect.php';
 
 
 // Check if user is not logged in
-if (empty($_SESSION['userid'])) {
+if (empty($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
 }
+
+//fetch data from role table
+$sql = "SELECT * FROM roles";
+$result = mysqli_query($conn, $sql);
+if ($result) {
+    $roles = mysqli_fetch_all($result, MYSQLI_ASSOC);
+} else {
+    echo "Error: " . mysqli_error($conn);
+}
+
 
 ?>
 
@@ -196,7 +206,7 @@ if (empty($_SESSION['userid'])) {
                             <form id="addUserForm" action="add_user.php" method="POST">
                                 <div class="form-group">
                                     <label for="userName">Full Name</label>
-                                    <input type="text" id="userName" placeholder="Enter full name" required name="fullname">
+                                    <input type="text" id="userName" placeholder="Enter full name" required name="username">
                                 </div>
                                 <div class="form-group">
                                     <label for="userEmail">Email</label>
@@ -204,24 +214,23 @@ if (empty($_SESSION['userid'])) {
                                 </div>
                                 <div class="form-group">
                                     <label for="userRole">Role</label>
-                                    <select id="userRole" required name="user_role">
+                                    <select id="userRole" required name="role_name">
                                         <option value="">Select a role</option>
-                                        <option value="Admin">Admin</option>
-                                        <option value="Instructor">Instructor</option>
-                                        <option value="Assistant">Assistant</option>
-                                        <option value="Accountant">Accountant</option>
-                                        <option value="Viewer">Viewer</option>
+                                            <?php foreach($roles as $r): ?>
+                                                <option value="<?= $r['role_id']; ?>"><?= $r['role_name']; ?></option>
+                                            <?php endforeach; ?>
+                                        </option>
                                     </select>
                                 </div>
                                 <div class="form-group">
                                     <label for="userPassword">Password</label>
-                                    <input type="password" id="userPassword" placeholder="Enter password" required name="password">
+                                    <input type="password" id="userPassword" placeholder="Enter password" required name="password_hash">
                                 </div>
                                 <div class="form-group">
                                     <label for="userStatus">Status</label>
-                                    <select id="userStatus" required name="status">                                        
-                                        <option value="Active">Active</option>
-                                        <option value="Suspended">Suspended</option>
+                                    <select id="userStatus" required name="is_active">                                        
+                                        <option value="1">Active</option>
+                                        <option value="0">Suspended</option>
                                     </select>
                                 </div>
                                 <div class="form-options">
