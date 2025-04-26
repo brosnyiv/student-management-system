@@ -4,7 +4,7 @@ session_start();
 include('dbconnect.php'); 
 
 
-if (isset($_SESSION['userid'])) {
+if (isset($_SESSION['user_id'])) {
     header("Location: dash.php");
     exit();
 }
@@ -26,10 +26,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         if ($user && password_verify($password, $user['password'])) {
           // Password is correct
-          $_SESSION['fullname'] = $user['fullname'];
-          $_SESSION['userid'] = $user['userid'];
+          $_SESSION['username'] = $user['username'];
+          $_SESSION['user_id'] = $user['user_id'];
           $_SESSION['email'] = $user['email'];
-          $_SESSION['user_role'] = $user['user_role'];
+          $_SESSION['access_level'] = $user['access_level'];
           header("Location: dash.php");
           exit();
       } else {
