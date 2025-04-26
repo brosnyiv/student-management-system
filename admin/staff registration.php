@@ -128,6 +128,15 @@ $designation=$hiredate=$employmenttype=$supervisor="";
                     
                     <div class="form-row">
                         <div class="form-group">
+                            <label for="userStatus">Access Level</label>
+                            <select id="userStatus" required name="access_level">                                        
+                                <option value="standard">Standard</option>
+                                <option value="basic">Basic</option>
+                                <option value="advanced">Advanced</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label for="password" class="required">Password</label>
                             <input type="password" id="password" name="password_hash" required>
                             <div class="help-text">Must be at least 8 characters with numbers and special characters</div>
@@ -379,7 +388,7 @@ $designation=$hiredate=$employmenttype=$supervisor="";
                     <div class="form-row">
                         <div class="form-group-full">
                             <label for="assigned_courses" class="required">Assigned Course Units</label>
-                            <textarea id="assigned_courses" name="assigned_courses" rows="3" placeholder="List your assigned courses, separated by commas" required></textarea>
+                            <textarea id="assigned_courses" name="assigned_course_units" rows="3" placeholder="List your assigned courses, separated by commas" required></textarea>
                         </div>
                     </div>
                     
@@ -434,11 +443,15 @@ $designation=$hiredate=$employmenttype=$supervisor="";
                             <textarea id="schedule_notes" name="schedule_notes" rows="3" placeholder="Any additional information about your working schedule"></textarea>
                         </div>
                     </div>
+                    <div class="form-group"> <!-- non-teaching-only-field -->
+                            <label for="work_area">Work Area/Office</label>
+                            <input type="text" id="work_area" name="work_area" placeholder="e.g., Admin Block, Finance Office">
+                        </div>
                 </div>
                 
                 <!-- System Access & Permissions Section -->
                 <div class="form-section">
-                    <div class="section-header">
+                    <!-- <div class="section-header">
                         <div class="section-icon">🔐</div>
                         <div class="section-title">6. System Access & Permissions</div>
                     </div>
@@ -463,13 +476,9 @@ $designation=$hiredate=$employmenttype=$supervisor="";
                             <input type="text" id="assigned_classes" name="assigned_classes" placeholder="e.g., Room 101, Lab 3">
                         </div>
                         
-                        <div class="form-group non-teaching-only-field">
-                            <label for="work_area">Work Area/Office</label>
-                            <input type="text" id="work_area" name="work_area" placeholder="e.g., Admin Block, Finance Office">
-                        </div>
-                    </div>
+                    </div> -->
                     
-                    <div class="form-row">
+                    <!-- <div class="form-row">
                         <div class="form-group">
                             <label for="access_level">System Access Level</label>
                             <select id="access_level" name="access_level">
@@ -484,7 +493,7 @@ $designation=$hiredate=$employmenttype=$supervisor="";
                             <label for="access_start">Access Start Date</label>
                             <input type="date" id="access_start" name="access_start">
                         </div>
-                    </div>
+                    </div> -->
                 </div>
                 
                 <!-- Payroll & Bank Details Section -->
@@ -497,12 +506,12 @@ $designation=$hiredate=$employmenttype=$supervisor="";
                     <div class="form-row">
                         <div class="form-group">
                             <label for="bank" class="required">Bank Name</label>
-                            <input type="text" id="bank" name="bank" required>
+                            <input type="text" id="bank" name="bank_name" required>
                         </div>
                         
                         <div class="form-group">
                             <label for="account" class="required">Account Number</label>
-                            <input type="text" id="account" name="account" required>
+                            <input type="text" id="account" name="account_number" required>
                         </div>
                     </div>
                     
@@ -514,19 +523,19 @@ $designation=$hiredate=$employmenttype=$supervisor="";
                         
                         <div class="form-group">
                             <label for="tin" class="required">TIN Number</label>
-                            <input type="text" id="tin" name="tin" required>
+                            <input type="text" id="tin" name="tin_number" required>
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
                             <label for="salary" class="required">Salary Scale/Grade</label>
-                            <input type="text" id="salary" name="salary" required>
+                            <input type="text" id="salary" name="salary_scale" required>
                         </div>
                         
                         <div class="form-group">
                             <label for="frequency" class="required">Payment Frequency</label>
-                            <select id="frequency" name="frequency" required>
+                            <select id="frequency" name="payment_frequency" required>
                                 <option value="">Select Frequency</option>
                                 <option value="monthly">Monthly</option>
                                 <option value="bi-weekly">Bi-weekly</option>
@@ -553,13 +562,13 @@ $designation=$hiredate=$employmenttype=$supervisor="";
                                         <div class="upload-icon">📄</div>
                                         <div>Click to upload document</div>
                                         <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
-                                        <input type="file" id="path" name="path" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
+                                        <input type="file" id="path" name="document_path" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" required>
                                     </div>
                                 </div>
                                 
                                 <div class="form-group">
                                     <label for="type" class="required">Document Type</label>
-                                    <select id="type" name="type" required>
+                                    <select id="type" name="document_type" required>
                                         <option value="id">National ID</option>
                                         <option value="passport">Passport</option>
                                         <option value="residencePermit">Residence Permit</option>
@@ -571,19 +580,19 @@ $designation=$hiredate=$employmenttype=$supervisor="";
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="number" class="required">Document Number</label>
-                                    <input type="text" id="number" name="number" required>
+                                    <input type="text" id="number" name="document_number" required>
                                 </div>
                                 
                                 <div class="form-group">
                                     <label for="expiry">Expiry Date (if applicable)</label>
-                                    <input type="date" id="expiry" name="expiry">
+                                    <input type="date" id="expiry" name="expiry_date">
                                 </div>
                             </div>
                             
                             <div class="form-row">
                                 <div class="form-group-full">
                                     <label for="description">Document Description</label>
-                                    <input type="text" id="description" name="description">
+                                    <input type="text" id="description" name="document_description">
                                 </div>
                             </div>
                         </div>
@@ -604,21 +613,21 @@ $designation=$hiredate=$employmenttype=$supervisor="";
                     <div class="form-row">
                         <div class="form-group-full">
                             <div class="checkbox-row">
-                                <input type="checkbox" id="terms" name="terms" required>
+                                <input type="checkbox" id="terms" name="terms_consent" required>
                                 <label for="terms">
                                     I hereby declare that the information provided in this form is true and correct to the best of my knowledge. I understand that providing false information may result in termination of employment.
                                 </label>
                             </div>
                             
                             <div class="checkbox-row">
-                                <input type="checkbox" id="data" name="data" required>
+                                <input type="checkbox" id="data" name="data_consent" required>
                                 <label for="data">
                                     I consent to the collection, processing, and storage of my personal data for employment and administrative purposes in accordance with the school's data privacy policy.
                                 </label>
                             </div>
                             
                             <div class="checkbox-row">
-                                <input type="checkbox" id="update" name="update" required>
+                                <input type="checkbox" id="update" name="update_consent" required>
                                 <label for="update">
                                     I agree to update my information whenever there are changes to ensure the accuracy of records maintained by the school.
                                 </label>
@@ -629,12 +638,12 @@ $designation=$hiredate=$employmenttype=$supervisor="";
                     <div class="form-row">
                         <div class="form-group">
                             <label for="signature" class="required">Digital Signature</label>
-                            <input type="text" id="signature" name="signature" placeholder="Type your full name as signature" required>
+                            <input type="text" id="signature" name="digital_signature" placeholder="Type your full name as signature" required>
                         </div>
                         
                         <div class="form-group">
                             <label for="date" class="required">Date</label>
-                            <input type="date" id="date" name="date" required>
+                            <input type="date" id="date" name="digital_date" required>
                         </div>
                     </div>
                 </div>

@@ -12,6 +12,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $fullname = $_POST['username'];
     $email = $_POST['email'];
     $role=$_POST['role_name'];
+    $accessslevel=$_POST['access_level'];
     $password = $_POST['password_hash'];
     $status = $_POST['is_active'];
 
@@ -19,7 +20,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
     // Insert user into the database using sql query
-    $sql = "INSERT INTO users (username, email, password_hash, role_id, is_active) values ('$fullname', '$email', '$hashed_password','$role', '$status')";
+    $sql = "INSERT INTO users (username, email, password_hash, role_id,access_level, is_active) values ('$fullname', '$email', '$hashed_password','$role', '$accessslevel', '$status')";
     $result=mysqli_query($conn, $sql);
     if($result) {
         echo "User added successfully!";
