@@ -1,6 +1,8 @@
-<?php
+<!-- <?php 
+
 session_start();
-include('dbconnect.php');
+include('dbconnect.php'); 
+
 
 if (isset($_SESSION['user_id'])) {
     header("Location: dash.php");
@@ -8,48 +10,35 @@ if (isset($_SESSION['user_id'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $email = isset($_POST['username']) ? $_POST['username'] : '';
-$password = isset($_POST['password_hash']) ? $_POST['password_hash'] : '';
-    
-    if (empty($email) || empty($password)) {
+
+    $username = $_POST['email'];
+    $password = $_POST['password'];
+
+    if (empty($username) || empty($password)) {
         $error = "Please fill in all fields.";
     } else {
         // Sanitize input to prevent SQL injection
-        $email = mysqli_real_escape_string($conn, $email);
-       
-        // Match field names from the users table in the database
-        $sql = "SELECT * FROM users WHERE email = '$email'";
-        $result = mysqli_query($conn, $sql);
+        $username = mysqli_real_escape_string($conn, $username);
         
-        if ($result && $user = mysqli_fetch_assoc($result)) {
-            // Verify password - the field in DB is called password_hash
-            if (password_verify($password, $user['password_hash'])) {
-                // Password is correct
-                $_SESSION['username'] = $user['username'];
-                $_SESSION['user_id'] = $user['user_id'];
-                $_SESSION['email'] = $user['email'];
-                $_SESSION['access_level'] = $user['access_level'];
-                $_SESSION['role_id'] = $user['role_id'];
-                
-                // Update last_login timestamp
-                $update_sql = "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE user_id = " . $user['user_id'];
-                mysqli_query($conn, $update_sql);
-                
-                header("Location: dash.php");
-                exit();
-            } else {
-                $error = "Invalid email or password.";
-            }
-        } else {
-            $error = "Invalid email or password.";
-        }
+        $sql = "SELECT * FROM users WHERE email = '$username'";
+        $result = mysqli_query($conn, $sql);
+        $user = mysqli_fetch_assoc($result);
+
+        if ($user && password_verify($password, $user['password'])) {
+          // Password is correct
+          $_SESSION['username'] = $user['username'];
+          $_SESSION['user_id'] = $user['user_id'];
+          $_SESSION['email'] = $user['email'];
+          $_SESSION['access_level'] = $user['access_level'];
+          header("Location: dash.php");
+          exit();
+      } else {
+          $error = "Invalid email or password.";
+      }
     }
 }
 
-
-
-
-?> 
+?> -->
 
 <!DOCTYPE html>
 <html lang="en">
@@ -417,27 +406,20 @@ $password = isset($_POST['password_hash']) ? $_POST['password_hash'] : '';
             <?php } ?>
 
             <h2 class="form-title">USER LOGIN</h2>
-           
-           <form id="loginForm" method="post" action="index.php">
-               <div class="form-group">
-
-                   <!-- Remove the duplicate input and keep only one -->
-                   <label for="email">Email</label>
-                   <input type="email" id="email" placeholder="Enter your email" name="email">
-               </div>
-                          
-               <div class="form-group">
-                   <label for="password">Password</label>
-                   <input type="password" id="password" placeholder="Enter your password" name="password">
-                   <button type="button" class="password-toggle" id="togglePassword">
-                       <i class="far fa-eye"></i>
-                   </button>
-               </div>
-               
-               <div class="form-group">
-                   <button type="submit" class="submit-btn">Login</button>
-               </div>
-           </form>
+            
+            <form id="loginForm" method="post" action="index.php">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="Enter your username" name="email">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter your password" name="password">
+                    <button type="button" class="password-toggle" id="togglePassword">
+                        <i class="far fa-eye"></i>
+                    </button>
+                </div>
                 
                 <div class="options">
                     <div class="remember-me">
