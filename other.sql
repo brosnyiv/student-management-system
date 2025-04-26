@@ -893,7 +893,7 @@ CREATE TABLE IF NOT EXISTS expense_categories (
     is_active BOOLEAN DEFAULT TRUE
 );
 
-/* -- Expenses
+-- Expenses (completing the cut-off table)
 CREATE TABLE IF NOT EXISTS expenses (
     expense_id INT PRIMARY KEY AUTO_INCREMENT,
     date DATE NOT NULL,
@@ -905,5 +905,61 @@ CREATE TABLE IF NOT EXISTS expenses (
     description TEXT,
     status ENUM('pending', 'approved', 'rejected', 'paid') DEFAULT 'pending',
     payment_method ENUM('cash', 'check', 'bank_transfer', 'credit_card') NOT NULL,
-    receipt_path VARCHAR(255 */
-    
+    receipt_path VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES expense_categories(category_id),
+    FOREIGN KEY (department_id) REFERENCES departments(department_id),
+    FOREIGN KEY (staff_id) REFERENCES staff(staff_id)
+);
+
+-- Expense approvals
+CREATE TABLE IF NOT EXISTS expense_approvals (
+    approval_id INT PRIMARY KEY AUTO_INCREMENT,
+    expense_id INT NOT NULL,
+    approver_id INT NOT NULL,
+    status ENUM('approved', 'rejected') NOT NULL,
+    comments TEXT,
+    approval_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (expense_id) REFERENCES expenses(expense_id),
+    FOREIGN KEY (approver_id) REFERENCES staff(staff_id)
+);
+
+-- Update the broadcast_messages table to modify the recipient_ids column
+ALTER TABLE broadcast_messages 
+MODIFY COLUMN recipient_ids JSON COMMENT 'Specific IDs if not sent to all';
+
+-- Create Notices Table
+CREATE TABLE notices (
+    notice_id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    source_office VARCHAR(50) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    post_date DATE NOT NULL,
+    expiry_date DATE,
+    is_urgent BOOLEAN DEFAULT FALSE,
+    status ENUM('published', 'draft', 'expired') NOT NULL DEFAULT 'draft',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_by INT NOT NULL
+);
+
+-- Create Notice Attachments Table (for managing multiple attachments per notice)
+CREATE TABLE notice_attachments (
+    attachment_id INT PRIMARY KEY AUTO_INCREMENT,
+    notice_id INT NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    file_type VARCHAR(50) NOT NULL,
+    file_size INT NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (notice_id) REFERENCES notices(notice_id) ON DELETE CASCADE
+);
+
+-- Add indexes for better performance
+CREATE INDEX idx_notices_category ON notices(category);
+CREATE INDEX idx_notices_source_office ON notices(source_office);
+CREATE INDEX idx_notices_status ON notices(status);
+CREATE INDEX idx_notices_post_date ON notices(post_date);
+CREATE INDEX idx_notices_created_by ON notices(created_by);
