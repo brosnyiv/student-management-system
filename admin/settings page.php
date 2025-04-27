@@ -2,14 +2,13 @@
 session_start();
 include 'dbconnect.php';
 
-
 // Check if user is not logged in
 if (empty($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
 }
 
-//fetch data from role table
+// Fetch data from role table
 $sql = "SELECT * FROM roles";
 $result = mysqli_query($conn, $sql);
 if ($result) {
@@ -18,9 +17,73 @@ if ($result) {
     echo "Error: " . mysqli_error($conn);
 }
 
+// Fetch data from users table with role names
+$userSql = "SELECT u.*, r.role_name 
+            FROM users u 
+            JOIN roles r ON u.role_id = r.role_id
+            ORDER BY u.created_at DESC";
+$userResult = mysqli_query($conn, $userSql);
+if ($userResult) {
+    $users = mysqli_fetch_all($userResult, MYSQLI_ASSOC);
+} else {
+    echo "Error: " . mysqli_error($conn);
+}
 
+// Process form submission for adding a new user
+if (isset($_POST['add_user'])) {
+    $username = mysqli_real_escape_string($conn, $_POST['username']);
+    $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $role_id = mysqli_real_escape_string($conn, $_POST['role_name']);
+    $access_level = mysqli_real_escape_string($conn, $_POST['access_level']);
+    $password = password_hash($_POST['password_hash'], PASSWORD_DEFAULT);
+    $is_active = isset($_POST['is_active']) ? (int)$_POST['is_active'] : 1;
+    
+    $insertSql = "INSERT INTO users (username, email, password_hash, role_id, access_level, is_active, created_at) 
+                 VALUES ('$username', '$email', '$password', '$role_id', '$access_level', $is_active, NOW())";
+    
+    if (mysqli_query($conn, $insertSql)) {
+        // Redirect to refresh the page
+        header("Location: settings page.php?success=1");
+        exit();
+    } else {
+        echo "Error: " . mysqli_error($conn);
+    }
+}
+
+// Process role creation form
+if (isset($_POST['add_role'])) {
+    $role_name = mysqli_real_escape_string($conn, $_POST['role_name']);
+    $role_description = mysqli_real_escape_string($conn, $_POST['role_description']);
+    $is_teaching_role = isset($_POST['is_teaching_role']) ? 1 : 0;
+    
+    $insertRoleSql = "INSERT INTO roles (role_name, role_description, is_teaching_role) 
+                      VALUES ('$role_name', '$role_description', $is_teaching_role)";
+    
+    if (mysqli_query($conn, $insertRoleSql)) {
+        header("Location: settings page.php?role_success=1");
+        exit();
+    } else {
+        echo "Error: " . mysqli_error($conn);
+    }
+}
+
+// Count users by role
+$roleCountSql = "SELECT r.role_id, r.role_name, COUNT(u.user_id) as user_count 
+                FROM roles r 
+                LEFT JOIN users u ON r.role_id = u.role_id 
+                GROUP BY r.role_id";
+$roleCountResult = mysqli_query($conn, $roleCountSql);
+if ($roleCountResult) {
+    $roleCounts = mysqli_fetch_all($roleCountResult, MYSQLI_ASSOC);
+    // Convert to associative array for easier lookup
+    $roleCountMap = [];
+    foreach ($roleCounts as $rc) {
+        $roleCountMap[$rc['role_id']] = $rc['user_count'];
+    }
+} else {
+    echo "Error: " . mysqli_error($conn);
+}
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -58,38 +121,86 @@ if ($result) {
             <li onclick="window.location.href='classes.php'"><i class="fas fa-chalkboard-teacher"></i> <span>Classes</span></li>
             <li onclick="window.location.href='messages.php'"><i class="fas fa-envelope"></i> <span>Messages</span></li>
             <li  class="active" onclick="window.location.href='settings page.php'"><i class="fas fa-cog"></i> <span>Settings</span></li>
-            <li ><i class="fas fa-sign-out-alt"></i> <span>Logout</span></li>
+            <li onclick="window.location.href='logout.php'"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></li>
         </ul>
     </div>
 
     <div class="main-content">
         <div class="welcome-banner">
-            <div class="welcome-text">
-                <h1>MONACO INSTITUTE</h1>
-                <p>Settings & Admin Controls</p>
-                <div class="date-display">
-                    <i class="fas fa-calendar-alt"></i> <span id="currentDate"></span>
-                    <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
-                    <div class="weather-widget">
-                        <i class="fas fa-sun weather-icon"></i>
-                        <span class="temperature">26°C</span>
-                    </div>
-                </div>
-            </div>
+            
+           
+        <div class="welcome-text">
+    <h1>MONACO INSTITUTE</h1>
+    <div class="welcome-message">
+        <?php
+        // Time-based greeting
+        $hour = date('H');
+        $greeting = ($hour < 12) ? "Good Morning" : (($hour < 17) ? "Good Afternoon" : "Good Evening");
+        
+        // Get username
+        $username = isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : "User";
+        echo "<p class='welcome-user'>{$greeting}, <span class='username'>{$username}</span></p>";
+        
+        // Dynamic messages
+        $month = date('n');
+        $seasonalMessages = [
+            1 => "Happy New Year! New year, new learning opportunities",
+            5 => "Spring into your educational journey",
+            9 => "Welcome to the new academic year!",
+            12 => "Season's greetings! Wrapping up the year with excellence"
+        ];
+        
+        $dailyMessages = [
+            "Empowering your educational journey every day!",
+            "Building futures, one lesson at a time",
+            "Today is a great day to learn something new!",
+            "Where skills meet innovation",
+            "Excellence in education since 2010",
+            "Together, we grow"
+        ];
+        
+        $message = $seasonalMessages[$month] ?? $dailyMessages[date('z') % count($dailyMessages)];
+        echo "<p class='welcome-message-text'>{$message}</p>";
+        ?>
+    </div>
+    <div class="date-display">
+        <i class="fas fa-calendar-alt"></i> <span id="currentDate"><?php echo date('l, F j, Y'); ?></span>
+        <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"><?php echo date('h:i:s A'); ?></span></span>
+    </div>
+</div>
+
+
             <div class="user-section" style="display:flex; align-items:center;">
+                
                 <div class="notification-bell">
                     <i class="fas fa-bell"></i>
                     <span class="notification-count">3</span>
                 </div>
+
+                
                 <div class="user-profile">
-                    <div class="user-avatar">J</div>
+                    <div class="user-avatar">
+                        <?php echo isset($_SESSION['username']) ? substr($_SESSION['username'], 0, 1) : 'U'; ?>
+                    </div>
                     <div class="user-info">
-                        John Doe<br>
-                        <span class="role">Admin</span>
+                        <?php echo isset($_SESSION['username']) ? $_SESSION['username'] : 'User'; ?><br>
+                        <span class="role"><?php echo isset($_SESSION['role_name']) ? $_SESSION['role_name'] : 'User'; ?></span>
                     </div>
                 </div>
             </div>
         </div>
+
+        <?php if(isset($_GET['success'])): ?>
+        <div class="alert alert-success">
+            User added successfully!
+        </div>
+        <?php endif; ?>
+        
+        <?php if(isset($_GET['role_success'])): ?>
+        <div class="alert alert-success">
+            Role created successfully!
+        </div>
+        <?php endif; ?>
 
         <div class="search-bar">
             <input type="text" placeholder="Search settings..." aria-label="Search">
@@ -100,12 +211,8 @@ if ($result) {
             <button class="tab-button active" data-tab="user-management">
                 <i class="fas fa-users"></i> User Management
             </button>
-            <button class="tab-button" data-tab="activity-logs">
-                <i class="fas fa-clipboard-list"></i> User Activity Logs
-            </button>
-            <button class="tab-button" data-tab="access-control">
-                <i class="fas fa-lock"></i> Access Control
-            </button>
+            
+          
             <button class="tab-button" data-tab="roles-management">
                 <i class="fas fa-user-tag"></i> Roles Management
             </button>
@@ -139,58 +246,37 @@ if ($result) {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>001</td>
-                                <td>Sarah Kim</td>
-                                <td>Instructor</td>
-                                <td>sarah@mi.edu</td>
-                                <td><span class="status-badge active">Active</span></td>
-                                <td>Apr 15, 2025</td>
-                                <td>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-icon suspend"><i class="fas fa-user-slash"></i></button>
-                                    <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>002</td>
-                                <td>John Smith</td>
-                                <td>Admin</td>
-                                <td>john@mi.edu</td>
-                                <td><span class="status-badge active">Active</span></td>
-                                <td>Apr 15, 2025</td>
-                                <td>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-icon suspend"><i class="fas fa-user-slash"></i></button>
-                                    <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>003</td>
-                                <td>Lisa Johnson</td>
-                                <td>Assistant</td>
-                                <td>lisa@mi.edu</td>
-                                <td><span class="status-badge suspended">Suspended</span></td>
-                                <td>Apr 10, 2025</td>
-                                <td>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-icon reactivate"><i class="fas fa-user-check"></i></button>
-                                    <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>004</td>
-                                <td>Michael Wong</td>
-                                <td>Accountant</td>
-                                <td>michael@mi.edu</td>
-                                <td><span class="status-badge active">Active</span></td>
-                                <td>Apr 14, 2025</td>
-                                <td>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-icon suspend"><i class="fas fa-user-slash"></i></button>
-                                    <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
+                            <?php if(isset($users) && !empty($users)): ?>
+                                <?php foreach($users as $user): ?>
+                                    <tr>
+                                        <td><?php echo $user['user_id']; ?></td>
+                                        <td><?php echo htmlspecialchars($user['username']); ?></td>
+                                        <td><?php echo htmlspecialchars($user['role_name']); ?></td>
+                                        <td><?php echo htmlspecialchars($user['email']); ?></td>
+                                        <td>
+                                            <?php if($user['is_active'] == 1): ?>
+                                                <span class="status-badge active">Active</span>
+                                            <?php else: ?>
+                                                <span class="status-badge suspended">Suspended</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?php echo $user['last_login'] ? date('M d, Y', strtotime($user['last_login'])) : 'Never'; ?></td>
+                                        <td>
+                                            <button class="action-icon edit" data-id="<?php echo $user['user_id']; ?>"><i class="fas fa-edit"></i></button>
+                                            <?php if($user['is_active'] == 1): ?>
+                                                <button class="action-icon suspend" data-id="<?php echo $user['user_id']; ?>"><i class="fas fa-user-slash"></i></button>
+                                            <?php else: ?>
+                                                <button class="action-icon reactivate" data-id="<?php echo $user['user_id']; ?>"><i class="fas fa-user-check"></i></button>
+                                            <?php endif; ?>
+                                            <button class="action-icon delete" data-id="<?php echo $user['user_id']; ?>"><i class="fas fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="7" class="text-center">No users found</td>
+                                </tr>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -203,7 +289,7 @@ if ($result) {
                             <span class="close-modal">&times;</span>
                         </div>
                         <div class="modal-body">
-                            <form id="addUserForm" action="add_user.php" method="POST">
+                            <form id="addUserForm" action="settings page.php" method="POST">
                                 <div class="form-group">
                                     <label for="userName">Full Name</label>
                                     <input type="text" id="userName" placeholder="Enter full name" required name="username">
@@ -216,15 +302,14 @@ if ($result) {
                                     <label for="userRole">Role</label>
                                     <select id="userRole" required name="role_name">
                                         <option value="">Select a role</option>
-                                            <?php foreach($roles as $r): ?>
-                                                <option value="<?= $r['role_id']; ?>"><?= $r['role_name']; ?></option>
-                                            <?php endforeach; ?>
-                                        </option>
+                                        <?php foreach($roles as $r): ?>
+                                            <option value="<?= $r['role_id']; ?>"><?= htmlspecialchars($r['role_name']); ?></option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label for="userStatus">Access Level</label>
-                                    <select id="userStatus" required name="access_level">                                        
+                                    <label for="userAccessLevel">Access Level</label>
+                                    <select id="userAccessLevel" required name="access_level">                                        
                                         <option value="standard">Standard</option>
                                         <option value="basic">Basic</option>
                                         <option value="advanced">Advanced</option>
@@ -258,217 +343,9 @@ if ($result) {
                 </div>
             </div>
 
-            <!-- 2. User Activity Logs -->
-            <div class="tab-pane" id="activity-logs">
-                <div class="section-header">
-                    <div class="section-title"><i class="fas fa-clipboard-list"></i> User Activity Logs</div>
-                    <div class="action-buttons">
-                        <button class="export-button"><i class="fas fa-file-export"></i> Export Logs</button>
-                    </div>
-                </div>
-
-                <div class="filters-container">
-                    <div class="filter-group">
-                        <label for="dateRangeStart">Date Range:</label>
-                        <input type="date" id="dateRangeStart" value="2025-04-01">
-                        <span>to</span>
-                        <input type="date" id="dateRangeEnd" value="2025-04-15">
-                    </div>
-                    <div class="filter-group">
-                        <label for="userFilter">User:</label>
-                        <select id="userFilter">
-                            <option value="">All Users</option>
-                            <option value="Sarah Kim">Sarah Kim</option>
-                            <option value="John Smith">John Smith</option>
-                            <option value="Admin">Admin</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="activityFilter">Activity Type:</label>
-                        <select id="activityFilter">
-                            <option value="">All Activities</option>
-                            <option value="Login">Login</option>
-                            <option value="Edit">Edit</option>
-                            <option value="View">View</option>
-                            <option value="Delete">Delete</option>
-                        </select>
-                    </div>
-                    <button class="filter-button"><i class="fas fa-filter"></i> Apply Filters</button>
-                </div>
-
-                <div class="logs-table-container">
-                    <table class="logs-table">
-                        <thead>
-                            <tr>
-                                <th>Timestamp</th>
-                                <th>User</th>
-                                <th>Activity</th>
-                                <th>Page/Module</th>
-                                <th>Details</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>2025-04-15 09:21</td>
-                                <td>Sarah Kim</td>
-                                <td><span class="activity-badge view">Viewed</span></td>
-                                <td>Grades Results</td>
-                                <td>Accessed final grades for CS101</td>
-                            </tr>
-                            <tr>
-                                <td>2025-04-15 09:35</td>
-                                <td>Admin</td>
-                                <td><span class="activity-badge add">Added</span></td>
-                                <td>Notices</td>
-                                <td>Created new notice "Exam Schedule"</td>
-                            </tr>
-                            <tr>
-                                <td>2025-04-15 10:05</td>
-                                <td>John Smith</td>
-                                <td><span class="activity-badge login">Login</span></td>
-                                <td>System</td>
-                                <td>Successful login from 192.168.1.45</td>
-                            </tr>
-                            <tr>
-                                <td>2025-04-15 10:15</td>
-                                <td>Lisa Johnson</td>
-                                <td><span class="activity-badge edit">Edited</span></td>
-                                <td>Student Records</td>
-                                <td>Updated contact info for Student #1024</td>
-                            </tr>
-                            <tr>
-                                <td>2025-04-15 10:30</td>
-                                <td>Michael Wong</td>
-                                <td><span class="activity-badge delete">Deleted</span></td>
-                                <td>Payments</td>
-                                <td>Removed duplicate payment record #5523</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 3. Access Control & Permissions -->
-            <div class="tab-pane" id="access-control">
-                <div class="section-header">
-                    <div class="section-title"><i class="fas fa-lock"></i> Access Control & Permissions</div>
-                    <div class="action-buttons">
-                        <button class="export-button"><i class="fas fa-file-export"></i> Export Matrix</button>
-                        <button class="save-button"><i class="fas fa-save"></i> Save Changes</button>
-                    </div>
-                </div>
-
-                <div class="user-selector">
-                    <label for="permissionUser">Select User or Role:</label>
-                    <select id="permissionUser">
-                        <option value="role-instructor">Role: Instructor</option>
-                        <option value="role-admin">Role: Admin</option>
-                        <option value="role-assistant">Role: Assistant</option>
-                        <option value="user-sarah">User: Sarah Kim</option>
-                        <option value="user-john">User: John Smith</option>
-                    </select>
-                </div>
-
-                <div class="permissions-matrix">
-                    <table class="permissions-table">
-                        <thead>
-                            <tr>
-                                <th>Page / Module</th>
-                                <th>View</th>
-                                <th>Edit</th>
-                                <th>Delete</th>
-                                <th>Access Level</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Dashboard</td>
-                                <td><input type="checkbox" checked></td>
-                                <td><input type="checkbox"></td>
-                                <td><input type="checkbox"></td>
-                                <td>
-                                    <select class="access-level">
-                                        <option value="full">Full Access</option>
-                                        <option value="view-only" selected>View-Only</option>
-                                        <option value="no-access">No Access</option>
-                                    </select>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Results</td>
-                                <td><input type="checkbox" checked></td>
-                                <td><input type="checkbox" checked></td>
-                                <td><input type="checkbox"></td>
-                                <td>
-                                    <select class="access-level">
-                                        <option value="full" selected>Full Access</option>
-                                        <option value="view-only">View-Only</option>
-                                        <option value="no-access">No Access</option>
-                                    </select>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Notices</td>
-                                <td><input type="checkbox" checked></td>
-                                <td><input type="checkbox" checked></td>
-                                <td><input type="checkbox" checked></td>
-                                <td>
-                                    <select class="access-level">
-                                        <option value="full" selected>Full Access</option>
-                                        <option value="view-only">View-Only</option>
-                                        <option value="no-access">No Access</option>
-                                    </select>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Timetable</td>
-                                <td><input type="checkbox" checked></td>
-                                <td><input type="checkbox" checked></td>
-                                <td><input type="checkbox"></td>
-                                <td>
-                                    <select class="access-level">
-                                        <option value="full" selected>Full Access</option>
-                                        <option value="view-only">View-Only</option>
-                                        <option value="no-access">No Access</option>
-                                    </select>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Settings</td>
-                                <td><input type="checkbox"></td>
-                                <td><input type="checkbox"></td>
-                                <td><input type="checkbox"></td>
-                                <td>
-                                    <select class="access-level">
-                                        <option value="full">Full Access</option>
-                                        <option value="view-only">View-Only</option>
-                                        <option value="no-access" selected>No Access</option>
-                                    </select>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="permissions-legend">
-                    <h4>Permission Types</h4>
-                    <div class="legend-items">
-                        <div class="legend-item">
-                            <span class="legend-color full-access"></span>
-                            <span>Full Access: View, create, update, delete</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color view-only"></span>
-                            <span>View-Only: Can only view the module, no interaction</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color no-access"></span>
-                            <span>No Access: Hidden entirely</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+        
+            
+              
             <!-- 4. Roles Management -->
             <div class="tab-pane" id="roles-management">
                 <div class="section-header">
@@ -479,70 +356,54 @@ if ($result) {
                 </div>
 
                 <div class="roles-container">
-                    <div class="role-card">
-                        <div class="role-header">
-                            <h3>Super Admin</h3>
-                            <span class="role-count">2 users</span>
-                        </div>
-                        <div class="role-description">Full access to all modules and features</div>
-                        <div class="role-modules">
-                            <span class="module-tag">All Modules</span>
-                        </div>
-                        <div class="role-actions">
-                            <button class="edit-button"><i class="fas fa-edit"></i> Edit</button>
-                            <button class="delete-button" disabled><i class="fas fa-trash"></i> Delete</button>
-                        </div>
-                    </div>
+                    <?php if(isset($roles) && !empty($roles)): ?>
+                        <?php foreach($roles as $role): ?>
+                            <div class="role-card">
+                                <div class="role-header">
+                                    <h3><?php echo htmlspecialchars($role['role_name']); ?></h3>
+                                    <span class="role-count">
+                                        <?php 
+                                            $count = isset($roleCountMap[$role['role_id']]) ? $roleCountMap[$role['role_id']] : 0;
+                                            echo $count . ' ' . ($count == 1 ? 'user' : 'users');
+                                        ?>
+                                    </span>
+                                </div>
+                                <div class="role-description">
+                                    <?php echo htmlspecialchars($role['role_description'] ?? 'No description available'); ?>
+                                </div>
+                                <div class="role-modules">
+                                    
+                                    
+                                    <?php if($role['role_name'] == 'Super Admin' || $role['role_name'] == 'Admin'): ?>
+                                        <span class="module-tag">All Modules</span>
+                                    <?php elseif($role['role_name'] == 'Instructor'): ?>
 
-                    <div class="role-card">
-                        <div class="role-header">
-                            <h3>Instructor</h3>
-                            <span class="role-count">15 users</span>
-                        </div>
-                        <div class="role-description">Can manage courses, grades, and attendance</div>
-                        <div class="role-modules">
-                            <span class="module-tag">Results</span>
-                            <span class="module-tag">Notices</span>
-                            <span class="module-tag">Attendance</span>
-                        </div>
-                        <div class="role-actions">
-                            <button class="edit-button"><i class="fas fa-edit"></i> Edit</button>
-                            <button class="delete-button"><i class="fas fa-trash"></i> Delete</button>
-                        </div>
-                    </div>
-
-                    <div class="role-card">
-                        <div class="role-header">
-                            <h3>Finance Officer</h3>
-                            <span class="role-count">3 users</span>
-                        </div>
-                        <div class="role-description">Access to payment and financial modules only</div>
-                        <div class="role-modules">
-                            <span class="module-tag">Payments</span>
-                            <span class="module-tag">Reports</span>
-                        </div>
-                        <div class="role-actions">
-                            <button class="edit-button"><i class="fas fa-edit"></i> Edit</button>
-                            <button class="delete-button"><i class="fas fa-trash"></i> Delete</button>
-                        </div>
-                    </div>
-
-                    <div class="role-card">
-                        <div class="role-header">
-                            <h3>Academic Assistant</h3>
-                            <span class="role-count">8 users</span>
-                        </div>
-                        <div class="role-description">View-only access to academic records</div>
-                        <div class="role-modules">
-                            <span class="module-tag">Results (View)</span>
-                            <span class="module-tag">Timetable (View)</span>
-                        </div>
-                        <div class="role-actions">
-                            <button class="edit-button"><i class="fas fa-edit"></i> Edit</button>
-                            <button class="delete-button"><i class="fas fa-trash"></i> Delete</button>
-                        </div>
-                    </div>
+                                        <span class="module-tag">Results</span>
+                                        <span class="module-tag">Notices</span>
+                                        <span class="module-tag">Attendance</span>
+                                    <?php elseif($role['role_name'] == 'Finance Officer'): ?>
+                                        <span class="module-tag">Payments</span>
+                                        <span class="module-tag">Reports</span>
+                                    <?php elseif($role['role_name'] == 'Academic Assistant'): ?>
+                                        <span class="module-tag">Results (View)</span>
+                                        <span class="module-tag">Timetable (View)</span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="role-actions">
+                                    <button class="edit-button" data-id="<?php echo $role['role_id']; ?>"><i class="fas fa-edit"></i> Edit</button>
+                                    <?php if($role['role_name'] != 'Super Admin' && $role['role_name'] != 'Admin'): ?>
+                                        <button class="delete-button" data-id="<?php echo $role['role_id']; ?>"><i class="fas fa-trash"></i> Delete</button>
+                                    <?php else: ?>
+                                        <button class="delete-button" disabled><i class="fas fa-trash"></i> Delete</button>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <p>No roles found. Create a new role to get started.</p>
+                    <?php endif; ?>
                 </div>
+
 
                 <!-- Add Role Modal -->
                 <div class="modal" id="addRoleModal">

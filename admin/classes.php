@@ -1,3 +1,203 @@
+<?php
+
+session_start(); // Start the session
+ob_start();
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+include 'dbconnect.php'; // Include the database connection file
+
+
+// Function to get class status
+function getClassStatus($day_of_week, $start_time, $end_time, $status) {
+    $current_day = strtolower(date('l'));
+    $current_time = date('H:i:s');
+    
+    if ($status === 'canceled') {
+        return 'canceled';
+    } elseif ($status === 'completed') {
+        return 'completed';
+    } elseif ($day_of_week === $current_day && $start_time <= $current_time && $end_time >= $current_time) {
+        return 'ongoing';
+    } else {
+        return 'upcoming';
+    }
+}
+
+// Count classes by status
+$completed_count = 0;
+$ongoing_count = 0;
+$upcoming_count = 0;
+$canceled_count = 0;
+
+$sql_count = "SELECT 
+    SUM(CASE WHEN cs.status = 'completed' THEN 1 ELSE 0 END) as completed,
+    SUM(CASE WHEN cs.status = 'scheduled' AND DAYOFWEEK(NOW()) = 
+        CASE 
+            WHEN cs.day_of_week = 'monday' THEN 2
+            WHEN cs.day_of_week = 'tuesday' THEN 3
+            WHEN cs.day_of_week = 'wednesday' THEN 4
+            WHEN cs.day_of_week = 'thursday' THEN 5
+            WHEN cs.day_of_week = 'friday' THEN 6
+            WHEN cs.day_of_week = 'saturday' THEN 7
+            WHEN cs.day_of_week = 'sunday' THEN 1
+        END
+        AND TIME(NOW()) BETWEEN cs.start_time AND cs.end_time THEN 1 ELSE 0 END) as ongoing,
+    SUM(CASE WHEN cs.status = 'scheduled' AND 
+        (DAYOFWEEK(NOW()) < 
+            CASE 
+                WHEN cs.day_of_week = 'monday' THEN 2
+                WHEN cs.day_of_week = 'tuesday' THEN 3
+                WHEN cs.day_of_week = 'wednesday' THEN 4
+                WHEN cs.day_of_week = 'thursday' THEN 5
+                WHEN cs.day_of_week = 'friday' THEN 6
+                WHEN cs.day_of_week = 'saturday' THEN 7
+                WHEN cs.day_of_week = 'sunday' THEN 1
+            END
+        OR 
+        (DAYOFWEEK(NOW()) = 
+            CASE 
+                WHEN cs.day_of_week = 'monday' THEN 2
+                WHEN cs.day_of_week = 'tuesday' THEN 3
+                WHEN cs.day_of_week = 'wednesday' THEN 4
+                WHEN cs.day_of_week = 'thursday' THEN 5
+                WHEN cs.day_of_week = 'friday' THEN 6
+                WHEN cs.day_of_week = 'saturday' THEN 7
+                WHEN cs.day_of_week = 'sunday' THEN 1
+            END
+        AND TIME(NOW()) < cs.start_time)) THEN 1 ELSE 0 END) as upcoming,
+    SUM(CASE WHEN cs.status = 'canceled' THEN 1 ELSE 0 END) as canceled
+FROM class_sessions cs";
+
+$result_count = $conn->query($sql_count);
+if ($result_count->num_rows > 0) {
+    $counts = $result_count->fetch_assoc();
+    $completed_count = $counts['completed'];
+    $ongoing_count = $counts['ongoing'];
+    $upcoming_count = $counts['upcoming'];
+    $canceled_count = $counts['canceled'];
+}
+
+// Get class sessions for display
+$sql = "SELECT cs.session_id, cu.unit_name, r.room_code, 
+        cs.day_of_week, cs.start_time, cs.end_time, cs.status, 
+        CONCAT(ts.title, ' ', s.first_name, ' ', s.last_name) as instructor_name,
+        cs.status as db_status
+    FROM class_sessions cs
+    JOIN course_units cu ON cs.course_unit_id = cu.unit_id
+    JOIN rooms r ON cs.room_id = r.room_id
+    JOIN teaching_staff ts ON cu.instructor_id = ts.teaching_id
+    JOIN staff s ON ts.staff_id = s.staff_id";
+
+// Add filter condition if provided
+if (isset($_GET['filterCourse']) && !empty($_GET['filterCourse'])) {
+    $sql .= " AND cu.unit_id = " . intval($_GET['filterCourse']);
+}
+
+if (isset($_GET['filterInstructor']) && !empty($_GET['filterInstructor'])) {
+    $sql .= " AND ts.teaching_id = " . intval($_GET['filterInstructor']);
+}
+
+if (isset($_GET['filterRoom']) && !empty($_GET['filterRoom'])) {
+    $sql .= " AND r.room_code = '" . $conn->real_escape_string($_GET['filterRoom']) . "'";
+}
+
+if (isset($_GET['filterStatus']) && !empty($_GET['filterStatus'])) {
+    // Handle dynamic status from the database
+    $sql .= " AND cs.status = '" . $conn->real_escape_string($_GET['filterStatus']) . "'";
+}
+
+$sql .= " ORDER BY FIELD(cs.day_of_week, 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'), cs.start_time";
+
+$result = $conn->query($sql);
+
+// Get courses for filter dropdown
+$sql_courses = "SELECT unit_id, unit_name FROM course_units ORDER BY unit_name";
+$result_courses = $conn->query($sql_courses);
+
+// Get instructors for filter dropdown
+$sql_instructors = "SELECT ts.teaching_id, CONCAT(ts.title, ' ', s.first_name, ' ', s.last_name) as instructor_name 
+                    FROM teaching_staff ts 
+                    JOIN staff s ON ts.staff_id = s.staff_id 
+                    ORDER BY s.last_name";
+$result_instructors = $conn->query($sql_instructors);
+
+// Get rooms for filter dropdown
+$sql_rooms = "SELECT room_code FROM rooms ORDER BY room_code";
+$result_rooms = $conn->query($sql_rooms);
+
+// Prepare timetable data structure
+$timetable = [];
+$class_list = [];
+
+// Time slots for timetable
+$timeSlots = [
+    '08:00:00-10:00:00' => '8:00 - 10:00',
+    '10:30:00-12:30:00' => '10:30 - 12:30',
+    '13:30:00-15:30:00' => '13:30 - 15:30',
+    '16:00:00-18:00:00' => '16:00 - 18:00'
+];
+
+// Days of week
+$days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+// Initialize timetable with empty slots
+foreach ($timeSlots as $timeRange => $displayTime) {
+    list($startTime, $endTime) = explode('-', $timeRange);
+    $timetable[$timeRange] = [
+        'display' => $displayTime,
+        'monday' => [],
+        'tuesday' => [],
+        'wednesday' => [],
+        'thursday' => [],
+        'friday' => [],
+        'saturday' => [],
+        'sunday' => []
+    ];
+}
+
+// Populate timetable and class list from database results
+if ($result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        // Determine status based on current time and day
+        $status = getClassStatus($row['day_of_week'], $row['start_time'], $row['end_time'], $row['db_status']);
+        
+        $class_data = [
+            'session_id' => $row['session_id'],
+            'class_name' => $row['unit_name'],
+            'room' => $row['room_code'],
+            'instructor' => $row['instructor_name'],
+            'status' => $status
+        ];
+        
+        // Add to class list view
+        $class_list[] = [
+            'session_id' => $row['session_id'],
+            'class_name' => $row['unit_name'],
+            'day' => ucfirst($row['day_of_week']),
+            'time' => date('g:i A', strtotime($row['start_time'])) . ' - ' . date('g:i A', strtotime($row['end_time'])),
+            'room' => $row['room_code'],
+            'instructor' => $row['instructor_name'],
+            'status' => $status
+        ];
+        
+        // Find appropriate time slot for timetable view
+        foreach ($timeSlots as $timeRange => $displayTime) {
+            list($slotStart, $slotEnd) = explode('-', $timeRange);
+            if ($row['start_time'] >= $slotStart && $row['end_time'] <= $slotEnd) {
+                $timetable[$timeRange][$row['day_of_week']][] = $class_data;
+                break;
+            }
+        }
+    }
+}
+
+?>
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -477,38 +677,35 @@
 
         <h2><i class="fas fa-chalkboard-teacher"></i> Classes Management</h2>
 
-        <!-- Status Summary -->
-        <div class="status-summary">
+          <!-- Status Summary -->
+          <div class="status-summary">
             <div class="status-card completed">
                 <div class="status-icon">
                     <i class="fas fa-check"></i>
                 </div>
-                <div class="status-count">24</div>
+                <div class="status-count"><?php echo $completed_count; ?></div>
                 <div class="status-label">Completed</div>
             </div>
             <div class="status-card ongoing">
                 <div class="status-icon">
                     <i class="fas fa-play"></i>
                 </div>
-                <div class="status-count">3</div>
+                <div class="status-count"><?php echo $ongoing_count; ?></div>
                 <div class="status-label">Ongoing</div>
             </div>
             <div class="status-card upcoming">
                 <div class="status-icon">
                     <i class="fas fa-clock"></i>
                 </div>
-                <div class="status-count">18</div>
+                <div class="status-count"><?php echo $upcoming_count; ?></div>
                 <div class="status-label">Upcoming</div>
             </div>
             <div class="status-card canceled">
                 <div class="status-icon">
                     <i class="fas fa-ban"></i>
                 </div>
-                <div class="status-count">2</div>
+                <div class="status-count"><?php echo $canceled_count; ?></div>
                 <div class="status-label">Canceled</div>
-
-
-                
             </div>
         </div>
 
@@ -516,61 +713,75 @@
         <div class="section-header">
             <div class="section-title"><i class="fas fa-calendar-week"></i> Timetable Management</div>
             <div class="action-buttons">
-                <button class="add-button" id="openAddClassModal"  onclick="window.location.href='timetable.php'"
-                ><i class="fas fa-plus"></i> Add New Class</button>
+                <button class="add-button" onclick="window.location.href='timetable.php'"><i class="fas fa-plus"></i> Add New Class</button>
             </div>
         </div>
 
         <!-- Filters -->
         <div class="class-filters">
-            <div class="filter-group">
-                <label for="filterCourse">Course:</label>
-                <select id="filterCourse">
-                    <option value="">All Courses</option>
-                    <option value="1">Computer Science</option>
-                    <option value="2">Business Administration</option>
-                    <option value="3">Digital Marketing</option>
-                    <option value="4">Graphic Design</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="filterInstructor">Instructor:</label>
-                <select id="filterInstructor">
-                    <option value="">All Instructors</option>
-                    <option value="1">Dr. Smith</option>
-                    <option value="2">Prof. Anderson</option>
-                    <option value="3">Ms. Johnson</option>
-                    <option value="4">Mr. Williams</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="filterRoom">Room:</label>
-                <select id="filterRoom">
-                    <option value="">All Rooms</option>
-                    <option value="A5">Room A5</option>
-                    <option value="B12">Room B12</option>
-                    <option value="C3">Lab C3</option>
-                    <option value="D7">Room D7</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="filterStatus">Status:</label>
-                <select id="filterStatus">
-                    <option value="">All Statuses</option>
-                    <option value="completed">Completed</option>
-                    <option value="ongoing">Ongoing</option>
-                    <option value="upcoming">Upcoming</option>
-                    <option value="canceled">Canceled</option>
-                </select>
-            </div>
+            <form method="GET" action="">
+                <div class="filter-group">
+                    <label for="filterCourse">Course:</label>
+                    <select id="filterCourse" name="filterCourse">
+                        <option value="">All Courses</option>
+                        <?php
+                        if ($result_courses->num_rows > 0) {
+                            while ($course = $result_courses->fetch_assoc()) {
+                                $selected = (isset($_GET['filterCourse']) && $_GET['filterCourse'] == $course['unit_id']) ? 'selected' : '';
+                                echo "<option value='{$course['unit_id']}' {$selected}>{$course['unit_name']} ({$course['unit_code']})</option>";
+                            }
+                        }
+                        ?>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterInstructor">Instructor:</label>
+                    <select id="filterInstructor" name="filterInstructor">
+                        <option value="">All Instructors</option>
+                        <?php
+                        if ($result_staff->num_rows > 0) {
+                            while ($staff = $result_staff->fetch_assoc()) {
+                                $selected = (isset($_GET['filterInstructor']) && $_GET['filterInstructor'] == $staff['teaching_id']) ? 'selected' : '';
+                                echo "<option value='{$staff['teaching_id']}' {$selected}>{$staff['instructor_name']}</option>";
+                            }
+                        }
+                        ?>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterRoom">Room:</label>
+                    <select id="filterRoom" name="filterRoom">
+                        <option value="">All Rooms</option>
+                        <?php
+                        if ($result_rooms->num_rows > 0) {
+                            while ($room = $result_rooms->fetch_assoc()) {
+                                $selected = (isset($_GET['filterRoom']) && $_GET['filterRoom'] == $room['room_id']) ? 'selected' : '';
+                                echo "<option value='{$room['room_id']}' {$selected}>{$room['room_code']} - {$room['room_name']}</option>";
+                            }
+                        }
+                        ?>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterStatus">Status:</label>
+                    <select id="filterStatus" name="filterStatus">
+                        <option value="">All Statuses</option>
+                        <option value="completed" <?php echo (isset($_GET['filterStatus']) && $_GET['filterStatus'] == 'completed') ? 'selected' : ''; ?>>Completed</option>
+                        <option value="ongoing" <?php echo (isset($_GET['filterStatus']) && $_GET['filterStatus'] == 'ongoing') ? 'selected' : ''; ?>>Ongoing</option>
+                        <option value="upcoming" <?php echo (isset($_GET['filterStatus']) && $_GET['filterStatus'] == 'upcoming') ? 'selected' : ''; ?>>Upcoming</option>
+                        <option value="canceled" <?php echo (isset($_GET['filterStatus']) && $_GET['filterStatus'] == 'canceled') ? 'selected' : ''; ?>>Canceled</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="padding: 8px 15px; margin-left: 10px;">Filter</button>
+            </form>
             <div class="view-toggle">
-                <button class="active"><i class="fas fa-calendar-week"></i> Week</button>
-                <button><i class="fas fa-list"></i> List</button>
+                <button class="active" id="week-view-btn"><i class="fas fa-calendar-week"></i> Week</button>
+                <button id="list-view-btn"><i class="fas fa-list"></i> List</button>
             </div>
         </div>
 
         <!-- Week View -->
-        <div class="timetable">
+        <div class="timetable" id="week-view">
             <div class="timetable-header">
                 <div>Time</div>
                 <div>Monday</div>
@@ -582,147 +793,35 @@
                 <div>Sunday</div>
             </div>
             <div class="timetable-body">
-                <!-- 8:00 - 10:00 -->
-                <div class="time-slot">8:00 - 10:00</div>
-                <div class="class-slot">
-                    <div class="class-card completed">
-                        <div class="class-name">Introduction to Programming</div>
-                        <div class="class-details">Room B12</div>
-                        <div class="class-instructor">
-                            Prof. Anderson
-                            <span class="status-badge completed">Completed</span>
+                <?php foreach ($time_slots as $slot_key => $slot_display): ?>
+                    <!-- Time Slot Row -->
+                    <div class="time-slot"><?php echo $slot_display; ?></div>
+                    
+                    <?php foreach ($days as $day): ?>
+                        <div class="class-slot">
+                            <?php if (!empty($timetable[$slot_key][$day])): ?>
+                                <?php foreach ($timetable[$slot_key][$day] as $class): ?>
+                                    <div class="class-card <?php echo $class['status']; ?>" 
+                                         data-id="<?php echo $class['session_id']; ?>"
+                                         onclick="editClass(<?php echo $class['session_id']; ?>)">
+                                        <div class="class-name"><?php echo htmlspecialchars($class['class_name']); ?></div>
+                                        <div class="class-details"><?php echo htmlspecialchars($class['room']); ?></div>
+                                        <div class="class-instructor">
+                                            <?php echo htmlspecialchars($class['instructor']); ?>
+                                            <span class="status-badge <?php echo $class['status']; ?>">
+                                                <?php echo ucfirst($class['status']); ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </div>
-                    </div>
-                </div>
-                <div class="class-slot">
-                    <div class="class-card completed">
-                        <div class="class-name">Business Ethics</div>
-                        <div class="class-details">Room A5</div>
-                        <div class="class-instructor">
-                            Dr. Williams
-                            <span class="status-badge completed">Completed</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="class-slot"></div>
-                <div class="class-slot">
-                    <div class="class-card upcoming">
-                        <div class="class-name">Database Management</div>
-                        <div class="class-details">Lab C3</div>
-                        <div class="class-instructor">
-                            Ms. Johnson
-                            <span class="status-badge upcoming">Upcoming</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="class-slot"></div>
-                <div class="class-slot"></div>
-                <div class="class-slot"></div>
-
-                <!-- 10:30 - 12:30 -->
-                <div class="time-slot">10:30 - 12:30</div>
-                <div class="class-slot"></div>
-                <div class="class-slot">
-                    <div class="class-card ongoing">
-                        <div class="class-name">Data Structures & Algorithms</div>
-                        <div class="class-details">Room A5</div>
-                        <div class="class-instructor">
-                            Dr. Smith
-                            <span class="status-badge ongoing">Ongoing</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="class-slot">
-                    <div class="class-card canceled">
-                        <div class="class-name">Marketing Principles</div>
-                        <div class="class-details">Room D7</div>
-                        <div class="class-instructor">
-                            Mrs. Peterson
-                            <span class="status-badge canceled">Canceled</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="class-slot"></div>
-                <div class="class-slot">
-                    <div class="class-card upcoming">
-                        <div class="class-name">UI/UX Design</div>
-                        <div class="class-details">Lab C3</div>
-                        <div class="class-instructor">
-                            Mr. Thomas
-                            <span class="status-badge upcoming">Upcoming</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="class-slot"></div>
-                <div class="class-slot"></div>
-
-                <!-- 13:30 - 15:30 -->
-                <div class="time-slot">13:30 - 15:30</div>
-                <div class="class-slot">
-                    <div class="class-card upcoming">
-                        <div class="class-name">Web Development</div>
-                        <div class="class-details">Room D7</div>
-                        <div class="class-instructor">
-                            Mr. Williams
-                            <span class="status-badge upcoming">Upcoming</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="class-slot"></div>
-                <div class="class-slot">
-                    <div class="class-card upcoming">
-                        <div class="class-name">Financial Accounting</div>
-                        <div class="class-details">Room A5</div>
-                        <div class="class-instructor">
-                            Prof. Roberts
-                            <span class="status-badge upcoming">Upcoming</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="class-slot"></div>
-                <div class="class-slot">
-                    <div class="class-card upcoming">
-                        <div class="class-name">Database Management</div>
-                        <div class="class-details">Lab C3</div>
-                        <div class="class-instructor">
-                            Ms. Johnson
-                            <span class="status-badge upcoming">Upcoming</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="class-slot"></div>
-                <div class="class-slot"></div>
-
-                <!-- 16:00 - 18:00 -->
-                <div class="time-slot">16:00 - 18:00</div>
-                <div class="class-slot"></div>
-                <div class="class-slot">
-                    <div class="class-card ongoing">
-                        <div class="class-name">Mobile App Development</div>
-                        <div class="class-details">Lab C3</div>
-                        <div class="class-instructor">
-                            Prof. Brown
-                            <span class="status-badge ongoing">Ongoing</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="class-slot"></div>
-                <div class="class-slot">
-                    <div class="class-card upcoming">
-                        <div class="class-name">Network Security</div>
-                        <div class="class-details">Room B12</div>
-                        <div class="class-instructor">
-                            Dr. Garcia
-                            <span class="status-badge upcoming">Upcoming</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="class-slot"></div>
-                <div class="class-slot"></div>
-                <div class="class-slot"></div>
+                    <?php endforeach; ?>
+                <?php endforeach; ?>
             </div>
         </div>
 
+        <!-- List View (hidden by default) -->
         <!-- List View (hidden by default) -->
         <div class="class-list-view" style="display: none;">
             <div class="class-list-header">

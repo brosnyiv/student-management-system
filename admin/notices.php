@@ -1,3 +1,104 @@
+<?php
+session_start();
+ob_start();
+
+include 'dbconnect.php';
+
+
+// Fetch notices from database
+$notices = [];
+$sql = "SELECT * FROM notices ORDER BY post_date DESC";
+$result = mysqli_query($conn, $sql);
+if ($result) {
+    $notices = mysqli_fetch_all($result, MYSQLI_ASSOC);
+} else {
+    $error = "Error loading notices: " . mysqli_error($conn);
+}
+
+// Process form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $title = mysqli_real_escape_string($conn, $_POST['title'] ?? '');
+    $content = mysqli_real_escape_string($conn, $_POST['content'] ?? '');
+    $source_office = mysqli_real_escape_string($conn, $_POST['source_office'] ?? '');
+    $category = mysqli_real_escape_string($conn, $_POST['category'] ?? '');
+    $post_date = mysqli_real_escape_string($conn, $_POST['post_date'] ?? date('Y-m-d'));
+    $expiry_date = !empty($_POST['expiry_date']) ? mysqli_real_escape_string($conn, $_POST['expiry_date']) : null;
+    $is_urgent = isset($_POST['is_urgent']) ? 1 : 0;
+    $status = mysqli_real_escape_string($conn, $_POST['status'] ?? 'draft');
+    $created_by = $_SESSION['user_id'] ?? 1;
+
+    $notice_id = $_POST['notice_id'] ?? null;
+
+    try {
+        if ($notice_id) {
+            // Update existing notice
+            $sql = "UPDATE notices SET 
+                    title = '$title', 
+                    content = '$content', 
+                    source_office = '$source_office', 
+                    category = '$category', 
+                    post_date = '$post_date', 
+                    expiry_date = " . ($expiry_date ? "'$expiry_date'" : "NULL") . ", 
+                    is_urgent = $is_urgent, 
+                    status = '$status', 
+                    updated_at = NOW() 
+                    WHERE notice_id = $notice_id";
+        } else {
+            // Insert new notice
+            $sql = "INSERT INTO notices 
+                    (title, content, source_office, category, post_date, expiry_date, is_urgent, status, created_by) 
+                    VALUES (
+                        '$title', 
+                        '$content', 
+                        '$source_office', 
+                        '$category', 
+                        '$post_date', 
+                        " . ($expiry_date ? "'$expiry_date'" : "NULL") . ", 
+                        $is_urgent, 
+                        '$status', 
+                        $created_by
+                    )";
+        }
+
+        if (mysqli_query($conn, $sql)) {
+            $notice_id = $notice_id ?? mysqli_insert_id($conn);
+
+            // Handle file upload
+            if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                $upload_dir = "uploads/notices/";
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+                
+                $file_name = time() . '_' . basename($_FILES['attachment']['name']);
+                $target_file = $upload_dir . $file_name;
+                
+                if (move_uploaded_file($_FILES['attachment']['tmp_name'], $target_file)) {
+                    $attach_sql = "INSERT INTO notice_attachments 
+                                  (notice_id, file_name, file_path) 
+                                  VALUES ($notice_id, '$file_name', '$target_file')";
+                    mysqli_query($conn, $attach_sql);
+                }
+            }
+
+            header("Location: notices.php?success=1");
+            exit();
+        } else {
+            $error = "Error saving notice: " . mysqli_error($conn);
+        }
+    } catch (Exception $e) {
+        $error = "Error: " . $e->getMessage();
+    }
+}
+
+$success_message = '';
+if (isset($_GET['success']) && $_GET['success'] == 1) {
+    $success_message = "Notice operation completed successfully!";
+}
+
+
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -104,6 +205,12 @@
             background-color: #8B1818;
             color: white;
             border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
         }
         
         .draft-btn {
@@ -116,15 +223,26 @@
             background-color: #f0f0f0;
             color: #333;
             border: 1px solid #ddd;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
         }
         
         .reset-btn {
             background-color: #f0f0f0;
             color: #333;
             border: 1px solid #ddd;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
         
-        .submit-buttons button:hover {
+        .submit-buttons button:hover, .publish-btn:hover, .preview-btn:hover, .reset-btn:hover {
             opacity: 0.9;
             transform: translateY(-2px);
         }
@@ -231,6 +349,11 @@
         .badge-financial {
             background-color: #FFEBEE;
             color: #D32F2F;
+        }
+        
+        .badge-general {
+            background-color: #F5F5F5;
+            color: #616161;
         }
         
         .badge-urgent {
@@ -365,6 +488,7 @@
         .search-notices {
             position: relative;
             margin-bottom: 20px;
+            flex: 1;
         }
         
         .search-notices input {
@@ -418,6 +542,24 @@
             padding: 40px;
             color: #777;
         }
+        
+        .alert {
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        
+        .alert-success {
+            background-color: #E8F5E9;
+            color: #388E3C;
+            border: 1px solid #C8E6C9;
+        }
+        
+        .alert-error {
+            background-color: #FFEBEE;
+            color: #D32F2F;
+            border: 1px solid #FFCDD2;
+        }
     </style>
 </head>
 <body>
@@ -440,12 +582,12 @@
             <li onclick="window.location.href='payments.php'"><i class="fas fa-money-bill-wave"></i> <span>Payments Info</span></li>
             <li onclick="window.location.href='marks&exams.php'"><i class="fas fa-file-alt"></i> <span>Marks & Exams</span></li>
             <li onclick="window.location.href='results.php'"><i class="fas fa-search"></i> <span>Result</span></li>
-            <li  class="active" onclick="window.location.href='notices.php'"><i class="fas fa-bullhorn"></i> <span>Notice</span></li>
+            <li class="active" onclick="window.location.href='notices.php'"><i class="fas fa-bullhorn"></i> <span>Notice</span></li>
             <li onclick="window.location.href='attendence.php'"><i class="fas fa-clipboard-list"></i> <span>Attendance</span></li>
             <li onclick="window.location.href='classes.php'"><i class="fas fa-chalkboard-teacher"></i> <span>Classes</span></li>
             <li onclick="window.location.href='messages.php'"><i class="fas fa-envelope"></i> <span>Messages</span></li>
             <li onclick="window.location.href='settings page.php'"><i class="fas fa-cog"></i> <span>Settings</span></li>
-            <li ><i class="fas fa-sign-out-alt"></i> <span>Logout</span></li>
+            <li onclick="window.location.href='logout.php'"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></li>
         </ul>
     </div>
 
@@ -453,7 +595,7 @@
         <div class="welcome-banner">
             <div class="welcome-text">
                 <h1>MONACO INSTITUTE</h1>
-                <p>Welcome back, John!</p>
+                <p>Welcome back, <?php echo $_SESSION['user_name'] ?? 'Admin'; ?>!</p>
                 <div class="date-display">
                     <i class="fas fa-calendar-alt"></i> <span id="currentDate"></span>
                     <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
@@ -469,14 +611,26 @@
                     <span class="notification-count">3</span>
                 </div>
                 <div class="user-profile">
-                    <div class="user-avatar">J</div>
+                    <div class="user-avatar"><?php echo substr($_SESSION['user_name'] ?? 'A', 0, 1); ?></div>
                     <div class="user-info">
-                        John Doe<br>
-                        <span class="role">Admin</span>
+                        <?php echo $_SESSION['user_name'] ?? 'Admin'; ?><br>
+                        <span class="role"><?php echo $_SESSION['user_role'] ?? 'Administrator'; ?></span>
                     </div>
                 </div>
             </div>
         </div>
+
+        <?php if (isset($error)): ?>
+            <div class="alert alert-error">
+                <i class="fas fa-exclamation-circle"></i> <?php echo $error; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($success_message)): ?>
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> <?php echo $success_message; ?>
+            </div>
+        <?php endif; ?>
 
         <div class="section-header" style="margin-bottom: 20px;">
             <div class="section-title"><i class="fas fa-bullhorn"></i> Notice Management</div>
@@ -488,10 +642,13 @@
         <div class="notice-management-container">
             <div class="create-notice-panel">
                 <h3><i class="fas fa-edit"></i> Create New Notice</h3>
-                <form id="noticeForm">
+                <form id="noticeForm" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="notice_id" id="noticeId" value="">
+                    
                     <div class="form-row">
                         <label for="noticeTitle">Notice Title *</label>
-                        <input type="text" id="noticeTitle" placeholder="Enter notice title" required>
+                        <input type="text" id="noticeTitle" name="title" placeholder="Enter notice title" required 
+                            value="<?= isset($_POST['title']) ? htmlspecialchars($_POST['title']) : '' ?>">
                     </div>
                     
                     <div class="form-row">
@@ -505,13 +662,15 @@
                             <button type="button"><i class="fas fa-link"></i></button>
                             <button type="button"><i class="fas fa-image"></i></button>
                         </div>
-                        <textarea id="noticeContent" placeholder="Enter notice content" required></textarea>
+                        <textarea id="noticeContent" name="content" placeholder="Enter notice content" required><?= 
+                            isset($_POST['content']) ? htmlspecialchars($_POST['content']) : '' 
+                        ?></textarea>
                     </div>
                     
                     <div class="form-row inline">
                         <div>
                             <label for="sourceOffice">Source Office *</label>
-                            <select id="sourceOffice" required>
+                            <select id="sourceOffice" name="source_office" required>
                                 <option value="">Select Office</option>
                                 <option value="registrar">Registrar Office</option>
                                 <option value="academic">Academic Affairs</option>
@@ -524,7 +683,7 @@
                         </div>
                         <div>
                             <label for="noticeCategory">Category *</label>
-                            <select id="noticeCategory" required>
+                            <select id="noticeCategory" name="category" required>
                                 <option value="">Select Category</option>
                                 <option value="academic">Academic</option>
                                 <option value="administrative">Administrative</option>
@@ -538,57 +697,57 @@
                     <div class="form-row inline">
                         <div>
                             <label for="noticeDate">Post Date *</label>
-                            <input type="date" id="noticeDate" required>
+                            <input type="date" id="noticeDate" name="post_date" required 
+                                value="<?= isset($_POST['post_date']) ? $_POST['post_date'] : date('Y-m-d') ?>">
                         </div>
                         <div>
-                            <label for="expiryDate">Expiry Date (Optional)</label>
-                            <input type="date" id="expiryDate">
+                            <label for="expiryDate">Expiry Date (optional)</label>
+                            <input type="date" id="expiryDate" name="expiry_date"
+                                value="<?= isset($_POST['expiry_date']) ? $_POST['expiry_date'] : '' ?>">
                         </div>
                     </div>
                     
                     <div class="form-row">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <label for="urgentNotice" style="margin-bottom: 0;">Mark as Urgent</label>
-                            <label class="switch">
-                                <input type="checkbox" id="urgentNotice">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <label>Attachments (Optional)</label>
+                        <label for="noticeAttachment">Attachments (optional)</label>
                         <div class="file-input-container">
-                            <input type="file" id="noticeAttachment" multiple>
+                            <input type="file" id="noticeAttachment" name="attachment">
                             <div class="file-input-placeholder">
-                                <i class="fas fa-paperclip"></i> Click to add files (PDF, DOC, IMG, etc.)
+                                <i class="fas fa-paperclip"></i> Click to attach files
                             </div>
                         </div>
-                        <div class="attachment-preview">
-                            <div class="attachment-item">
-                                <i class="fas fa-file-pdf"></i> Academic_Calendar_2025.pdf
-                            </div>
-                        </div>
+                        <div class="attachment-preview"></div>
                     </div>
                     
                     <div class="form-row">
-                        <label>Publication Status:</label>
-                        <div class="publish-options">
-                            <div class="publish-option">
-                                <input type="radio" id="publishNow" name="publishStatus" value="publish" checked>
-                                <label for="publishNow">Publish Now</label>
-                            </div>
-                            <div class="publish-option">
-                                <input type="radio" id="saveDraft" name="publishStatus" value="draft">
-                                <label for="saveDraft">Save as Draft</label>
-                            </div>
+                        <div class="publish-option">
+                            <input type="checkbox" id="urgentNotice" name="is_urgent" value="1"
+                                <?= isset($_POST['is_urgent']) && $_POST['is_urgent'] ? 'checked' : '' ?>>
+                            <label for="urgentNotice">Mark as Urgent</label>
                         </div>
                     </div>
                     
-                    <div class="submit-buttons">
-                        <button type="button" class="preview-btn"><i class="fas fa-eye"></i> Preview</button>
-                        <button type="button" class="reset-btn"><i class="fas fa-undo"></i> Reset</button>
-                        <button type="submit" class="publish-btn"><i class="fas fa-paper-plane"></i> Publish Notice</button>
+                    <div class="publish-options">
+                        <div class="publish-option">
+                            <input type="radio" id="publishNow" name="status" value="published" checked>
+                            <label for="publishNow">Publish Now</label>
+                        </div>
+                        <div class="publish-option">
+                            <input type="radio" id="saveDraft" name="status" value="draft"
+                                <?= isset($_POST['status']) && $_POST['status'] == 'draft' ? 'checked' : '' ?>>
+                            <label for="saveDraft">Save as Draft</label>
+                        </div>
+                    </div>
+                    
+                    <div class="submit-buttons" style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button type="button" class="preview-btn" id="previewBtn">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <button type="button" class="reset-btn" id="resetBtn">
+                            <i class="fas fa-undo"></i> Reset Form
+                        </button>
+                        <button type="submit" class="publish-btn" name="submit" id="submitBtn">
+                            <i class="fas fa-paper-plane"></i> Publish Notice
+                        </button>
                     </div>
                 </form>
             </div>
@@ -635,15 +794,15 @@
         <div class="filter-row">
             <div class="search-notices">
                 <i class="fas fa-search"></i>
-                <input type="text" placeholder="Search notices...">
+                <input type="text" id="searchNotices" placeholder="Search notices...">
             </div>
         </div>
         
         <div class="filter-row">
             <div class="filter-item">
                 <label>Filter by Category:</label>
-                <select>
-                    <option value="">All Categories</option>
+                <select >                   
+                <option value="">All Categories</option>
                     <option value="academic">Academic</option>
                     <option value="administrative">Administrative</option>
                     <option value="event">Event</option>
@@ -700,105 +859,46 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>End of Semester Examination Schedule</td>
-                    <td><span class="notice-badge badge-academic">Academic</span></td>
-                    <td>Academic Affairs</td>
-                    <td>Apr 15, 2025</td>
-                    <td><span class="notice-badge badge-published">Published</span></td>
-                    <td>
-                        <div class="action-icons">
-                            <button class="action-icon"><i class="fas fa-edit"></i></button>
-                            <button class="action-icon"><i class="fas fa-eye"></i></button>
-                            <button class="action-icon"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Fee Payment Deadline Extension</td>
-                    <td><span class="notice-badge badge-financial">Financial</span></td>
-                    <td>Finance Department</td>
-                    <td>Apr 14, 2025</td>
-                    <td><span class="notice-badge badge-published">Published</span></td>
-                    <td>
-                        <div class="action-icons">
-                            <button class="action-icon"><i class="fas fa-edit"></i></button>
-                            <button class="action-icon"><i class="fas fa-eye"></i></button>
-                            <button class="action-icon"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Annual Sports Day Event</td>
-                    <td><span class="notice-badge badge-event">Event</span></td>
-                    <td>Sports Department</td>
-                    <td>Apr 12, 2025</td>
-                    <td><span class="notice-badge badge-published">Published</span></td>
-                    <td>
-                        <div class="action-icons">
-                            <button class="action-icon"><i class="fas fa-edit"></i></button>
-                            <button class="action-icon"><i class="fas fa-eye"></i></button>
-                            <button class="action-icon"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Campus Maintenance Schedule</td>
-                    <td><span class="notice-badge badge-administrative">Administrative</span></td>
-                    <td>Facilities Department</td>
-                    <td>Apr 10, 2025</td>
-                    <td><span class="notice-badge badge-published">Published</span></td>
-                    <td>
-                        <div class="action-icons">
-                            <button class="action-icon"><i class="fas fa-edit"></i></button>
-                            <button class="action-icon"><i class="fas fa-eye"></i></button>
-                            <button class="action-icon"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Library Extended Hours During Exams</td>
-                    <td><span class="notice-badge badge-academic">Academic</span></td>
-                    <td>Library</td>
-                    <td>Apr 8, 2025</td>
-                    <td><span class="notice-badge badge-draft">Draft</span></td>
-                    <td>
-                        <div class="action-icons">
-                            <button class="action-icon"><i class="fas fa-edit"></i></button>
-                            <button class="action-icon"><i class="fas fa-eye"></i></button>
-                            <button class="action-icon"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Career Fair Registration Open</td>
-                    <td><span class="notice-badge badge-event">Event</span></td>
-                    <td>Career Services</td>
-                    <td>Apr 7, 2025</td>
-                    <td><span class="notice-badge badge-published">Published</span></td>
-                    <td>
-                        <div class="action-icons">
-                            <button class="action-icon"><i class="fas fa-edit"></i></button>
-                            <button class="action-icon"><i class="fas fa-eye"></i></button>
-                            <button class="action-icon"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td>New Student Portal Features</td>
-                    <td><span class="notice-badge badge-administrative">Administrative</span></td>
-                    <td>IT Department</td>
-                    <td>Apr 5, 2025</td>
-                    <td><span class="notice-badge badge-draft">Draft</span></td>
-                    <td>
-                        <div class="action-icons">
-                            <button class="action-icon"><i class="fas fa-edit"></i></button>
-                            <button class="action-icon"><i class="fas fa-eye"></i></button>
-                            <button class="action-icon"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
+    <?php if (empty($notices)): ?>
+        <tr>
+            <td colspan="6" class="no-notices">No notices found</td>
+        </tr>
+    <?php else: ?>
+        <?php foreach ($notices as $notice): ?>
+            <tr>
+                <td><?= htmlspecialchars($notice['title']) ?></td>
+                <td>
+                    <span class="notice-badge badge-<?= $notice['category'] ?>">
+                        <?= ucfirst($notice['category']) ?>
+                    </span>
+                </td>
+                <td><?= htmlspecialchars($notice['source_office']) ?></td>
+                <td><?= date('M j, Y', strtotime($notice['post_date'])) ?></td>
+                <td>
+                    <span class="notice-badge badge-<?= $notice['status'] ?>">
+                        <?= ucfirst($notice['status']) ?>
+                    </span>
+                    <?php if ($notice['is_urgent']): ?>
+                        <span class="notice-badge badge-urgent">Urgent</span>
+                    <?php endif; ?>
+                </td>
+                <td>
+                    <div class="action-icons">
+                        <button class="action-icon edit-notice" data-id="<?= $notice['notice_id'] ?>">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-icon view-notice" data-id="<?= $notice['notice_id'] ?>">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="action-icon delete-notice" data-id="<?= $notice['notice_id'] ?>">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</tbody>
         </table>
         
         <div class="pagination">
@@ -1032,6 +1132,67 @@ document.addEventListener('DOMContentLoaded', function() {
             window.scrollTo(0, 0);
         });
     }
+});
+
+
+// Edit notice
+document.querySelectorAll('.edit-notice').forEach(button => {
+    button.addEventListener('click', function() {
+        const noticeId = this.getAttribute('data-id');
+        fetch(`get_notice.php?id=${noticeId}`)
+            .then(response => response.json())
+            .then(data => {
+                // Populate form with notice data
+                document.getElementById('noticeId').value = data.notice_id;
+                document.getElementById('noticeTitle').value = data.title;
+                document.getElementById('noticeContent').value = data.content;
+                document.getElementById('sourceOffice').value = data.source_office;
+                document.getElementById('noticeCategory').value = data.category;
+                document.getElementById('noticeDate').value = data.post_date;
+                document.getElementById('expiryDate').value = data.expiry_date || '';
+                document.getElementById('urgentNotice').checked = data.is_urgent == 1;
+                
+                // Set status radio
+                if (data.status === 'published') {
+                    document.getElementById('publishNow').checked = true;
+                } else {
+                    document.getElementById('saveDraft').checked = true;
+                }
+                
+                // Change form header and submit button
+                document.querySelector('.section-title').innerHTML = '<i class="fas fa-edit"></i> Edit Notice';
+                document.querySelector('.publish-btn').innerHTML = '<i class="fas fa-save"></i> Update Notice';
+                
+                // Scroll to form
+                window.scrollTo(0, 0);
+            })
+            .catch(error => console.error('Error:', error));
+    });
+});
+
+// Delete notice
+document.querySelectorAll('.delete-notice').forEach(button => {
+    button.addEventListener('click', function() {
+        const noticeId = this.getAttribute('data-id');
+        const row = this.closest('tr');
+        const noticeTitle = row.querySelector('td:first-child').textContent;
+        
+        if (confirm(`Are you sure you want to delete notice: "${noticeTitle}"?`)) {
+            fetch(`delete_notice.php?id=${noticeId}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        row.style.opacity = '0.5';
+                        setTimeout(() => {
+                            row.remove();
+                        }, 500);
+                    } else {
+                        alert('Error deleting notice: ' + data.error);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+    });
 });
 </script>
 </body>

@@ -1,3 +1,184 @@
+<?php
+
+session_start(); // Start the session
+ob_start();
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+include 'dbconnect.php'; // Include the database connection file
+
+$current_user_id = $_SESSION['user_id'];
+$active_conversation = isset($_GET['conversation']) ? intval($_GET['conversation']) : null;
+
+// Fetch all conversations for the current user
+$conversations_query = "
+    SELECT DISTINCT 
+        IF(m.sender_id = ?, m.receiver_id, m.sender_id) as contact_id,
+        u.username as contact_name,
+        '' as contact_department,  /* Replace with actual column name if you have it */
+        (SELECT message_content FROM messages 
+         WHERE (sender_id = ? AND receiver_id = contact_id) 
+            OR (sender_id = contact_id AND receiver_id = ?)
+         ORDER BY created_at DESC LIMIT 1) as last_message,
+        (SELECT created_at FROM messages 
+         WHERE (sender_id = ? AND receiver_id = contact_id) 
+            OR (sender_id = contact_id AND receiver_id = ?)
+         ORDER BY created_at DESC LIMIT 1) as last_message_time,
+        (SELECT COUNT(*) FROM messages 
+         WHERE sender_id = contact_id AND receiver_id = ? AND is_read = FALSE) as unread_count
+    FROM messages m
+    JOIN users u ON IF(m.sender_id = ?, m.receiver_id, m.sender_id) = u.user_id
+    WHERE m.sender_id = ? OR m.receiver_id = ?
+    ORDER BY last_message_time DESC";
+
+
+$stmt = $conn->prepare($conversations_query);
+$stmt->bind_param("iiiiiiiii", $current_user_id, $current_user_id, $current_user_id, 
+                  $current_user_id, $current_user_id, $current_user_id, 
+                  $current_user_id, $current_user_id, $current_user_id);
+$stmt->execute();
+$conversations = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// If there's an active conversation, fetch messages
+$messages = [];
+$contact_info = null;
+if ($active_conversation) {
+    // Mark messages as read
+    $mark_read = "UPDATE messages SET is_read = TRUE 
+                  WHERE sender_id = ? AND receiver_id = ? AND is_read = FALSE";
+    $stmt = $conn->prepare($mark_read);
+    $stmt->bind_param("ii", $active_conversation, $current_user_id);
+    $stmt->execute();
+    
+    // Get contact info
+$contact_query = "SELECT user_id, username
+                 FROM users WHERE user_id = ?";
+
+    
+    // Get messages
+    $messages_query = "SELECT m.*, 
+                            ma.attachment_id, ma.file_path, ma.file_name, ma.file_type
+                      FROM messages m
+                      LEFT JOIN message_attachments ma ON m.message_id = ma.message_id
+                      WHERE (m.sender_id = ? AND m.receiver_id = ?) 
+                         OR (m.sender_id = ? AND m.receiver_id = ?)
+                      ORDER BY m.created_at ASC";
+    $stmt = $conn->prepare($messages_query);
+    $stmt->bind_param("iiii", $current_user_id, $active_conversation, 
+                     $active_conversation, $current_user_id);
+    $stmt->execute();
+    $messages = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+// Fetch broadcast messages
+$broadcasts_query = "SELECT bm.broadcast_id, bm.title, bm.recipient_group, 
+                            bm.sent_at, bm.read_count, bm.total_recipients
+                     FROM broadcast_messages bm
+                     ORDER BY bm.sent_at DESC 
+                     LIMIT 10";
+                     
+$broadcasts_result = $conn->query($broadcasts_query);
+$broadcasts = [];
+
+if ($broadcasts_result) {
+    $broadcasts = $broadcasts_result->fetch_all(MYSQLI_ASSOC);
+}
+
+// Handle new message submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
+    $receiver_id = $_POST['receiver_id'];
+    $message_content = $_POST['message_content'];
+    
+    $stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, message_content) 
+                           VALUES (?, ?, ?)");
+    $stmt->bind_param("iis", $current_user_id, $receiver_id, $message_content);
+    
+    if ($stmt->execute()) {
+        $message_id = $stmt->insert_id;
+        
+        // Handle file attachment if present
+        if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] == 0) {
+            $file_name = $_FILES['attachment']['name'];
+            $file_type = $_FILES['attachment']['type'];
+            $file_size = $_FILES['attachment']['size'];
+            
+            // Create directory if doesn't exist
+            $upload_dir = "uploads/messages/";
+            if (!file_exists($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            
+            $file_path = $upload_dir . uniqid() . '_' . $file_name;
+            
+            if (move_uploaded_file($_FILES['attachment']['tmp_name'], $file_path)) {
+                $stmt = $conn->prepare("INSERT INTO message_attachments 
+                                      (message_id, file_path, file_name, file_type, file_size) 
+                                      VALUES (?, ?, ?, ?, ?)");
+                $stmt->bind_param("isssi", $message_id, $file_path, $file_name, $file_type, $file_size);
+                $stmt->execute();
+            }
+        }
+        
+        // Redirect to avoid form resubmission
+        header("Location: messages.php?conversation=" . $receiver_id);
+        exit();
+    }
+
+}
+
+// Fetch broadcast messages
+$broadcasts_query = "SELECT bm.*, u.username as sender_name 
+                    FROM broadcast_messages bm
+                    JOIN users u ON bm.sender_id = u.user_id
+                    ORDER BY bm.sent_at DESC 
+                    LIMIT 10";
+$broadcasts = $conn->query($broadcasts_query)->fetch_all(MYSQLI_ASSOC);
+
+// Function to format date/time
+function formatDateTime($datetime) {
+    $now = new DateTime();
+    $date = new DateTime($datetime);
+    $diff = $now->diff($date);
+    
+    if ($diff->d == 0) {
+        return $date->format('h:i A');
+    } elseif ($diff->d == 1) {
+        return 'Yesterday';
+    } else {
+        return $date->format('M d');
+    }
+}
+
+// Function to get first letter of name for avatar
+function getInitial($name) {
+    return strtoupper(substr($name, 0, 1));
+}
+
+// Handle broadcast deletion
+if (isset($_GET['delete_broadcast']) && is_numeric($_GET['delete_broadcast'])) {
+    $broadcast_id = $_GET['delete_broadcast'];
+    
+    // First delete recipients
+    $delete_recipients = "DELETE FROM broadcast_recipients WHERE broadcast_id = ?";
+    $stmt = $conn->prepare($delete_recipients);
+    $stmt->bind_param("i", $broadcast_id);
+    $stmt->execute();
+    
+    // Then delete the broadcast
+    $delete_broadcast = "DELETE FROM broadcast_messages WHERE broadcast_id = ?";
+    $stmt = $conn->prepare($delete_broadcast);
+    $stmt->bind_param("i", $broadcast_id);
+    $stmt->execute();
+    
+    // Redirect to refresh the page
+    header("Location: messages.php");
+    exit();
+}
+
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -415,10 +596,10 @@
             <div class="filter-option active">All Messages</div>
             <div class="filter-option">Staff</div>
             <div class="filter-option">Students</div>
-            <div class="filter-option">Parents</div>
             <div class="filter-option">Unread</div>
             <div class="filter-option">Starred</div>
         </div>
+
 
         <div class="message-page-container">
             <div class="contacts-panel">
@@ -429,89 +610,68 @@
                 <div class="contacts-search">
                     <input type="text" placeholder="Search contacts...">
                 </div>
-                <div class="contacts-list">
-                    <div class="contact-item active">
-                        <div class="contact-avatar">S</div>
-                        <div class="contact-info">
-                            <div class="contact-name">Sarah Johnson</div>
-                            <div class="contact-preview">About the upcoming seminar details...</div>
-                        </div>
-                        <div class="contact-meta">
-                            <div class="contact-time">10:30 AM</div>
-                            <div class="message-count">2</div>
-                        </div>
-                    </div>
-                    <div class="contact-item">
-                        <div class="contact-avatar">M</div>
-                        <div class="contact-info">
-                            <div class="contact-name">Mark Williams</div>
-                            <div class="contact-preview">Have you reviewed the syllabus yet?</div>
-                        </div>
-                        <div class="contact-meta">
-                            <div class="contact-time">Yesterday</div>
-                        </div>
-                    </div>
-                    <div class="contact-item">
-                        <div class="contact-avatar">D</div>
-                        <div class="contact-info">
-                            <div class="contact-name">David Chen</div>
-                            <div class="contact-preview">I'll send the report by tomorrow.</div>
-                        </div>
-                        <div class="contact-meta">
-                            <div class="contact-time">Yesterday</div>
-                            <div class="message-count">1</div>
-                        </div>
-                    </div>
-                    <div class="contact-item">
-                        <div class="contact-avatar">A</div>
-                        <div class="contact-info">
-                            <div class="contact-name">Anna Smith</div>
-                            <div class="contact-preview">The staff meeting is rescheduled to Friday</div>
-                        </div>
-                        <div class="contact-meta">
-                            <div class="contact-time">Apr 14</div>
-                        </div>
-                    </div>
-                    <div class="contact-item">
-                        <div class="contact-avatar">K</div>
-                        <div class="contact-info">
-                            <div class="contact-name">Kevin Brown</div>
-                            <div class="contact-preview">Can we discuss the new curriculum?</div>
-                        </div>
-                        <div class="contact-meta">
-                            <div class="contact-time">Apr 13</div>
-                        </div>
-                    </div>
-                    <div class="contact-item">
-                        <div class="contact-avatar">R</div>
-                        <div class="contact-info">
-                            <div class="contact-name">Rachel Taylor</div>
-                            <div class="contact-preview">Thank you for the quick response!</div>
-                        </div>
-                        <div class="contact-meta">
-                            <div class="contact-time">Apr 10</div>
-                        </div>
-                    </div>
-                    <div class="contact-item">
-                        <div class="contact-avatar">J</div>
-                        <div class="contact-info">
-                            <div class="contact-name">James Wilson</div>
-                            <div class="contact-preview">About the Data Science master class...</div>
-                        </div>
-                        <div class="contact-meta">
-                            <div class="contact-time">Apr 9</div>
-                        </div>
+                
+                            
+                                
+                                
+                               
+                            <div class="contacts-list">
+    <?php if (!empty($conversations)): ?>
+        <?php foreach ($conversations as $convo): ?>
+            <div class="contact-item <?php echo ($active_conversation == $convo['contact_id']) ? 'active' : ''; ?>" 
+                 onclick="window.location.href='messages.php?conversation=<?php echo $convo['contact_id']; ?>'">
+                <div class="contact-avatar"><?php echo substr($convo['contact_name'], 0, 1); ?></div>
+                <div class="contact-info">
+                    <div class="contact-name"><?php echo htmlspecialchars($convo['contact_name']); ?></div>
+                    <div class="contact-preview">
+                        <?php 
+                            echo htmlspecialchars(substr($convo['last_message'] ?? '', 0, 40));
+                            echo (strlen($convo['last_message'] ?? '') > 40) ? '...' : '';
+                        ?>
                     </div>
                 </div>
+                <div class="contact-meta">
+                    <div class="contact-time">
+                        <?php 
+                            if (isset($convo['last_message_time'])) {
+                                $date = new DateTime($convo['last_message_time']);
+                                $now = new DateTime();
+                                $diff = $date->diff($now);
+                                
+                                if ($diff->days == 0) {
+                                    echo $date->format('h:i A');
+                                } elseif ($diff->days == 1) {
+                                    echo 'Yesterday';
+                                } else {
+                                    echo $date->format('M d');
+                                }
+                            }
+                        ?>
+                    </div>
+                    <?php if ($convo['unread_count'] > 0): ?>
+                        <div class="message-count"><?php echo $convo['unread_count']; ?></div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    <?php else: ?>
+        <div class="no-conversations">No conversations yet</div>
+    <?php endif; ?>
+</div>
+
+                                
+                  
             </div>
             
+            
             <div class="chat-panel">
+                            <?php if ($contact_info): ?>
                 <div class="chat-header">
                     <div class="chat-recipient">
-                        <div class="recipient-avatar">S</div>
+                        <div class="recipient-avatar"><?php echo getInitial($contact_info['username']); ?></div>
                         <div class="recipient-info">
-                            <h3>Sarah Johnson</h3>
-                            <p>Faculty • Career Development Department</p>
+                            <h3><?php echo htmlspecialchars($contact_info['username']); ?></h3>
+                            <p><?php echo htmlspecialchars($contact_info['username']); ?></p> <!-- Replace with appropriate field -->
                         </div>
                     </div>
                     <div class="chat-actions">
@@ -521,61 +681,38 @@
                         <button><i class="fas fa-ellipsis-v"></i></button>
                     </div>
                 </div>
+                <?php endif; ?>
+                
                 
                 <div class="chat-messages">
-                    <div class="message-date-divider">
-                        <span>Today, April 15, 2025</span>
-                    </div>
-                    
-                    <div class="message message-received">
-                        <div class="message-bubble">
-                            Good morning, John! I needed to confirm some details about the upcoming career development seminar.
-                        </div>
-                        <div class="message-time">09:45 AM</div>
-                    </div>
-                    
-                    <div class="message message-sent">
-                        <div class="message-bubble">
-                            Good morning, Sarah! Sure, what details do you need?
-                        </div>
-                        <div class="message-time">09:47 AM</div>
-                    </div>
-                    
-                    <div class="message message-received">
-                        <div class="message-bubble">
-                            I was wondering if we confirmed the guest speakers for the event? Also, is the main hall booked for the full day or just the morning session?
-                        </div>
-                        <div class="message-time">09:50 AM</div>
-                    </div>
-                    
-                    <div class="message message-received">
-                        <div class="message-bubble">
-                            And have we finalized the schedule for the breakout sessions?
-                        </div>
-                        <div class="message-time">09:51 AM</div>
-                    </div>
-                    
-                    <div class="message message-sent">
-                        <div class="message-bubble">
-                            Yes, we've confirmed all three guest speakers. They'll be arriving at 9:00 AM for a brief orientation. The main hall is booked for the full day, so we'll have plenty of time for all activities.
-                        </div>
-                        <div class="message-time">10:00 AM</div>
-                    </div>
-                    
-                    <div class="message message-sent">
-                        <div class="message-bubble">
-                            Regarding the breakout sessions, I've scheduled them for the afternoon. I can share the detailed schedule with you if you'd like.
-                        </div>
-                        <div class="message-time">10:01 AM</div>
-                    </div>
-                    
-                    <div class="message message-received">
-                        <div class="message-bubble">
-                            That would be great! Please send over the schedule when you have a moment. Also, do we have the promotional materials ready to distribute to students?
-                        </div>
-                        <div class="message-time">10:30 AM</div>
-                    </div>
-                </div>
+    <?php
+    $current_date = '';
+    foreach ($messages as $message):
+        $message_date = date('Y-m-d', strtotime($message['created_at']));
+        if ($current_date != $message_date):
+            $current_date = $message_date;
+    ?>
+    <div class="message-date-divider">
+        <span><?php echo date('l, F j, Y', strtotime($message['created_at'])); ?></span>
+    </div>
+    <?php endif; ?>
+    
+    <div class="message <?php echo ($message['sender_id'] == $current_user_id) ? 'message-sent' : 'message-received'; ?>">
+        <div class="message-bubble">
+            <?php echo nl2br(htmlspecialchars($message['message_content'])); ?>
+            <?php if (isset($message['attachment_id'])): ?>
+            <div class="message-attachment">
+                <a href="<?php echo htmlspecialchars($message['file_path']); ?>" target="_blank">
+                    <i class="fas fa-paperclip"></i> <?php echo htmlspecialchars($message['file_name']); ?>
+                </a>
+            </div>
+            <?php endif; ?>
+        </div>
+        <div class="message-time"><?php echo date('h:i A', strtotime($message['created_at'])); ?></div>
+    </div>
+    <?php endforeach; ?>
+</div>
+
                 
                 <div class="chat-input">
                     <button class="attachment-btn"><i class="fas fa-paperclip"></i></button>
@@ -586,63 +723,72 @@
         </div>
 
         <div class="section-header" style="margin-top: 20px;">
-            <div class="section-title"><i class="fas fa-bullhorn"></i> Message Broadcasts</div>
-            <div class="action-buttons">
-                <button class="add-button"><i class="fas fa-plus"></i> New Broadcast</button>
-            </div>
+        <?php if ($contact_info): ?>
+<form method="POST" enctype="multipart/form-data" class="chat-input">
+    <input type="hidden" name="receiver_id" value="<?php echo $contact_info['user_id']; ?>">
+    <button type="button" class="attachment-btn" onclick="document.getElementById('file-upload').click();">
+        <i class="fas fa-paperclip"></i>
+    </button>
+    <input type="file" id="file-upload" name="attachment" style="display: none;">
+    <textarea name="message_content" placeholder="Type a message..." required></textarea>
+    <button type="submit" name="send_message"><i class="fas fa-paper-plane"></i></button>
+</form>
+<?php endif; ?>
         </div>
-        
+        <button class="section-header" style="margin-top: 20px; background-color: #8B1818; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer;" >Create Broadcast</button>
+        <div class="section-header" style="margin-top: 20px;">Broadcast Messages</div>
         <table>
-            <thead>
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Recipient Group</th>
+            <th>Sent Date</th>
+            <th>Status</th>
+            <th>Delivered</th>
+            <th>Read</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php if (!empty($broadcasts)): ?>
+            <?php foreach ($broadcasts as $broadcast): ?>
+                <?php 
+                    // Format the recipient group text for display
+                    $group_display = str_replace('_', ' ', $broadcast['recipient_group']);
+                    $group_display = ucwords($group_display);
+                    
+                    // Determine status
+                    $status = ($broadcast['read_count'] >= $broadcast['total_recipients']) ? 'Completed' : 'In Progress';
+                    $status_color = ($status == 'Completed') ? '#28a745' : '#ffc107';
+                ?>
                 <tr>
-                    <th>Title</th>
-                    <th>Recipient Group</th>
-                    <th>Sent Date</th>
-                    <th>Status</th>
-                    <th>Delivered</th>
-                    <th>Read</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>End of Semester Notice</td>
-                    <td>All Students</td>
-                    <td>Apr 14, 2025</td>
-                    <td><span class="badge" style="background:#28a745;color:white;padding:3px 8px;border-radius:3px;font-size:12px;">Completed</span></td>
-                    <td>10,000/10,000</td>
-                    <td>8,540/10,000</td>
+                    <td><?php echo htmlspecialchars($broadcast['title']); ?></td>
+                    <td><?php echo htmlspecialchars($group_display); ?></td>
+                    <td><?php echo date('M d, Y', strtotime($broadcast['sent_at'])); ?></td>
                     <td>
-                        <button class="action-icon edit"><i class="fas fa-eye"></i></button>
-                        <button class="action-icon delete"><i class="fas fa-trash"></i></button>
+                        <span class="badge" style="background:<?php echo $status_color; ?>;color:white;padding:3px 8px;border-radius:3px;font-size:12px;">
+                            <?php echo $status; ?>
+                        </span>
+                    </td>
+                    <td><?php echo $broadcast['total_recipients'] . '/' . $broadcast['total_recipients']; ?></td>
+                    <td><?php echo $broadcast['read_count'] . '/' . $broadcast['total_recipients']; ?></td>
+                    <td>
+                        <button class="action-icon edit" onclick="viewBroadcast(<?php echo $broadcast['broadcast_id']; ?>)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="action-icon delete" onclick="deleteBroadcast(<?php echo $broadcast['broadcast_id']; ?>)">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </td>
                 </tr>
-                <tr>
-                    <td>Faculty Meeting</td>
-                    <td>All Staff</td>
-                    <td>Apr 13, 2025</td>
-                    <td><span class="badge" style="background:#28a745;color:white;padding:3px 8px;border-radius:3px;font-size:12px;">Completed</span></td>
-                    <td>50/50</td>
-                    <td>48/50</td>
-                    <td>
-                        <button class="action-icon edit"><i class="fas fa-eye"></i></button>
-                        <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Career Fair Announcement</td>
-                    <td>Final Year Students</td>
-                    <td>Apr 10, 2025</td>
-                    <td><span class="badge" style="background:#28a745;color:white;padding:3px 8px;border-radius:3px;font-size:12px;">Completed</span></td>
-                    <td>2,500/2,500</td>
-                    <td>2,100/2,500</td>
-                    <td>
-                        <button class="action-icon edit"><i class="fas fa-eye"></i></button>
-                        <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <tr>
+                <td colspan="7" style="text-align: center;">No broadcast messages found</td>
+            </tr>
+        <?php endif; ?>
+    </tbody>
+</table>
 
         <div class="footer">
             <p>&copy; 2025 Monaco Institute. All rights reserved.</p>
@@ -662,6 +808,18 @@
         
         updateDateTime();
         setInterval(updateDateTime, 60000); // Update every minute
+
+        function viewBroadcast(broadcastId) {
+    // Redirect to a broadcast detail page or show in a modal
+    window.location.href = 'broadcast_details.php?id=' + broadcastId;
+}
+
+function deleteBroadcast(broadcastId) {
+    if (confirm('Are you sure you want to delete this broadcast message?')) {
+        // You can use AJAX here or a form submission
+        window.location.href = 'messages.php?delete_broadcast=' + broadcastId;
+    }
+}
     </script>
 </body>
 </html>

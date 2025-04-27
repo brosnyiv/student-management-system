@@ -136,6 +136,9 @@ if ($result) {
     <title>Monaco Institute Dashboard</title>
     <link rel="stylesheet" href="dash.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+  
+        </style>
 </head>
 <body>
     <div class="sidebar">
@@ -168,19 +171,52 @@ if ($result) {
 
     <div class="main-content">
         <div class="welcome-banner">
-            <div class="welcome-text">
-                <h1>MONACO INSTITUTE</h1>
-                <p>Welcome back, <?php echo isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : "User"; ?></p>
-                <div class="date-display">
-                    <i class="fas fa-calendar-alt"></i> <span id="currentDate"></span>
-                    <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
-                    <div class="weather-widget">
-                        <i class="fas fa-sun weather-icon"></i>
-                        <span class="temperature">26°C</span>
-                    </div>
-                </div>
-            </div>
-            
+
+    <!-- welcome message   -->
+
+        <div class="welcome-text">
+    <h1>MONACO INSTITUTE</h1>
+    <div class="welcome-message">
+        <?php
+        // Time-based greeting
+        $hour = date('H');
+        $greeting = ($hour < 12) ? "Good Morning" : (($hour < 17) ? "Good Afternoon" : "Good Evening");
+        
+        // Get username
+        $username = isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : "User";
+        echo "<p class='welcome-user'>{$greeting}, <span class='username'>{$username}</span></p>";
+        
+        // Dynamic messages
+        $month = date('n');
+        $seasonalMessages = [
+            1 => "Happy New Year! New year, new learning opportunities",
+            5 => "Spring into your educational journey",
+            9 => "Welcome to the new academic year!",
+            12 => "Season's greetings! Wrapping up the year with excellence"
+        ];
+        
+        $dailyMessages = [
+            "Empowering your educational journey every day!",
+            "Building futures, one lesson at a time",
+            "Today is a great day to learn something new!",
+            "Where skills meet innovation",
+            "Excellence in education since 2010",
+            "Together, we grow"
+        ];
+        
+        $message = $seasonalMessages[$month] ?? $dailyMessages[date('z') % count($dailyMessages)];
+        echo "<p class='welcome-message-text'>{$message}</p>";
+        ?>
+    </div>
+    <div class="date-display">
+        <i class="fas fa-calendar-alt"></i> <span id="currentDate"><?php echo date('l, F j, Y'); ?></span>
+        <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"><?php echo date('h:i:s A'); ?></span></span>
+    </div>
+</div>
+
+
+             <!-- Notifications  -->
+   
             <div class="user-section" style="display:flex; align-items:center;">
             <div class="notification-bell" id="notificationBell">
     <i class="fas fa-bell"></i>
@@ -245,23 +281,19 @@ if ($result) {
     </div>
 </div>
 
-                <div class="user-profile">
 
-                <div class="user-avatar">
-        <?php if (!empty($profile_image)): ?>
-            <img src="<?php echo htmlspecialchars($profile_image); ?>" alt="Profile Image">
-        <?php else: ?>
-            <?php null /* echo  $first_letter */; ?>
-        <?php endif; ?>
-    </div>
-                    
+<div class="user-profile">
+                    <div class="user-avatar">
+                        <?php echo isset($_SESSION['username']) ? substr($_SESSION['username'], 0, 1) : 'U'; ?>
+                    </div>
                     <div class="user-info">
-                    <?php echo isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : "User"; ?><br>
-                        <span class="role"><?php echo isset($_SESSION['user_role']) ? htmlspecialchars($_SESSION['user_role']) : "undefined"; ?></span>
+                        <?php echo isset($_SESSION['username']) ? $_SESSION['username'] : 'User'; ?><br>
+                        <span class="role"><?php echo isset($_SESSION['role_name']) ? $_SESSION['role_name'] : 'User'; ?></span>
                     </div>
                 </div>
             </div>
         </div>
+
 
         <div class="search-bar">
             <input type="text" placeholder="Search..." aria-label="Search">
@@ -779,7 +811,31 @@ if ($result) {
         generateCalendarDays();
     });
     
+    // Real-time clock with seconds
+function updateClock() {
+    const now = new Date();
     
+    // Format time with seconds (e.g., "02:30:45 PM")
+    const timeString = now.toLocaleTimeString('en-US', { 
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true 
+    });
+    
+    // Format date (e.g., "Monday, April 15, 2024")
+    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateString = now.toLocaleDateString('en-US', dateOptions);
+    
+    // Update elements
+    document.getElementById('currentTime').textContent = timeString;
+    document.getElementById('currentDate').textContent = dateString;
+}
+
+// Update immediately and every second
+updateClock();
+setInterval(updateClock, 1000);
+
     </script>
 </body>
 </html>

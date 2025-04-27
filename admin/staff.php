@@ -750,7 +750,7 @@ $conn->close();
 <table class="staff-table">
     <thead>
         <tr>
-            <th>Staff ID</th>
+            
             <th>Full Name</th>
             <th>Department</th>
             <th>Designation</th>
@@ -851,30 +851,30 @@ $conn->close();
                 }
             }
     ?>
-    <tr>
-        <td><?php echo htmlspecialchars($row['staff_number']); ?></td>
-        <td>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <div class="staff-avatar"><?php echo htmlspecialchars($firstLetter); ?></div>
-                <div><?php echo htmlspecialchars($row['full_name']); ?></div>
-            </div>
-        </td>
-        <td>
-            <span class="department-tag">
-                <i class="<?php echo $deptIcon.' '.$iconClass; ?>"></i> 
-                <?php echo htmlspecialchars($row['department_name'] ?? 'Not Assigned'); ?>
-            </span>
-        </td>
-        <td><?php echo htmlspecialchars($row['designation']); ?></td>
-        <td><?php echo htmlspecialchars($row['email']); ?></td>
-        <td><?php echo htmlspecialchars($row['phone']); ?></td>
-        <td><span class="status-badge <?php echo $statusClass; ?>"><?php echo $statusText; ?></span></td>
-        <td>
-            <button class="action-button view-button" onclick="viewStaff('<?php echo $row['staff_id']; ?>')"><i class="fas fa-eye"></i></button>
-            <button class="action-button edit-button" onclick="editStaff('<?php echo $row['staff_id']; ?>')"><i class="fas fa-pen"></i></button>
-            <button class="action-button delete-button" onclick="deleteStaff('<?php echo $row['staff_id']; ?>')"><i class="fas fa-trash"></i></button>
-        </td>
-    </tr>
+
+ <tr>
+    <td>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="staff-avatar"><?php echo htmlspecialchars($firstLetter); ?></div>
+            <div><?php echo htmlspecialchars($row['full_name']); ?></div>
+        </div>
+    </td>
+    <td>
+        <span class="department-tag">
+            <i class="<?php echo $deptIcon.' '.$iconClass; ?>"></i> 
+            <?php echo htmlspecialchars($row['department_name'] ?? 'Not Assigned'); ?>
+        </span>
+    </td>
+    <td><?php echo htmlspecialchars($row['designation']); ?></td>
+    <td><?php echo htmlspecialchars($row['personal_email'] ?? ''); ?></td>
+    <td><?php echo htmlspecialchars($row['phone_number'] ?? ''); ?></td>
+    <td><span class="status-badge <?php echo $statusClass; ?>"><?php echo $statusText; ?></span></td>
+    <td>
+        <button class="action-button view-button" onclick="viewStaff('<?php echo $row['staff_id']; ?>')"><i class="fas fa-eye"></i></button>
+        <button class="action-button edit-button" onclick="editStaff('<?php echo $row['staff_id']; ?>')"><i class="fas fa-pen"></i></button>
+        <button class="action-button delete-button" onclick="deleteStaff('<?php echo $row['staff_id']; ?>')"><i class="fas fa-trash"></i></button>
+    </td>
+</tr>
     <?php
         }
     } else {
