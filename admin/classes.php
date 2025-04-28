@@ -772,7 +772,7 @@ if ($result && $result->num_rows > 0) {
         </div>
 
        <!-- Filters -->
-<div class="class-filters">
+    <div class="class-filters">
     <form method="GET" action="" class="d-flex align-items-center">
         <div class="filter-group">
             <label for="filterCourse">Course:</label>

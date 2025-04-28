@@ -43,8 +43,15 @@ $bank_name = $account_number = $tax_id = $tin_number = $salary_scale = $payment_
 $document_path = $document_type = $document_number = $expiry_date = $document_description = '';
 $terms_consent = $data_consent = $update_consent = $digital_signature = $digital_date = '';
 
+
 // Get and sanitize form values if submitted
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Debugging: Print raw POST data
+    echo '<pre>';
+    print_r($_POST);
+    print_r($_FILES);
+    echo '</pre>';
+
     // Account Setup
     $staff_type = filter_input(INPUT_POST, 'staff_type', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
@@ -53,34 +60,100 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $access_level = filter_input(INPUT_POST, 'access_level', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $password_hash = filter_input(INPUT_POST, 'password_hash', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $confirmPassword = filter_input(INPUT_POST, 'confirmPassword', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    
+
+    // Validate passwords match
+    if ($password_hash !== $confirmPassword) {
+        echo "Passwords do not match.";
+        exit;
+    }
+
+    // Insert into `accounts` table
+    $sql_account = "INSERT INTO accounts (staff_type, username, email, role_name, access_level, password_hash)
+                    VALUES ('$staff_type', '$username', '$email', '$role_name', '$access_level', '$password_hash')";
+    if (!$conn->query($sql_account)) {
+        echo "Error inserting into accounts table: " . $conn->error;
+        exit;
+    }
+    $account_id = $conn->insert_id; // Get the last inserted ID for foreign key reference
+
     // Personal Details
     $full_name = filter_input(INPUT_POST, 'full_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $date_of_birth = filter_input(INPUT_POST, 'date_of_birth', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $gender = filter_input(INPUT_POST, 'gender', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $marital_status = filter_input(INPUT_POST, 'marital_status', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $national_id = filter_input(INPUT_POST, 'national_id', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    $profile_photo_path = filter_input(INPUT_POST, 'profile_photo_path', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    
+    $profile_photo_path = '';
+
+    // Handle profile photo upload
+    if (isset($_FILES['profile_photo_path']) && $_FILES['profile_photo_path']['error'] === UPLOAD_ERR_OK) {
+        $uploadDir = 'uploads/';
+        $profile_photo_path = $uploadDir . basename($_FILES['profile_photo_path']['name']);
+        if (!move_uploaded_file($_FILES['profile_photo_path']['tmp_name'], $profile_photo_path)) {
+            echo "Failed to upload profile photo.";
+            exit;
+        }
+    }
+
+    // Insert into `personal_details` table
+    $sql_personal = "INSERT INTO personal_details (account_id, full_name, date_of_birth, gender, marital_status, national_id, profile_photo_path)
+                     VALUES ('$account_id', '$full_name', '$date_of_birth', '$gender', '$marital_status', '$national_id', '$profile_photo_path')";
+    if (!$conn->query($sql_personal)) {
+        echo "Error inserting into personal_details table: " . $conn->error;
+        exit;
+    }
+
     // Contact Information
     $phone_number = filter_input(INPUT_POST, 'phone_number', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $personal_email = filter_input(INPUT_POST, 'personal_email', FILTER_SANITIZE_EMAIL);
     $residential_address = filter_input(INPUT_POST, 'residential_address', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    
+
+    // Insert into `contact_information` table
+    $sql_contact = "INSERT INTO contact_information (account_id, phone_number, personal_email, residential_address)
+                    VALUES ('$account_id', '$phone_number', '$personal_email', '$residential_address')";
+    if (!$conn->query($sql_contact)) {
+        echo "Error inserting into contact_information table: " . $conn->error;
+        exit;
+    }
+
     // Academic Qualifications
     $degree = filter_input(INPUT_POST, 'degree', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $institution = filter_input(INPUT_POST, 'institution', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $major = filter_input(INPUT_POST, 'major', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $graduation_year = filter_input(INPUT_POST, 'graduation_year', FILTER_SANITIZE_NUMBER_INT);
-    $certification_path = filter_input(INPUT_POST, 'certification_path', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    
+    $certification_path = '';
+
+    // Handle certification upload
+    if (isset($_FILES['certification_path']) && $_FILES['certification_path']['error'] === UPLOAD_ERR_OK) {
+        $certification_path = $uploadDir . basename($_FILES['certification_path']['name']);
+        if (!move_uploaded_file($_FILES['certification_path']['tmp_name'], $certification_path)) {
+            echo "Failed to upload certification.";
+            exit;
+        }
+    }
+
+    // Insert into `academic_qualifications` table
+    $sql_academic = "INSERT INTO academic_qualifications (account_id, degree, institution, major, graduation_year, certification_path)
+                     VALUES ('$account_id', '$degree', '$institution', '$major', '$graduation_year', '$certification_path')";
+    if (!$conn->query($sql_academic)) {
+        echo "Error inserting into academic_qualifications table: " . $conn->error;
+        exit;
+    }
+
     // Employment Information
     $staff_number = filter_input(INPUT_POST, 'staff_number', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $designation = filter_input(INPUT_POST, 'designation', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $hire_date = filter_input(INPUT_POST, 'hire_date', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $employment_type = filter_input(INPUT_POST, 'employment_type', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $supervisor = filter_input(INPUT_POST, 'supervisor', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    
+
+    // Insert into `employment_information` table
+    $sql_employment = "INSERT INTO employment_information (account_id, staff_number, designation, hire_date, employment_type, supervisor)
+                       VALUES ('$account_id', '$staff_number', '$designation', '$hire_date', '$employment_type', '$supervisor')";
+    if (!$conn->query($sql_employment)) {
+        echo "Error inserting into employment_information table: " . $conn->error;
+        exit;
+    }
+
     // Payroll & Bank Details
     $bank_name = filter_input(INPUT_POST, 'bank_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $account_number = filter_input(INPUT_POST, 'account_number', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
@@ -88,67 +161,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $tin_number = filter_input(INPUT_POST, 'tin_number', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $salary_scale = filter_input(INPUT_POST, 'salary_scale', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $payment_frequency = filter_input(INPUT_POST, 'payment_frequency', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    
-    // Document Uploads
-    $document_path = filter_input(INPUT_POST, 'document_path', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    $document_type = filter_input(INPUT_POST, 'document_type', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    $document_number = filter_input(INPUT_POST, 'document_number', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    $expiry_date = filter_input(INPUT_POST, 'expiry_date', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    $document_description = filter_input(INPUT_POST, 'document_description', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    
-    // Consent & Declaration
-    $terms_consent = filter_input(INPUT_POST, 'terms_consent', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    $data_consent = filter_input(INPUT_POST, 'data_consent', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    $update_consent = filter_input(INPUT_POST, 'update_consent', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    $digital_signature = filter_input(INPUT_POST, 'digital_signature', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    $digital_date = filter_input(INPUT_POST, 'digital_date', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
 
-
-//first insert into users table, the username,email, role, access level and password id the password hash is the same as confirm password.
-if($password_hash==$confirmPassword){
-    $sql="insert into users(suernem,email,password_hash,role_id,access_level) values('$username','$email','$password_hash','$role_name','$access_level')";
-    $result=mysqli_query($conn,$sql);
-    
-    if($result){
-        //get the last inserted user id
-        $user_id=mysqli_insert_id($conn);
-        //insert into staff table
-        $sql="insert into staff() values('$user_id','$staff_type','$staff_number','$full_name','$date_of_birth','$gender','$marital_status','$national_id','$profile_photo_path','$phone_number',
-        '$personal_email','$residential_address','$department_id','$designation','$hire_date','$employment_type','$supervisor',now(),now())";
-        $result=mysqli_query($conn,$sql);
-        if($result){
-            //get the last inserted staff id
-            $staff_id=mysqli_insert_id($conn);
-            //insert into academic qualifications table
-            $sql="insert into academic_qualifications(staff_id,degree,institution,major,graduation_year,certification_path) values('$staff_id','$degree','$institution','$major','$graduation_year','$certification_path')";
-            $result=mysqli_query($conn,$sql);
-            if($result){
-                //insert into payroll and bank details table
-                $sql="insert into payroll_and_bank_details(staff_id,bank_name,account_number,tax_id,tin_number,salary_scale,payment_frequency) values('$staff_id','$bank_name','$account_number','$tax_id','$tin_number','$salary_scale','$payment_frequency')";
-                $result=mysqli_query($conn,$sql);
-                if($result){
-                    //insert into document uploads table
-                    $sql="insert into document_uploads(staff_id,document_path,document_type,document_number,expiry_date,document_description) values('$staff_id','$document_path','$document_type','$document_number','$expiry_date','$document_description')";
-                    $result=mysqli_query($conn,$sql);
-                    if($result){
-                        //insert into consent and declaration table
-                        $sql="insert into staff_consent()values('$staff_id','$terms_consent','$data_consent','$update_consent','$digital_signature','$digital_date')";
-                        $result=mysqli_query($conn,$sql);
-                        
-                    }else{
-                        echo "Error: ".mysqli_error($conn);
-                    }
-                }else{
-                    echo "Error: ".mysqli_error($conn);
-                }
-            }else{
-                echo "Error: ".mysqli_error($conn);
-            }
+    // Insert into `payroll_details` table
+    $sql_payroll = "INSERT INTO payroll_details (account_id, bank_name, account_number, tax_id, tin_number, salary_scale, payment_frequency)
+                    VALUES ('$account_id', '$bank_name', '$account_number', '$tax_id', '$tin_number', '$salary_scale', '$payment_frequency')";
+    if (!$conn->query($sql_payroll)) {
+        echo "Error inserting into payroll_details table: " . $conn->error;
+        exit;
     }
+
+    echo "Staff registration successful.";
+    $conn->close();
 }
-
-
-}}
 
 ?>
 
@@ -214,7 +238,7 @@ if($password_hash==$confirmPassword){
                 <div class="step">4</div>
             </div>
             
-            <form id="staffRegistrationForm" action="" method="POST">
+            <form id="staffRegistrationForm" action="staff registration.php" method="POST">
                 <!-- Staff Type Hidden Field -->
                 <input type="hidden" id="staff_type" name="staff_type" value="">
                 
