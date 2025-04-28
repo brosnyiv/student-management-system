@@ -9,15 +9,13 @@ if (session_status() === PHP_SESSION_NONE) {
 
 include 'dbconnect.php'; // Include the database connection file
 
-<<<<<<< HEAD
-=======
+
 // Check if user is not logged in
 if (empty($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
 }
 
->>>>>>> 2df3bce917f7fb2cc68b91ba7230f7005a15738e
 // Function to get class status
 function getClassStatus($day_of_week, $start_time, $end_time, $status) {
     $current_day = strtolower(date('l'));
@@ -75,11 +73,16 @@ $sql_courses = "SELECT unit_id, unit_name, unit_code FROM course_units ORDER BY 
 $result_courses = $conn->query($sql_courses);
 
 // Get instructors for filter dropdown
-$sql_instructors = "SELECT ts.teaching_id, CONCAT(ts.title, ' ', s.first_name, ' ', s.last_name) as instructor_name 
-                    FROM teaching_staff ts 
-                    JOIN staff s ON ts.staff_id = s.staff_id 
-                    ORDER BY s.last_name";
-$result_instructors = $conn->query($sql_instructors);
+$sql = "SELECT cs.session_id, cu.unit_name, cu.unit_id, r.room_code, 
+        cs.day_of_week, cs.start_time, cs.end_time, cs.status, 
+        s.full_name as instructor_name,
+        ts.teaching_id,
+        cs.status as db_status
+    FROM class_sessions cs
+    JOIN course_units cu ON cs.course_unit_id = cu.unit_id
+    JOIN rooms r ON cs.room_id = r.room_id
+    JOIN teaching_staff ts ON cu.instructor_id = ts.teaching_id
+    JOIN staff s ON ts.staff_id = s.staff_id";
 
 // Get rooms for filter dropdown
 $sql_rooms = "SELECT room_id, room_code, room_name FROM rooms ORDER BY room_code";
