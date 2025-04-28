@@ -793,7 +793,7 @@ if ($result->num_rows > 0) {
                 <div>Sunday</div>
             </div>
             <div class="timetable-body">
-                <?php foreach ($time_slots as $slot_key => $slot_display): ?>
+            <?php foreach ($timeSlots as $slot_key => $slot_display): ?>
                     <!-- Time Slot Row -->
                     <div class="time-slot"><?php echo $slot_display; ?></div>
                     
