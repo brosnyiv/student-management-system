@@ -10,7 +10,7 @@ if (session_status() === PHP_SESSION_NONE) {
 include 'dbconnect.php'; // Include the database connection file
 
 // Check if user is not logged in
-if (empty($_SESSION['userid'])) {
+if (empty($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
 }
@@ -48,6 +48,9 @@ $result = $conn->query($sql);
 // Check for errors
 if ($result === false) {
     die("Error executing query: " . $conn->error);
+}else{
+    // Fetch all courses
+    $tables = $result->fetch_all(MYSQLI_ASSOC);
 }
 ?>
 
@@ -237,10 +240,10 @@ if ($result === false) {
                     <span class="notification-count">3</span>
                 </div>
                 <div class="user-profile">
-                    <div class="user-avatar">J</div>
+                    <div class="user-avatar"><?php echo isset($_SESSION['username']) ? substr($_SESSION['username'], 0, 1) : 'U'; ?></div>
                     <div class="user-info">
-                        John Doe<br>
-                        <span class="role">Admin</span>
+                        <?php echo isset($_SESSION['username']) ? $_SESSION['username'] : 'User'; ?><br>
+                        <span class="role"><?php echo isset($_SESSION['role_name']) ? $_SESSION['role_name'] : 'User'; ?></span>
                     </div>
                 </div>
             </div>
@@ -287,7 +290,7 @@ if ($result === false) {
         </div>
 
        <!-- This part goes in your HTML where you display the course table -->
-<<div style="margin: 20px; padding: 15px; border: 1px solid #ddd; background-color: #f9f9f9;">
+      <div style="margin: 20px; padding: 15px; border: 1px solid #ddd; background-color: #f9f9f9;">
         <h3>Database Debug Information:</h3>
         <p>Tables in database:</p>
         <ul>
@@ -314,7 +317,7 @@ if ($result === false) {
                     </tr>
                 <?php endforeach; ?>
             </table>
-        <?php else: ?>
+            <?php else: ?>
             <p style="color: red;">Courses table does not exist!</p>
         <?php endif; ?>
     </div>

@@ -33,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
           $_SESSION['role_id'] = $user['role_id'];
           $_SESSION['access_level'] = $user['access_level'];
           $_SESSION['is_active'] = $user['is_active'];
+          $_SESSION['role_name'] = $user['role_name'];
           header("Location: dash.php");
           exit();
       } else {
