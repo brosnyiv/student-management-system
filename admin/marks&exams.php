@@ -1,84 +1,123 @@
 <?php
-// This file would be the backend endpoint to process the uploaded Excel file
-// Save this as process-excel.php
+// marks&exams.php - Complete implementation
 
 session_start();
 include 'dbconnect.php';
 
 // Check if user is logged in
 if (empty($_SESSION['user_id'])) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'You must be logged in to perform this action']);
+    header('Location: login.php');
     exit();
 }
 
-// Check if the request is a POST request
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Invalid request method']);
-    exit();
-}
-
-// Check if a file was uploaded
-if (!isset($_FILES['excelFile']) || $_FILES['excelFile']['error'] !== UPLOAD_ERR_OK) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error']);
-    exit();
-}
-
-// Check if exam period and course unit were provided
-if (!isset($_POST['examPeriod']) || !isset($_POST['courseUnit'])) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Missing required parameters']);
-    exit();
-}
-
-$examPeriod = $_POST['examPeriod'];
-$courseUnit = $_POST['courseUnit'];
-
-// Get file details
-$file = $_FILES['excelFile'];
-$fileName = $file['name'];
-$fileTmpPath = $file['tmp_name'];
-$fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-
-// Validate file is an Excel file
-if ($fileExtension !== 'xlsx' && $fileExtension !== 'xls') {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Invalid file format. Only Excel files (.xlsx, .xls) are allowed']);
-    exit();
-}
-
-
-require 'vendor/autoload.php';
-
-use PhpOffice\PhpSpreadsheet\IOFactory;
-
-try {
-    $spreadsheet = IOFactory::load($fileTmpPath);
-    $worksheet = $spreadsheet->getActiveSheet();
-    $rows = $worksheet->toArray();
     
-    // Skip header row
-    array_shift($rows);
-    
-    $successCount = 0;
-    $errorCount = 0;
-    
-    foreach ($rows as $row) {
-        if (count($row) < 3) continue; // Skip rows with insufficient data
-        
-        $studentId = trim($row[0]);
-        $studentName = trim($row[1]);
-        $mark = (float)$row[2];
-        
-        // Validate data
-        if (empty($studentId) || empty($studentName) || $mark < 0 || $mark > 100) {
-            $errorCount++;
-            continue;
+
+
+// Process bulk upload if submitted
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
+    $examPeriod = $_POST['examPeriod'];
+    $courseUnit = $_POST['courseUnit'];
+
+    // Validate file
+    if ($_FILES['excelFile']['error'] !== UPLOAD_ERR_OK) {
+        $uploadError = 'Error uploading file. Please try again.';
+    } else {
+        $fileTmpPath = $_FILES['excelFile']['tmp_name'];
+        $fileName = $_FILES['excelFile']['name'];
+        $fileSize = $_FILES['excelFile']['size'];
+        $fileType = $_FILES['excelFile']['type'];
+
+        // Check file size (max 5MB)
+        if ($fileSize > 5 * 1024 * 1024) {
+            $uploadError = 'File size exceeds the maximum limit of 5MB.';
+        } else {
+            require_once 'vendor/autoload.php'; // Include PHPExcel or PhpSpreadsheet library
+
+            try {
+                $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($fileTmpPath);
+                $sheet = $spreadsheet->getActiveSheet();
+                $rows = $sheet->toArray();
+
+                // Validate header row
+                $header = array_map('strtolower', $rows[0]);
+                if ($header !== ['student id', 'student name', 'mark']) {
+                    $uploadError = 'Invalid file format. Please use the provided template.';
+                } else {
+                    $successCount = 0;
+                    $errorCount = 0;
+
+                    // Process rows
+                    foreach (array_slice($rows, 1) as $row) {
+                        $studentId = $row[0];
+                        $studentName = $row[1];
+                        $mark = (float)$row[2];
+
+                        // Validate data
+                        if (empty($studentId) || empty($studentName) || $mark < 0 || $mark > 100) {
+                            $errorCount++;
+                            continue;
+                        }
+
+                        // Calculate grade
+                        $grade = '';
+                        if ($mark >= 90) $grade = 'A+';
+                        else if ($mark >= 80) $grade = 'A';
+                        else if ($mark >= 70) $grade = 'B';
+                        else if ($mark >= 60) $grade = 'C';
+                        else if ($mark >= 50) $grade = 'D';
+                        else $grade = 'F';
+
+                        // Insert or update record
+                        $stmt = $conn->prepare("INSERT INTO student_marks 
+                                              (student_id, student_name, course_unit_id, exam_period_id, mark, grade, updated_by, updated_at) 
+                                              VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                                              ON DUPLICATE KEY UPDATE 
+                                              mark = VALUES(mark), 
+                                              grade = VALUES(grade),
+                                              updated_by = VALUES(updated_by),
+                                              updated_at = VALUES(updated_at)");
+
+                        $stmt->bind_param("ssidssi", $studentId, $studentName, $courseUnit, $examPeriod, $mark, $grade, $_SESSION['user_id']);
+
+                        if ($stmt->execute()) {
+                            $successCount++;
+                        } else {
+                            $errorCount++;
+                        }
+                    }
+
+                    // Add to audit trail
+                    $user = $_SESSION['user_name'] . ' (' . $_SESSION['user_role'] . ')';
+                    $action = "Bulk Upload";
+                    $details = "Uploaded $successCount marks for course unit $courseUnit in exam period $examPeriod";
+
+                    $auditStmt = $conn->prepare("INSERT INTO audit_trail (user, action, details, created_at) VALUES (?, ?, ?, NOW())");
+                    $auditStmt->bind_param("sss", $user, $action, $details);
+                    $auditStmt->execute();
+
+                    $uploadSuccess = "$successCount marks uploaded successfully. $errorCount errors occurred.";
+                }
+            } catch (Exception $e) {
+                $uploadError = 'Error processing file: ' . $e->getMessage();
+            }
         }
-        
-        // Calculate grade based on mark
+    }
+}
+
+// Process manual entry if submitted
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['manual_submit'])) {
+    $examPeriod = $_POST['examPeriod'];
+    $courseUnit = $_POST['courseUnit'];
+    $studentId = $_POST['studentId'];
+    $studentName = $_POST['studentName'];
+    $mark = (float)$_POST['markValue'];
+    $comments = $_POST['comments'];
+    
+    // Validate data
+    if (empty($studentId) || empty($studentName) || $mark < 0 || $mark > 100) {
+        $manualError = 'Invalid data. Please check all fields.';
+    } else {
+        // Calculate grade
         $grade = '';
         if ($mark >= 90) $grade = 'A+';
         else if ($mark >= 80) $grade = 'A';
@@ -87,201 +126,589 @@ try {
         else if ($mark >= 50) $grade = 'D';
         else $grade = 'F';
         
-        // Insert or update record in database
+        // Insert or update record
         $stmt = $conn->prepare("INSERT INTO student_marks 
-                               (student_id, student_name, course_unit_id, exam_period_id, mark, grade, updated_by, updated_at) 
-                               VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-                               ON DUPLICATE KEY UPDATE 
-                               mark = VALUES(mark), 
-                               grade = VALUES(grade),
-                               updated_by = VALUES(updated_by),
-                               updated_at = VALUES(updated_at)");
+                              (student_id, student_name, course_unit_id, exam_period_id, mark, grade, comments, updated_by, updated_at) 
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                              ON DUPLICATE KEY UPDATE 
+                              mark = VALUES(mark), 
+                              grade = VALUES(grade),
+                              comments = VALUES(comments),
+                              updated_by = VALUES(updated_by),
+                              updated_at = VALUES(updated_at)");
         
-        $stmt->bind_param("ssidssi", $studentId, $studentName, $courseUnit, $examPeriod, $mark, $grade, $_SESSION['user_id']);
+        $stmt->bind_param("ssidsssi", $studentId, $studentName, $courseUnit, $examPeriod, $mark, $grade, $comments, $_SESSION['user_id']);
         
         if ($stmt->execute()) {
-            $successCount++;
+            $manualSuccess = "Mark saved successfully for $studentName";
+            
+            // Add to audit trail
+            $user = $_SESSION['user_name'] . ' (' . $_SESSION['user_role'] . ')';
+            $action = "Manual Mark Entry";
+            $details = "Added mark $mark for $studentId in course unit $courseUnit";
+            
+            $auditStmt = $conn->prepare("INSERT INTO audit_trail (user, action, details, created_at) VALUES (?, ?, ?, NOW())");
+            $auditStmt->bind_param("sss", $user, $action, $details);
+            $auditStmt->execute();
         } else {
-            $errorCount++;
+            $manualError = 'Error saving mark: ' . $conn->error;
         }
     }
-    
-    // Add an entry to the audit trail
-    $user = $_SESSION['user_name'] . ' (' . $_SESSION['user_role'] . ')';
-    $action = "Bulk Upload";
-    $details = "Uploaded $successCount marks for course unit $courseUnit in exam period $examPeriod";
-    
-    $auditStmt = $conn->prepare("INSERT INTO audit_trail (user, action, details, created_at) VALUES (?, ?, ?, NOW())");
-    $auditStmt->bind_param("sss", $user, $action, $details);
-    $auditStmt->execute();
-    
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => true, 
-        'message' => "Successfully processed $successCount records with $errorCount errors"
-    ]);
-    
-} catch (Exception $e) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Error processing file: ' . $e->getMessage()]);
 }
-*/
 
-// Since we don't have the PhpSpreadsheet library installed, we'll return a placeholder response
-header('Content-Type: application/json');
-echo json_encode([
-    'success' => true,
-    'message' => 'File uploaded successfully. In a real implementation, the Excel data would be processed and stored in the database.'
-]);
+// Get exam periods for dropdowns
+$examPeriods = [];
+$result = $conn->query("SELECT exam_period_id, name FROM exam_periods ORDER BY start_date DESC");
+if ($result) {
+    while ($row = $result->fetch_assoc()) {
+        $examPeriods[$row['exam_period_id']] = $row['name'];
+    }
+}
+
+// Get course units for dropdowns
+$courseUnits = [];
+$result = $conn->query("SELECT unit_id, name FROM course_units ORDER BY name");
+if ($result) {
+    while ($row = $result->fetch_assoc()) {
+        $courseUnits[$row['id']] = $row['name'];
+    }
+}
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monaco Institute - Marks & Exams</title>
-    <link rel="stylesheet" href="dash.css">
-    <link rel="stylesheet" href="marks-exams.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Additional styles for modals and interactive elements */
-        #modalOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0,0,0,0.5);
-            z-index: 1000;
-            display: none;
+        /* Base Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
-        .modal {
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            width: 250px;
+            background: #2c3e50;
+            color: white;
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            height: 100%;
+            padding: 20px 0;
+            transition: all 0.3s;
+            z-index: 100;
+        }
+        
+        .sidebar-header {
+            padding: 0 20px 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-logo {
+            margin-bottom: 10px;
+        }
+        
+        .institute-name {
+            font-weight: 700;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .institute-motto {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-bottom: 15px;
+        }
+        
+        .support-button {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            width: 100%;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .support-button:hover {
+            background: #c0392b;
+        }
+        
+        .sidebar-menu {
+            list-style: none;
+            padding: 20px 0;
+        }
+        
+        .sidebar-menu li {
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+        }
+        
+        .sidebar-menu li:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-menu li.active {
+            background: #8B1818;
+        }
+        
+        .sidebar-menu li i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .sidebar-menu li span {
+            flex: 1;
+        }
+        
+        /* Main Content Styles */
+        .main-content {
+            margin-left: 250px;
+            min-height: 100vh;
+            transition: all 0.3s;
+        }
+        
+        .welcome-banner {
             background: white;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            z-index: 1001;
-            width: 80%;
-            max-width: 900px;
-            max-height: 80vh;
-            overflow-y: auto;
-            display: none;
-        }
-        
-        .modal-active {
-            display: block;
-        }
-        
-        .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .welcome-text h1 {
+            font-size: 24px;
+            color: #8B1818;
+            margin-bottom: 5px;
+        }
+        
+        .welcome-text p {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .date-display {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .date-display i {
+            margin-right: 5px;
+        }
+        
+        .time-display {
+            margin-left: 15px;
+        }
+        
+        .weather-widget {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 15px;
+        }
+        
+        .weather-icon {
+            color: #f39c12;
+            margin-right: 5px;
+        }
+        
+        .temperature {
+            font-weight: 600;
+        }
+        
+        .user-section {
+            display: flex;
+            align-items: center;
+        }
+        
+        .notification-bell {
+            position: relative;
+            margin-right: 20px;
+            font-size: 18px;
+            color: #666;
+            cursor: pointer;
+        }
+        
+        .notification-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .user-profile {
+            display: flex;
+            align-items: center;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: #8B1818;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        .user-info {
+            line-height: 1.3;
+        }
+        
+        .role {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        /* Search Bar */
+        .search-bar {
+            padding: 15px 20px;
+            background: #f8f9fa;
             border-bottom: 1px solid #eee;
         }
         
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #777;
+        .search-bar input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
         }
         
-        .close-btn:hover {
+        /* Tabs */
+        .tabs-container {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            padding: 0 20px;
+            background: white;
+        }
+        
+        .tab {
+            padding: 15px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab:hover {
             color: #333;
+        }
+        
+        .tab.active {
+            color: #8B1818;
+            border-bottom-color: #8B1818;
+        }
+        
+        /* Tab Content */
+        .tab-content {
+            padding: 20px;
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .card-header h3 {
+            font-size: 18px;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+        
+        .card-header h3 i {
+            margin-right: 10px;
+            color: #8B1818;
+        }
+        
+        .card-body {
+            padding: 20px;
+        }
+        
+        /* Forms */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group label.required:after {
+            content: '*';
+            color: #d32f2f;
+            margin-left: 4px;
+        }
+        
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group input[type="date"],
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        /* File upload */
+        .file-upload-container {
+            margin-top: 10px;
         }
         
         .file-upload {
             display: flex;
             align-items: center;
-            margin-top: 5px;
+            margin-bottom: 5px;
         }
         
         .file-label {
             background: #8B1818;
             color: white;
-            padding: 8px 15px;
+            padding: 10px 15px;
             border-radius: 4px;
             cursor: pointer;
             margin-right: 10px;
+            display: inline-flex;
+            align-items: center;
+            transition: background 0.3s;
+        }
+        
+        .file-label:hover {
+            background: #6d1212;
+        }
+        
+        .file-label i {
+            margin-right: 8px;
         }
         
         .file-name {
             color: #666;
+            font-size: 14px;
         }
         
-        #csvFile {
-            display: none;
+        .file-requirements {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
         }
         
-        .checkbox-container {
-            display: block;
-            position: relative;
-            padding-left: 30px;
-            margin-bottom: 12px;
-            cursor: pointer;
-            user-select: none;
+        .file-requirements p {
+            margin: 3px 0;
         }
         
-        .checkbox-container input {
-            position: absolute;
-            opacity: 0;
-            cursor: pointer;
-            height: 0;
-            width: 0;
+        /* Upload instructions */
+        .upload-instructions {
+            background: #f8f9fa;
+            border-left: 4px solid #8B1818;
+            padding: 15px;
+            margin-top: 10px;
         }
         
-        .checkbox-checkmark {
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 20px;
-            width: 20px;
-            background-color: #eee;
+        .upload-instructions h4 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .upload-instructions ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .upload-instructions li {
+            margin-bottom: 5px;
+        }
+        
+        .download-template {
+            display: inline-block;
+            color: #8B1818;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        
+        .download-template:hover {
+            text-decoration: underline;
+        }
+        
+        /* Form actions */
+        .form-actions {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .submit-btn, .reset-btn {
+            padding: 10px 20px;
+            border: none;
             border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
         }
         
-        .checkbox-container:hover input ~ .checkbox-checkmark {
-            background-color: #ccc;
+        .submit-btn {
+            background: #8B1818;
+            color: white;
         }
         
-        .checkbox-container input:checked ~ .checkbox-checkmark {
-            background-color: #8B1818;
+        .submit-btn:hover {
+            background: #6d1212;
         }
         
-        .checkbox-checkmark:after {
-            content: "";
-            position: absolute;
-            display: none;
+        .reset-btn {
+            background: #f0f0f0;
+            color: #333;
         }
         
-        .checkbox-container input:checked ~ .checkbox-checkmark:after {
-            display: block;
+        .reset-btn:hover {
+            background: #e0e0e0;
         }
         
-        .checkbox-container .checkbox-checkmark:after {
-            left: 7px;
-            top: 3px;
-            width: 5px;
-            height: 10px;
-            border: solid white;
-            border-width: 0 2px 2px 0;
-            transform: rotate(45deg);
+        .submit-btn i, .reset-btn i {
+            margin-right: 8px;
         }
         
+        /* Search button */
+        .search-btn {
+            background: none;
+            border: none;
+            color: #8B1818;
+            cursor: pointer;
+            margin-left: 5px;
+            font-size: 16px;
+        }
+        
+        /* Buttons */
+        .add-button {
+            background: #8B1818;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .add-button i {
+            margin-right: 8px;
+        }
+        
+        .add-button:hover {
+            background: #6d1212;
+        }
+        
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        .data-table th {
+            background: #f8f9fa;
+            text-align: left;
+            padding: 12px 15px;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
+        }
+        
+        .data-table tr:hover td {
+            background: #f5f5f5;
+        }
+        
+        /* Status badges */
         .status {
             padding: 5px 10px;
             border-radius: 20px;
-            font-size: 0.8rem;
+            font-size: 12px;
             font-weight: 600;
+            display: inline-block;
         }
         
         .status.ongoing {
@@ -299,17 +726,20 @@ echo json_encode([
             color: #155724;
         }
         
+        /* Action icons */
         .action-icon {
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 16px;
             margin: 0 5px;
             color: #555;
+            padding: 5px;
+            border-radius: 4px;
         }
         
         .action-icon:hover {
-            color: #8B1818;
+            background: #f0f0f0;
         }
         
         .action-icon.edit {
@@ -324,27 +754,151 @@ echo json_encode([
             color: #28A745;
         }
         
-        .toggle-btn {
-            padding: 8px 15px;
+        /* Close button */
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #777;
+            padding: 0 5px;
+        }
+        
+        .close-btn:hover {
+            color: #333;
+        }
+        
+        /* Modal */
+        #modalOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: none;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 0;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1001;
+            width: 80%;
+            max-width: 900px;
+            max-height: 80vh;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h2 {
+            font-size: 20px;
+            color: #333;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        /* Alerts */
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+        }
+        
+        .pagination-btn {
             background: #f0f0f0;
             border: none;
+            padding: 8px 12px;
+            margin: 0 5px;
             border-radius: 4px;
             cursor: pointer;
-            margin-right: 10px;
         }
         
-        .toggle-btn.active {
-            background: #8B1818;
-            color: white;
+        .pagination-btn:hover {
+            background: #e0e0e0;
         }
         
-        #addExamPeriodForm {
-            display: none;
-            margin-bottom: 20px;
+        .pagination-info {
+            margin: 0 10px;
         }
         
-        #addMarksForm {
-            margin-bottom: 20px;
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 70px;
+                overflow: hidden;
+            }
+            
+            .sidebar-header {
+                padding: 10px 5px;
+            }
+            
+            .institute-name, .institute-motto, .support-button span {
+                display: none;
+            }
+            
+            .support-button {
+                padding: 10px;
+                text-align: center;
+            }
+            
+            .sidebar-menu li span {
+                display: none;
+            }
+            
+            .sidebar-menu li i {
+                margin-right: 0;
+                font-size: 18px;
+            }
+            
+            .main-content {
+                margin-left: 70px;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal {
+                width: 95%;
+            }
         }
     </style>
 </head>
@@ -358,7 +912,7 @@ echo json_encode([
             </div>
             <div class="institute-name">MONACO INSTITUTE</div>
             <div class="institute-motto">Empowering Professional Skills</div>
-            <button class="support-button"><i class="fas fa-headset"></i> Support</button>
+            <button class="support-button"><i class="fas fa-headset"></i> <span>Support</span></button>
         </div>
         <ul class="sidebar-menu">
             <li onclick="window.location.href='dash.php'"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></li>
@@ -373,7 +927,7 @@ echo json_encode([
             <li onclick="window.location.href='classes.php'"><i class="fas fa-chalkboard-teacher"></i> <span>Classes</span></li>
             <li onclick="window.location.href='messages.php'"><i class="fas fa-envelope"></i> <span>Messages</span></li>
             <li onclick="window.location.href='settings page.php'"><i class="fas fa-cog"></i> <span>Settings</span></li>
-            <li><i class="fas fa-sign-out-alt"></i> <span>Logout</span></li>
+            <li onclick="window.location.href='logout.php'"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></li>
         </ul>
     </div>
 
@@ -381,7 +935,7 @@ echo json_encode([
         <div class="welcome-banner">
             <div class="welcome-text">
                 <h1>MARKS & EXAMS</h1>
-                <p>Welcome back, John!</p>
+                <p>Welcome back, <?php echo htmlspecialchars($_SESSION['user_name']); ?>!</p>
                 <div class="date-display">
                     <i class="fas fa-calendar-alt"></i> <span id="currentDate"></span>
                     <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
@@ -391,16 +945,16 @@ echo json_encode([
                     </div>
                 </div>
             </div>
-            <div class="user-section" style="display:flex; align-items:center;">
+            <div class="user-section">
                 <div class="notification-bell">
                     <i class="fas fa-bell"></i>
                     <span class="notification-count">3</span>
                 </div>
                 <div class="user-profile">
-                    <div class="user-avatar">J</div>
+                    <div class="user-avatar"><?php echo strtoupper(substr($_SESSION['user_name'], 0, 1)); ?></div>
                     <div class="user-info">
-                        John Doe<br>
-                        <span class="role">Admin</span>
+                        <?php echo htmlspecialchars($_SESSION['user_name']); ?><br>
+                        <span class="role"><?php echo htmlspecialchars($_SESSION['user_role']); ?></span>
                     </div>
                 </div>
             </div>
@@ -425,22 +979,22 @@ echo json_encode([
             </div>
 
             <!-- Add New Exam Period Form -->
-            <div class="card" id="addExamPeriodForm">
+            <div class="card" id="addExamPeriodForm" style="display: none;">
                 <div class="card-header">
                     <h3><i class="fas fa-plus-circle"></i> Add New Exam Period</h3>
                 </div>
                 <div class="card-body">
                     <form class="form-grid" id="examPeriodForm">
                         <div class="form-group">
-                            <label for="examPeriodName">Exam Period Name</label>
+                            <label for="examPeriodName" class="required">Exam Period Name</label>
                             <input type="text" id="examPeriodName" placeholder="e.g., Semester 1 - 2025" required>
                         </div>
                         <div class="form-group">
-                            <label for="startDate">Start Date</label>
+                            <label for="startDate" class="required">Start Date</label>
                             <input type="date" id="startDate" required>
                         </div>
                         <div class="form-group">
-                            <label for="endDate">End Date</label>
+                            <label for="endDate" class="required">End Date</label>
                             <input type="date" id="endDate" required>
                         </div>
                         <div class="form-group full-width">
@@ -472,36 +1026,40 @@ echo json_encode([
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>Semester 1 - 2025</td>
-                                <td>Apr 1, 2025</td>
-                                <td>Apr 20, 2025</td>
-                                <td><span class="status ongoing">Ongoing</span></td>
-                                <td>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Mid-Term Exams - 2025</td>
-                                <td>May 15, 2025</td>
-                                <td>May 30, 2025</td>
-                                <td><span class="status upcoming">Upcoming</span></td>
-                                <td>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>First Quarter Assessment - 2025</td>
-                                <td>Mar 10, 2025</td>
-                                <td>Mar 20, 2025</td>
-                                <td><span class="status ended">Ended</span></td>
-                                <td>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
+                            <?php
+                            $result = $conn->query("SELECT * FROM exam_periods ORDER BY start_date DESC");
+                            if ($result && $result->num_rows > 0) {
+                                while ($row = $result->fetch_assoc()) {
+                                    $statusClass = '';
+                                    $statusText = '';
+                                    $currentDate = date('Y-m-d');
+                                    
+                                    if ($currentDate >= $row['start_date'] && $currentDate <= $row['end_date']) {
+                                        $statusClass = 'ongoing';
+                                        $statusText = 'Ongoing';
+                                    } elseif ($currentDate < $row['start_date']) {
+                                        $statusClass = 'upcoming';
+                                        $statusText = 'Upcoming';
+                                    } else {
+                                        $statusClass = 'ended';
+                                        $statusText = 'Ended';
+                                    }
+                                    
+                                    echo "<tr>
+                                        <td>{$row['name']}</td>
+                                        <td>" . date('M j, Y', strtotime($row['start_date'])) . "</td>
+                                        <td>" . date('M j, Y', strtotime($row['end_date'])) . "</td>
+                                        <td><span class='status {$statusClass}'>{$statusText}</span></td>
+                                        <td>
+                                            <button class='action-icon edit' data-id='{$row['id']}'><i class='fas fa-edit'></i></button>
+                                            <button class='action-icon delete' data-id='{$row['id']}'><i class='fas fa-trash'></i></button>
+                                        </td>
+                                    </tr>";
+                                }
+                            } else {
+                                echo "<tr><td colspan='5'>No exam periods found</td></tr>";
+                            }
+                            ?>
                         </tbody>
                     </table>
                 </div>
@@ -518,25 +1076,48 @@ echo json_encode([
                 </div>
             </div>
 
+            <?php if (isset($uploadSuccess)): ?>
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> <?php echo $uploadSuccess; ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (isset($uploadError)): ?>
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i> <?php echo $uploadError; ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (isset($manualSuccess)): ?>
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> <?php echo $manualSuccess; ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (isset($manualError)): ?>
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i> <?php echo $manualError; ?>
+                </div>
+            <?php endif; ?>
+
             <!-- Filters Section -->
             <div class="filters-container">
                 <div class="filter-group">
                     <label for="examPeriodFilter">Exam Period:</label>
                     <select id="examPeriodFilter">
                         <option value="">All Periods</option>
-                        <option value="1">Semester 1 - 2025</option>
-                        <option value="2">Mid-Term Exams - 2025</option>
-                        <option value="3">First Quarter Assessment - 2025</option>
+                        <?php foreach ($examPeriods as $id => $name): ?>
+                            <option value="<?php echo $id; ?>"><?php echo htmlspecialchars($name); ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="filter-group">
                     <label for="courseUnitFilter">Course Unit:</label>
                     <select id="courseUnitFilter">
                         <option value="">All Course Units</option>
-                        <option value="1">Introduction to Programming</option>
-                        <option value="2">Data Structures & Algorithms</option>
-                        <option value="3">Database Management</option>
-                        <option value="4">Web Development</option>
+                        <?php foreach ($courseUnits as $id => $name): ?>
+                            <option value="<?php echo $id; ?>"><?php echo htmlspecialchars($name); ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -567,97 +1148,119 @@ echo json_encode([
                     <div class="tabs-container mark-entry-tabs">
                         <div class="tab active" data-tab="manual-entry">Manual Entry</div>
                         <div class="tab" data-tab="bulk-upload">Bulk Upload</div>
-
-                        
                     </div>
-                
                     
+                    <!-- Manual Entry Tab -->
                     <div class="tab-content active" id="manual-entry-content">
-                        <form class="form-grid" id="manualMarksForm">
+                        <form class="form-grid" id="manualMarksForm" method="POST">
+                            <input type="hidden" name="manual_submit" value="1">
                             <div class="form-group">
-                                <label for="selectExamPeriod">Exam Period</label>
-                                <select id="selectExamPeriod" required>
+                                <label for="selectExamPeriod" class="required">Exam Period</label>
+                                <select id="selectExamPeriod" name="examPeriod" required>
                                     <option value="">Select Exam Period</option>
-                                    <option value="1">Semester 1 - 2025</option>
-                                    <option value="2">Mid-Term Exams - 2025</option>
-                                    <option value="3">First Quarter Assessment - 2025</option>
+                                    <?php foreach ($examPeriods as $id => $name): ?>
+                                        <option value="<?php echo $id; ?>"><?php echo htmlspecialchars($name); ?></option>
+                                    <?php endforeach; ?>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="selectCourseUnit">Course Unit</label>
-                                <select id="selectCourseUnit" required>
+                                <label for="selectCourseUnit" class="required">Course Unit</label>
+                                <select id="selectCourseUnit" name="courseUnit" required>
                                     <option value="">Select Course Unit</option>
-                                    <option value="1">Introduction to Programming</option>
-                                    <option value="2">Data Structures & Algorithms</option>
-                                    <option value="3">Database Management</option>
-                                    <option value="4">Web Development</option>
+                                    <?php foreach ($courseUnits as $id => $name): ?>
+                                        <option value="<?php echo $id; ?>"><?php echo htmlspecialchars($name); ?></option>
+                                    <?php endforeach; ?>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="studentId">Student ID</label>
-                                <input type="text" id="studentId" placeholder="Enter Student ID" required>
+                                <label for="studentId" class="required">Student ID</label>
+                                <div style="display: flex;">
+                                    <input type="text" id="studentId" name="studentId" placeholder="Enter Student ID" required style="flex: 1;">
+                                    <button type="button" class="search-btn" id="searchStudentBtn"><i class="fas fa-search"></i></button>
+                                </div>
                             </div>
                             <div class="form-group">
-                                <label for="studentName">Student Name</label>
-                                <input type="text" id="studentName" placeholder="Enter Student Name" required>
+                                <label for="studentName" class="required">Student Name</label>
+                                <input type="text" id="studentName" name="studentName" placeholder="Enter Student Name" required>
                             </div>
                             <div class="form-group">
-                                <label for="markValue">Mark (0-100)</label>
-                                <input type="number" id="markValue" min="0" max="100" placeholder="Enter mark value" required>
+                                <label for="markValue" class="required">Mark (0-100)</label>
+                                <input type="number" id="markValue" name="markValue" min="0" max="100" step="0.01" placeholder="Enter mark value" required>
+                                <div class="hint">Enter value between 0 and 100</div>
                             </div>
                             <div class="form-group">
-                                <label for="gradeValue">Grade (Auto-calculated)</label>
+                                <label for="gradeValue" class="required">Grade</label>
                                 <input type="text" id="gradeValue" readonly>
                             </div>
+                            <div class="form-group full-width">
+                                <label for="comments">Comments</label>
+                                <textarea id="comments" name="comments" placeholder="Enter any additional comments about this mark"></textarea>
+                            </div>
                             <div class="form-actions">
-                                <button type="submit" class="submit-btn">Save Mark</button>
-                                <button type="reset" class="reset-btn">Reset</button>
+                                <button type="submit" class="submit-btn"><i class="fas fa-save"></i> Save Mark</button>
+                                <button type="reset" class="reset-btn"><i class="fas fa-undo"></i> Reset</button>
                             </div>
                         </form>
                     </div>
                     
-                    <!-- Replace the existing bulk upload tab content with this enhanced version -->
-<div class="tab-content" id="bulk-upload-content">
-    <form class="form-grid" id="bulkMarksForm">
-        <div class="form-group">
-            <label for="bulkExamPeriod">Exam Period</label>
-            <select id="bulkExamPeriod" required>
-                <option value="">Select Exam Period</option>
-                <option value="1">Semester 1 - 2025</option>
-                <option value="2">Mid-Term Exams - 2025</option>
-                <option value="3">First Quarter Assessment - 2025</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label for="bulkCourseUnit">Course Unit</label>
-            <select id="bulkCourseUnit" required>
-                <option value="">Select Course Unit</option>
-                <option value="1">Introduction to Programming</option>
-                <option value="2">Data Structures & Algorithms</option>
-                <option value="3">Database Management</option>
-                <option value="4">Web Development</option>
-            </select>
-        </div>
-        <div class="form-group full-width">
-            <label for="excelFile">Upload Excel File</label>
-            <div class="file-upload">
-                <input type="file" id="excelFile" accept=".xlsx, .xls">
-                <label for="excelFile" class="file-label"><i class="fas fa-cloud-upload-alt"></i> Choose Excel File</label>
-                <span class="file-name">No file chosen</span>
-            </div>
-        </div>
-        <div class="form-group full-width">
-            <div class="upload-instructions">
-                <p><i class="fas fa-info-circle"></i> Excel file should have columns: Student ID, Student Name, Mark</p>
-                <a href="#" class="download-template"><i class="fas fa-download"></i> Download Excel Template</a>
-            </div>
-        </div>
-        <div class="form-actions">
-            <button type="submit" class="submit-btn"><i class="fas fa-upload"></i> Upload Marks</button>
-            <button type="reset" class="reset-btn">Reset</button>
-        </div>
-    </form>
-</div>
+                    <!-- Bulk Upload Tab -->
+                    <div class="tab-content" id="bulk-upload-content">
+                        <form class="form-grid" id="bulkMarksForm" method="POST" enctype="multipart/form-data">
+                            <div class="form-group">
+                                <label for="bulkExamPeriod" class="required">Exam Period</label>
+                                <select id="bulkExamPeriod" name="examPeriod" required>
+                                    <option value="">Select Exam Period</option>
+                                    <?php foreach ($examPeriods as $id => $name): ?>
+                                        <option value="<?php echo $id; ?>"><?php echo htmlspecialchars($name); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="bulkCourseUnit" class="required">Course Unit</label>
+                                <select id="bulkCourseUnit" name="courseUnit" required>
+                                    <option value="">Select Course Unit</option>
+                                    <?php foreach ($courseUnits as $id => $name): ?>
+                                        <option value="<?php echo $id; ?>"><?php echo htmlspecialchars($name); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="excelFile" class="required">Upload Excel File</label>
+                                <div class="file-upload-container">
+                                    <div class="file-upload">
+                                        <input type="file" id="excelFile" name="excelFile" accept=".xlsx, .xls" required>
+                                        <label for="excelFile" class="file-label">
+                                            <i class="fas fa-cloud-upload-alt"></i> 
+                                            <span class="file-label-text">Choose Excel File</span>
+                                        </label>
+                                        <span class="file-name">No file chosen</span>
+                                    </div>
+                                    <div class="file-requirements">
+                                        <p><i class="fas fa-info-circle"></i> Maximum file size: 5MB</p>
+                                        <p><i class="fas fa-info-circle"></i> Accepted formats: .xlsx, .xls</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group full-width">
+                                <div class="upload-instructions">
+                                    <h4><i class="fas fa-file-excel"></i> Excel File Requirements:</h4>
+                                    <ul>
+                                        <li>File must contain these columns in order: <strong>Student ID, Student Name, Mark</strong></li>
+                                        <li>First row should be headers (will be skipped during import)</li>
+                                        <li>Marks must be numeric values between 0 and 100</li>
+                                        <li>Student ID and Name cannot be empty</li>
+                                    </ul>
+                                    <a href="templates/marks_upload_template.xlsx" class="download-template">
+                                        <i class="fas fa-download"></i> Download Excel Template
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="submit-btn"><i class="fas fa-upload"></i> Upload Marks</button>
+                                <button type="reset" class="reset-btn"><i class="fas fa-undo"></i> Reset</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
 
@@ -742,9 +1345,9 @@ echo json_encode([
                             <label for="transcriptExamPeriod">Exam Period (Optional)</label>
                             <select id="transcriptExamPeriod">
                                 <option value="">All Periods</option>
-                                <option value="1">Semester 1 - 2025</option>
-                                <option value="2">Mid-Term Exams - 2025</option>
-                                <option value="3">First Quarter Assessment - 2025</option>
+                                <?php foreach ($examPeriods as $id => $name): ?>
+                                    <option value="<?php echo $id; ?>"><?php echo htmlspecialchars($name); ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="form-group">
@@ -772,7 +1375,7 @@ echo json_encode([
                 </div>
             </div>
 
-            <!-- Marks Table -->
+            <!-- Marks Table - Course View -->
             <div class="card" id="courseViewCard">
                 <div class="card-header">
                     <h3><i class="fas fa-table"></i> Course Units Record</h3>
@@ -789,71 +1392,44 @@ echo json_encode([
                                 <th>Course Name</th>
                                 <th>Teacher</th>
                                 <th>Number of Students</th>
-                                <th>Assignment</th>
+                                <th>Average Mark</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>CU2025001</td>
-                                <td>Introduction to Programming</td>
-                                <td>Dr. Robert Chen</td>
-                                <td>32</td>
-                                <td>Programming Basics</td>
-                                <td>
-                                    <button class="action-icon view" data-course="Introduction to Programming"><i class="fas fa-eye"></i></button>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>CU2025002</td>
-                                <td>Data Structures & Algorithms</td>
-                                <td>Prof. Lisa Watkins</td>
-                                <td>28</td>
-                                <td>Algorithm Analysis</td>
-                                <td>
-                                    <button class="action-icon view" data-course="Data Structures & Algorithms"><i class="fas fa-eye"></i></button>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>CU2025003</td>
-                                <td>Database Management</td>
-                                <td>Dr. Michael Patel</td>
-                                <td>35</td>
-                                <td>SQL Fundamentals</td>
-                                <td>
-                                    <button class="action-icon view" data-course="Database Management"><i class="fas fa-eye"></i></button>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>CU2025004</td>
-                                <td>Web Development</td>
-                                <td>Prof. Sarah Johnson</td>
-                                <td>40</td>
-                                <td>Responsive Layouts</td>
-                                <td>
-                                    <button class="action-icon view" data-course="Web Development"><i class="fas fa-eye"></i></button>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>CU2025005</td>
-                                <td>Computer Networks</td>
-                                <td>Dr. James Wilson</td>
-                                <td>25</td>
-                                <td>Network Protocols</td>
-                                <td>
-                                    <button class="action-icon view" data-course="Computer Networks"><i class="fas fa-eye"></i></button>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
+                            <?php
+                            $result = $conn->query("
+                                SELECT c.id, c.code, c.name, 
+                                       CONCAT(u.first_name, ' ', u.last_name) AS teacher_name,
+                                       COUNT(sm.student_id) AS student_count,
+                                       AVG(sm.mark) AS average_mark
+                                FROM course_units c
+                                LEFT JOIN users u ON c.teacher_id = u.id
+                                LEFT JOIN student_marks sm ON c.id = sm.course_unit_id
+                                GROUP BY c.id
+                                ORDER BY c.name
+                            ");
+                            
+                            if ($result && $result->num_rows > 0) {
+                                while ($row = $result->fetch_assoc()) {
+                                    $averageMark = $row['average_mark'] ? number_format($row['average_mark'], 1) : 'N/A';
+                                    
+                                    echo "<tr>
+                                        <td>{$row['code']}</td>
+                                        <td>{$row['name']}</td>
+                                        <td>{$row['teacher_name']}</td>
+                                        <td>{$row['student_count']}</td>
+                                        <td>{$averageMark}</td>
+                                        <td>
+                                            <button class='action-icon view' data-course='{$row['name']}' data-id='{$row['id']}'><i class='fas fa-eye'></i></button>
+                                            <button class='action-icon edit' data-id='{$row['id']}'><i class='fas fa-edit'></i></button>
+                                        </td>
+                                    </tr>";
+                                }
+                            } else {
+                                echo "<tr><td colspan='6'>No course units found</td></tr>";
+                            }
+                            ?>
                         </tbody>
                     </table>
                     
@@ -865,7 +1441,7 @@ echo json_encode([
                 </div>
             </div>
 
-            <!-- Student View Card -->
+            <!-- Marks Table - Student View -->
             <div class="card" id="studentViewCard" style="display: none;">
                 <div class="card-header">
                     <h3><i class="fas fa-users"></i> Student View</h3>
@@ -882,56 +1458,43 @@ echo json_encode([
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>ST2025001</td>
-                                <td>Jane Smith</td>
-                                <td>3</td>
-                                <td>3.7</td>
-                                <td>
-                                    <button class="action-icon view" data-student="ST2025001" data-name="Jane Smith"><i class="fas fa-eye"></i></button>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>ST2025002</td>
-                                <td>Mark Johnson</td>
-                                <td>2</td>
-                                <td>2.5</td>
-                                <td>
-                                    <button class="action-icon view" data-student="ST2025002" data-name="Mark Johnson"><i class="fas fa-eye"></i></button>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>ST2025003</td>
-                                <td>Sarah Williams</td>
-                                <td>4</td>
-                                <td>3.9</td>
-                                <td>
-                                    <button class="action-icon view" data-student="ST2025003" data-name="Sarah Williams"><i class="fas fa-eye"></i></button>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>ST2025004</td>
-                                <td>Michael Brown</td>
-                                <td>3</td>
-                                <td>2.1</td>
-                                <td>
-                                    <button class="action-icon view" data-student="ST2025004" data-name="Michael Brown"><i class="fas fa-eye"></i></button>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>ST2025005</td>
-                                <td>Emily Davis</td>
-                                <td>2</td>
-                                <td>3.8</td>
-                                <td>
-                                    <button class="action-icon view" data-student="ST2025005" data-name="Emily Davis"><i class="fas fa-eye"></i></button>
-                                    <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                </td>
-                            </tr>
+                            <?php
+                            $result = $conn->query("
+                                SELECT s.id, s.student_id, CONCAT(s.first_name, ' ', s.last_name) AS student_name,
+                                       COUNT(sm.course_unit_id) AS course_count,
+                                       AVG(CASE 
+                                           WHEN sm.mark >= 90 THEN 4.0
+                                           WHEN sm.mark >= 80 THEN 3.7
+                                           WHEN sm.mark >= 70 THEN 3.0
+                                           WHEN sm.mark >= 60 THEN 2.0
+                                           WHEN sm.mark >= 50 THEN 1.0
+                                           ELSE 0.0
+                                       END) AS gpa
+                                FROM students s
+                                LEFT JOIN student_marks sm ON s.id = sm.student_id
+                                GROUP BY s.id
+                                ORDER BY student_name
+                            ");
+                            
+                            if ($result && $result->num_rows > 0) {
+                                while ($row = $result->fetch_assoc()) {
+                                    $gpa = $row['gpa'] ? number_format($row['gpa'], 2) : 'N/A';
+                                    
+                                    echo "<tr>
+                                        <td>{$row['student_id']}</td>
+                                        <td>{$row['student_name']}</td>
+                                        <td>{$row['course_count']}</td>
+                                        <td>{$gpa}</td>
+                                        <td>
+                                            <button class='action-icon view' data-student='{$row['student_id']}' data-name='{$row['student_name']}'><i class='fas fa-eye'></i></button>
+                                            <button class='action-icon edit' data-id='{$row['id']}'><i class='fas fa-edit'></i></button>
+                                        </td>
+                                    </tr>";
+                                }
+                            } else {
+                                echo "<tr><td colspan='5'>No students found</td></tr>";
+                            }
+                            ?>
                         </tbody>
                     </table>
                 </div>
@@ -953,24 +1516,27 @@ echo json_encode([
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>Apr 15, 2025 - 09:45 AM</td>
-                                <td>John Doe (Admin)</td>
-                                <td>Added Mark</td>
-                                <td>Added mark 89 for ST2025001 in Introduction to Programming</td>
-                            </tr>
-                            <tr>
-                                <td>Apr 14, 2025 - 03:20 PM</td>
-                                <td>Sarah Johnson (Teacher)</td>
-                                <td>Updated Mark</td>
-                                <td>Updated mark for ST2025003 from 88 to 92</td>
-                            </tr>
-                            <tr>
-                                <td>Apr 14, 2025 - 11:10 AM</td>
-                                <td>John Doe (Admin)</td>
-                                <td>Bulk Upload</td>
-                                <td>Uploaded 25 marks for Data Structures & Algorithms</td>
-                            </tr>
+                            <?php
+                            $result = $conn->query("
+                                SELECT * FROM audit_trail 
+                                WHERE action LIKE '%Mark%' OR action LIKE '%Exam%'
+                                ORDER BY created_at DESC
+                                LIMIT 10
+                            ");
+                            
+                            if ($result && $result->num_rows > 0) {
+                                while ($row = $result->fetch_assoc()) {
+                                    echo "<tr>
+                                        <td>" . date('M j, Y - h:i A', strtotime($row['created_at'])) . "</td>
+                                        <td>{$row['user']}</td>
+                                        <td>{$row['action']}</td>
+                                        <td>{$row['details']}</td>
+                                    </tr>";
+                                }
+                            } else {
+                                echo "<tr><td colspan='4'>No audit records found</td></tr>";
+                            }
+                            ?>
                         </tbody>
                     </table>
                 </div>
@@ -981,6 +1547,7 @@ echo json_encode([
             <p>&copy; 2025 Monaco Institute. All rights reserved.</p>
         </div>
     </div>
+
     <script>
         // Display current date and time
         function updateDateTime() {
@@ -1040,103 +1607,66 @@ echo json_encode([
 
         // Auto-calculate grade based on mark
         document.getElementById('markValue')?.addEventListener('input', function() {
-            const mark = parseInt(this.value);
+            const mark = parseFloat(this.value);
             let grade = '';
             
-            if (mark >= 90) grade = 'A+';
-            else if (mark >= 80) grade = 'A';
-            else if (mark >= 70) grade = 'B';
-            else if (mark >= 60) grade = 'C';
-            else if (mark >= 50) grade = 'D';
-            else grade = 'F';
+            if (!isNaN(mark)) {
+                if (mark >= 90) grade = 'A+';
+                else if (mark >= 80) grade = 'A';
+                else if (mark >= 70) grade = 'B';
+                else if (mark >= 60) grade = 'C';
+                else if (mark >= 50) grade = 'D';
+                else if (mark >= 0) grade = 'F';
+            }
             
             document.getElementById('gradeValue').value = grade;
         });
 
         // Course Students Detail View functionality
-        document.querySelectorAll('.action-icon.view').forEach(button => {
+        document.querySelectorAll('#courseViewCard .action-icon.view').forEach(button => {
             button.addEventListener('click', function() {
+                const courseId = this.getAttribute('data-id');
                 const courseName = this.getAttribute('data-course');
-                if (courseName) {
-                    document.getElementById('selectedCourseName').textContent = courseName;
-                    
-                    // Show the detail view as a modal
-                    document.getElementById('courseStudentsDetail').style.display = 'block';
-                    document.getElementById('courseStudentsDetail').classList.add('modal-active');
-                    document.getElementById('modalOverlay').style.display = 'block';
-                    
-                    // Populate the table with student data for this course
-                    const tableBody = document.getElementById('courseStudentsTableBody');
-                    tableBody.innerHTML = ''; // Clear existing data
-                    
-                    // Sample data mapping
-                    const studentData = {
-                        'Introduction to Programming': [
-                            { id: 'ST2025001', name: 'Jane Smith', mark: 89, grade: 'A', period: 'Semester 1 - 2025' },
-                            { id: 'ST2025002', name: 'Mark Johnson', mark: 75, grade: 'B', period: 'Semester 1 - 2025' },
-                            { id: 'ST2025006', name: 'Alex Turner', mark: 82, grade: 'A', period: 'Semester 1 - 2025' },
-                            { id: 'ST2025010', name: 'Priya Sharma', mark: 95, grade: 'A+', period: 'Semester 1 - 2025' }
-                        ],
-                        'Data Structures & Algorithms': [
-                            { id: 'ST2025003', name: 'Sarah Williams', mark: 92, grade: 'A', period: 'Semester 1 - 2025' },
-                            { id: 'ST2025008', name: 'John Parker', mark: 78, grade: 'B', period: 'Semester 1 - 2025' },
-                            { id: 'ST2025012', name: 'Emma Richards', mark: 85, grade: 'A', period: 'Semester 1 - 2025' }
-                        ],
-                        'Database Management': [
-                            { id: 'ST2025004', name: 'Michael Brown', mark: 68, grade: 'C', period: 'Mid-Term Exams - 2025' },
-                            { id: 'ST2025007', name: 'Lisa Chen', mark: 77, grade: 'B', period: 'Mid-Term Exams - 2025' },
-                            { id: 'ST2025011', name: 'David Wilson', mark: 73, grade: 'B', period: 'Mid-Term Exams - 2025' }
-                        ],
-                        'Web Development': [
-                            { id: 'ST2025005', name: 'Emily Davis', mark: 95, grade: 'A+', period: 'First Quarter Assessment - 2025' },
-                            { id: 'ST2025009', name: 'Thomas Moore', mark: 88, grade: 'A', period: 'First Quarter Assessment - 2025' },
-                            { id: 'ST2025013', name: 'Sophie Grant', mark: 91, grade: 'A', period: 'First Quarter Assessment - 2025' }
-                        ],
-                        'Computer Networks': [
-                            { id: 'ST2025014', name: 'Ryan Martinez', mark: 79, grade: 'B', period: 'Semester 1 - 2025' },
-                            { id: 'ST2025015', name: 'Olivia Johnson', mark: 84, grade: 'A', period: 'Semester 1 - 2025' },
-                            { id: 'ST2025016', name: 'James Lee', mark: 76, grade: 'B', period: 'Semester 1 - 2025' }
-                        ]
-                    };
-                    
-                    // Get the students for the selected course
-                    const students = studentData[courseName] || [];
-                    
-                    // Update the course details
-                    document.getElementById('detailCourseUnit').textContent = courseName === 'Introduction to Programming' ? 'CU2025001' : 
-                                                           courseName === 'Data Structures & Algorithms' ? 'CU2025002' :
-                                                           courseName === 'Database Management' ? 'CU2025003' :
-                                                           courseName === 'Web Development' ? 'CU2025004' : 'CU2025005';
-                                                   
-                    document.getElementById('detailTeacher').textContent = courseName === 'Introduction to Programming' ? 'Dr. Robert Chen' : 
-                                                  courseName === 'Data Structures & Algorithms' ? 'Prof. Lisa Watkins' :
-                                                  courseName === 'Database Management' ? 'Dr. Michael Patel' :
-                                                  courseName === 'Web Development' ? 'Prof. Sarah Johnson' : 'Dr. James Wilson';
-                                                  
-                    document.getElementById('detailStudentCount').textContent = students.length;
-                    
-                    // Calculate average mark
-                    const totalMarks = students.reduce((sum, student) => sum + student.mark, 0);
-                    const averageMark = students.length > 0 ? (totalMarks / students.length).toFixed(1) : '0.0';
-                    document.getElementById('detailAverageMark').textContent = averageMark;
-                    
-                    // Add students to table
-                    students.forEach(student => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${student.id}</td>
-                            <td>${student.name}</td>
-                            <td>${student.mark}</td>
-                            <td>${student.grade}</td>
-                            <td>${student.period}</td>
-                            <td>
-                                <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                <button class="action-icon delete"><i class="fas fa-trash"></i></button>
-                            </td>
-                        `;
-                        tableBody.appendChild(row);
+                document.getElementById('selectedCourseName').textContent = courseName;
+                
+                // Show the detail view as a modal
+                document.getElementById('courseStudentsDetail').style.display = 'block';
+                document.getElementById('modalOverlay').style.display = 'block';
+                
+                // Fetch student data for this course via AJAX
+                fetch(`get_course_students.php?course_id=${courseId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const tableBody = document.getElementById('courseStudentsTableBody');
+                        tableBody.innerHTML = '';
+                        
+                        // Update the course details
+                        document.getElementById('detailCourseUnit').textContent = data.course_code || 'N/A';
+                        document.getElementById('detailTeacher').textContent = data.teacher_name || 'N/A';
+                        document.getElementById('detailStudentCount').textContent = data.students.length;
+                        document.getElementById('detailAverageMark').textContent = data.average_mark ? data.average_mark.toFixed(1) : 'N/A';
+                        
+                        // Add students to table
+                        data.students.forEach(student => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${student.student_id}</td>
+                                <td>${student.student_name}</td>
+                                <td>${student.mark}</td>
+                                <td>${student.grade}</td>
+                                <td>${student.exam_period}</td>
+                                <td>
+                                    <button class="action-icon edit" data-id="${student.id}"><i class="fas fa-edit"></i></button>
+                                    <button class="action-icon delete" data-id="${student.id}"><i class="fas fa-trash"></i></button>
+                                </td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching course students:', error);
+                        alert('Error loading student data');
                     });
-                }
             });
         });
 
@@ -1178,91 +1708,39 @@ echo json_encode([
                 
                 // Show the detail view as a modal
                 document.getElementById('studentDetailView').style.display = 'block';
-                document.getElementById('studentDetailView').classList.add('modal-active');
                 document.getElementById('modalOverlay').style.display = 'block';
                 
-                // Populate the table with course data for this student
-                const tableBody = document.getElementById('studentCoursesTableBody');
-                tableBody.innerHTML = ''; // Clear existing data
-                
-                // Sample data mapping for students and their courses
-                const courseData = {
-                    'ST2025001': [
-                        { unit: 'CU2025001', name: 'Introduction to Programming', teacher: 'Dr. Robert Chen', mark: 89, grade: 'A', period: 'Semester 1 - 2025' },
-                        { unit: 'CU2025002', name: 'Data Structures & Algorithms', teacher: 'Prof. Lisa Watkins', mark: 85, grade: 'A', period: 'Semester 1 - 2025' },
-                        { unit: 'CU2025004', name: 'Web Development', teacher: 'Prof. Sarah Johnson', mark: 92, grade: 'A', period: 'First Quarter Assessment - 2025' }
-                    ],
-                    'ST2025002': [
-                        { unit: 'CU2025001', name: 'Introduction to Programming', teacher: 'Dr. Robert Chen', mark: 75, grade: 'B', period: 'Semester 1 - 2025' },
-                        { unit: 'CU2025003', name: 'Database Management', teacher: 'Dr. Michael Patel', mark: 70, grade: 'B', period: 'Mid-Term Exams - 2025' }
-                    ],
-                    'ST2025003': [
-                        { unit: 'CU2025001', name: 'Introduction to Programming', teacher: 'Dr. Robert Chen', mark: 88, grade: 'A', period: 'Semester 1 - 2025' },
-                        { unit: 'CU2025002', name: 'Data Structures & Algorithms', teacher: 'Prof. Lisa Watkins', mark: 92, grade: 'A', period: 'Semester 1 - 2025' },
-                        { unit: 'CU2025003', name: 'Database Management', teacher: 'Dr. Michael Patel', mark: 85, grade: 'A', period: 'Mid-Term Exams - 2025' },
-                        { unit: 'CU2025005', name: 'Computer Networks', teacher: 'Dr. James Wilson', mark: 90, grade: 'A', period: 'Semester 1 - 2025' }
-                    ],
-                    'ST2025004': [
-                        { unit: 'CU2025001', name: 'Introduction to Programming', teacher: 'Dr. Robert Chen', mark: 65, grade: 'C', period: 'Semester 1 - 2025' },
-                        { unit: 'CU2025003', name: 'Database Management', teacher: 'Dr. Michael Patel', mark: 68, grade: 'C', period: 'Mid-Term Exams - 2025' },
-                        { unit: 'CU2025004', name: 'Web Development', teacher: 'Prof. Sarah Johnson', mark: 70, grade: 'B', period: 'First Quarter Assessment - 2025' }
-                    ],
-                    'ST2025005': [
-                        { unit: 'CU2025004', name: 'Web Development', teacher: 'Prof. Sarah Johnson', mark: 95, grade: 'A+', period: 'First Quarter Assessment - 2025' },
-                        { unit: 'CU2025005', name: 'Computer Networks', teacher: 'Dr. James Wilson', mark: 92, grade: 'A', period: 'Semester 1 - 2025' }
-                    ]
-                };
-                
-                // Get the courses for the selected student
-                const courses = courseData[studentId] || [];
-                
-                // Update the student details
-                document.getElementById('detailStudentId').textContent = studentId;
-                document.getElementById('detailCourseCount').textContent = courses.length;
-                
-                // Calculate GPA
-                let totalGradePoints = 0;
-                courses.forEach(course => {
-                    const mark = course.mark;
-                    let gradePoint = 0;
-                    
-                    if (mark >= 90) gradePoint = 4.0;
-                    else if (mark >= 80) gradePoint = 3.7;
-                    else if (mark >= 70) gradePoint = 3.0;
-                    else if (mark >= 60) gradePoint = 2.0;
-                    else if (mark >= 50) gradePoint = 1.0;
-                    else gradePoint = 0.0;
-                    
-                    totalGradePoints += gradePoint;
-                });
-                
-                const gpa = courses.length > 0 ? (totalGradePoints / courses.length).toFixed(1) : '0.0';
-                document.getElementById('detailGPA').textContent = gpa;
-                
-                // Determine overall grade based on GPA
-                let overallGrade = '';
-                const gpaNum = parseFloat(gpa);
-                if (gpaNum >= 3.7) overallGrade = 'A';
-                else if (gpaNum >= 3.0) overallGrade = 'B';
-                else if (gpaNum >= 2.0) overallGrade = 'C';
-                else if (gpaNum >= 1.0) overallGrade = 'D';
-                else overallGrade = 'F';
-                
-                document.getElementById('detailOverallGrade').textContent = overallGrade;
-                
-                // Add courses to table
-                courses.forEach(course => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${course.unit}</td>
-                        <td>${course.name}</td>
-                        <td>${course.teacher}</td>
-                        <td>${course.mark}</td>
-                        <td>${course.grade}</td>
-                        <td>${course.period}</td>
-                    `;
-                    tableBody.appendChild(row);
-                });
+                // Fetch course data for this student via AJAX
+                fetch(`get_student_courses.php?student_id=${studentId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const tableBody = document.getElementById('studentCoursesTableBody');
+                        tableBody.innerHTML = '';
+                        
+                        // Update the student details
+                        document.getElementById('detailStudentId').textContent = studentId;
+                        document.getElementById('detailCourseCount').textContent = data.courses.length;
+                        document.getElementById('detailGPA').textContent = data.gpa ? data.gpa.toFixed(2) : 'N/A';
+                        document.getElementById('detailOverallGrade').textContent = data.overall_grade || 'N/A';
+                        
+                        // Add courses to table
+                        data.courses.forEach(course => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${course.course_code}</td>
+                                <td>${course.course_name}</td>
+                                <td>${course.teacher_name}</td>
+                                <td>${course.mark}</td>
+                                <td>${course.grade}</td>
+                                <td>${course.exam_period}</td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching student courses:', error);
+                        alert('Error loading course data');
+                    });
             });
         });
 
@@ -1296,9 +1774,9 @@ echo json_encode([
         });
 
         // File upload display
-        document.getElementById('csvFile')?.addEventListener('change', function() {
+        document.getElementById('excelFile')?.addEventListener('change', function() {
             const fileName = this.files[0]?.name || 'No file chosen';
-            document.querySelector('.file-name').textContent = fileName;
+            this.closest('.file-upload').querySelector('.file-name').textContent = fileName;
         });
 
         // Mark entry tabs functionality
@@ -1316,96 +1794,146 @@ echo json_encode([
             });
         });
 
-        // Form submission handlers (prevent default for demo)
+        // Student search functionality
+        document.getElementById('searchStudentBtn')?.addEventListener('click', function() {
+            const studentId = document.getElementById('studentId').value.trim();
+            if (!studentId) {
+                alert('Please enter a student ID to search.');
+                return;
+            }
+            
+            // Fetch student details via AJAX
+            fetch(`get_student.php?student_id=${studentId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('studentName').value = data.student_name;
+                    } else {
+                        alert('Student not found. Please enter details manually.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching student:', error);
+                    alert('Error searching for student');
+                });
+        });
+
+        // Form submission handlers
         document.getElementById('examPeriodForm')?.addEventListener('submit', function(e) {
             e.preventDefault();
-            alert('Exam period saved successfully!');
-            this.reset();
-            document.getElementById('addExamPeriodForm').style.display = 'none';
+            
+            const formData = new FormData(this);
+            
+            fetch('save_exam_period.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Exam period saved successfully!');
+                    this.reset();
+                    document.getElementById('addExamPeriodForm').style.display = 'none';
+                    location.reload(); // Refresh to show new exam period
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('An error occurred: ' + error.message);
+            });
         });
 
         document.getElementById('manualMarksForm')?.addEventListener('submit', function(e) {
             e.preventDefault();
-            alert('Mark saved successfully!');
-            this.reset();
-            document.getElementById('addMarksForm').style.display = 'none';
+            
+            const formData = new FormData(this);
+            
+            fetch('save_mark.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Mark saved successfully!');
+                    this.reset();
+                    document.getElementById('addMarksForm').style.display = 'none';
+                    location.reload(); // Refresh to show new mark
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('An error occurred: ' + error.message);
+            });
         });
 
         document.getElementById('bulkMarksForm')?.addEventListener('submit', function(e) {
             e.preventDefault();
-            alert('Marks uploaded successfully!');
-            this.reset();
-            document.querySelector('.file-name').textContent = 'No file chosen';
-            document.getElementById('addMarksForm').style.display = 'none';
+            
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('.submit-btn');
+            const originalText = submitBtn.innerHTML;
+            
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            submitBtn.disabled = true;
+            
+            fetch('marks&exams.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    return response.text().then(text => {
+                        try {
+                            return JSON.parse(text);
+                        } catch {
+                            return { success: false, message: 'Unexpected response from server' };
+                        }
+                    });
+                }
+            })
+            .then(data => {
+                if (data && data.success) {
+                    alert(data.message);
+                    this.reset();
+                    document.querySelector('.file-name').textContent = 'No file chosen';
+                    document.getElementById('addMarksForm').style.display = 'none';
+                    location.reload();
+                } else if (data) {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('An error occurred: ' + error.message);
+            })
+            .finally(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            });
         });
 
         document.getElementById('transcriptForm')?.addEventListener('submit', function(e) {
             e.preventDefault();
-            alert('Transcript generated successfully!');
-            document.getElementById('transcriptGeneratorForm').style.display = 'none';
+            
+            const studentId = document.getElementById('transcriptStudentId').value;
+            const examPeriod = document.getElementById('transcriptExamPeriod').value;
+            
+            if (!studentId) {
+                alert('Please enter a student ID');
+                return;
+            }
+            
+            // Generate transcript PDF
+            window.open(`generate_transcript.php?student_id=${studentId}&exam_period=${examPeriod}`, '_blank');
         });
 
         // Initialize the page with exam periods tab active
         document.querySelector('.tabs-container .tab.active').click();
-
-        // Replace or add this JavaScript to handle Excel file uploads
-
-// File upload display - update to handle both CSV and Excel files
-document.getElementById('csvFile')?.addEventListener('change', function() {
-    const fileName = this.files[0]?.name || 'No file chosen';
-    this.closest('.file-upload').querySelector('.file-name').textContent = fileName;
-});
-
-document.getElementById('excelFile')?.addEventListener('change', function() {
-    const fileName = this.files[0]?.name || 'No file chosen';
-    this.closest('.file-upload').querySelector('.file-name').textContent = fileName;
-});
-
-// Form submission handler for the bulk marks form
-document.getElementById('bulkMarksForm')?.addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    // Get the selected exam period and course unit
-    const examPeriod = document.getElementById('bulkExamPeriod').value;
-    const courseUnit = document.getElementById('bulkCourseUnit').value;
-    
-    // Get the uploaded file
-    const fileInput = document.getElementById('excelFile');
-    const file = fileInput.files[0];
-    
-    if (!examPeriod || !courseUnit) {
-        alert('Please select both an exam period and course unit.');
-        return;
-    }
-    
-    if (!file) {
-        alert('Please select an Excel file to upload.');
-        return;
-    }
-    
-    // Here you would normally process the Excel file
-    // For this demo, we'll just show a success message
-    
-    alert('Marks uploaded successfully from Excel file!');
-    this.reset();
-    document.querySelector('.file-name').textContent = 'No file chosen';
-    document.getElementById('addMarksForm').style.display = 'none';
-});
-
-// Function to handle Excel file processing (placeholder)
-function processExcelFile(file) {
-    // In a real implementation, you would:
-    // 1. Use a library like SheetJS (xlsx) to read the Excel file
-    // 2. Extract the student data
-    // 3. Validate the data format
-    // 4. Submit the data to the server
-    
-    // This would typically be done with an AJAX request or fetch API
-    
-    console.log("Processing Excel file:", file.name);
-    // Additional processing code would go here
-}
-
     </script>
+
 </body>
 </html>
