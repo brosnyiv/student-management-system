@@ -66,15 +66,30 @@ if ($result) {
     }
 }
 
-// Get summary statistics
+// Get summary statistics with the same filters as the main query
 $summaryQuery = "SELECT 
                     COUNT(*) AS total_students,
                     SUM(CASE WHEN status = 'Passed' THEN 1 ELSE 0 END) AS passed_students,
                     SUM(CASE WHEN status = 'Failed' THEN 1 ELSE 0 END) AS failed_students,
                     AVG(average_score) AS average_score
-                 FROM semester_result";
+                 FROM semester_result
+                 WHERE 1=1";
+
+// Add the same filters as the main query
+if (!empty($course_id)) {
+    $summaryQuery .= " AND course_id = '$course_id'";
+}
+if (!empty($semester_id)) {
+    $summaryQuery .= " AND semester_id = '$semester_id'";
+}
+if (!empty($academic_year_id)) {
+    $summaryQuery .= " AND academic_year_id = '$academic_year_id'";
+}
+
 $summaryResult = mysqli_query($conn, $summaryQuery);
 $summary = mysqli_fetch_assoc($summaryResult);
+
+
 
 // Get courses for dropdown
 $coursesResult = mysqli_query($conn, "SELECT course_id, course_name FROM courses");
@@ -534,8 +549,9 @@ while ($row = mysqli_fetch_assoc($academicYearsResult)) {
                 <div class="summary-icon icon-average">
                     <i class="fas fa-chart-line"></i>
                 </div>
-                <div class="summary-value"><?php echo round($summary['average_score'], 0) . '%'; ?></div>
-                <div class="summary-label">Average Score</div>
+              
+                <div class="summary-value"><?php echo isset($summary['average_score']) ? round($summary['average_score'], 0) . '%' : 'N/A'; ?></div> 
+                               <div class="summary-label">Average Score</div>
             </div>
         </div>
 

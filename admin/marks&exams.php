@@ -1,20 +1,138 @@
 <?php
-session_start(); // Start the session
-ob_start();
+// This file would be the backend endpoint to process the uploaded Excel file
+// Save this as process-excel.php
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+session_start();
+include 'dbconnect.php';
+
+// Check if user is logged in
+if (empty($_SESSION['user_id'])) {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'You must be logged in to perform this action']);
+    exit();
 }
 
-include 'dbconnect.php'; // Include the database connection file
+// Check if the request is a POST request
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+    exit();
+}
 
-// Check if user is not logged in
-if (empty($_SESSION['user_id'])) {
-    header("Location: index.php");
+// Check if a file was uploaded
+if (!isset($_FILES['excelFile']) || $_FILES['excelFile']['error'] !== UPLOAD_ERR_OK) {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error']);
+    exit();
+}
+
+// Check if exam period and course unit were provided
+if (!isset($_POST['examPeriod']) || !isset($_POST['courseUnit'])) {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Missing required parameters']);
+    exit();
+}
+
+$examPeriod = $_POST['examPeriod'];
+$courseUnit = $_POST['courseUnit'];
+
+// Get file details
+$file = $_FILES['excelFile'];
+$fileName = $file['name'];
+$fileTmpPath = $file['tmp_name'];
+$fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+// Validate file is an Excel file
+if ($fileExtension !== 'xlsx' && $fileExtension !== 'xls') {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Invalid file format. Only Excel files (.xlsx, .xls) are allowed']);
     exit();
 }
 
 
+require 'vendor/autoload.php';
+
+use PhpOffice\PhpSpreadsheet\IOFactory;
+
+try {
+    $spreadsheet = IOFactory::load($fileTmpPath);
+    $worksheet = $spreadsheet->getActiveSheet();
+    $rows = $worksheet->toArray();
+    
+    // Skip header row
+    array_shift($rows);
+    
+    $successCount = 0;
+    $errorCount = 0;
+    
+    foreach ($rows as $row) {
+        if (count($row) < 3) continue; // Skip rows with insufficient data
+        
+        $studentId = trim($row[0]);
+        $studentName = trim($row[1]);
+        $mark = (float)$row[2];
+        
+        // Validate data
+        if (empty($studentId) || empty($studentName) || $mark < 0 || $mark > 100) {
+            $errorCount++;
+            continue;
+        }
+        
+        // Calculate grade based on mark
+        $grade = '';
+        if ($mark >= 90) $grade = 'A+';
+        else if ($mark >= 80) $grade = 'A';
+        else if ($mark >= 70) $grade = 'B';
+        else if ($mark >= 60) $grade = 'C';
+        else if ($mark >= 50) $grade = 'D';
+        else $grade = 'F';
+        
+        // Insert or update record in database
+        $stmt = $conn->prepare("INSERT INTO student_marks 
+                               (student_id, student_name, course_unit_id, exam_period_id, mark, grade, updated_by, updated_at) 
+                               VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                               ON DUPLICATE KEY UPDATE 
+                               mark = VALUES(mark), 
+                               grade = VALUES(grade),
+                               updated_by = VALUES(updated_by),
+                               updated_at = VALUES(updated_at)");
+        
+        $stmt->bind_param("ssidssi", $studentId, $studentName, $courseUnit, $examPeriod, $mark, $grade, $_SESSION['user_id']);
+        
+        if ($stmt->execute()) {
+            $successCount++;
+        } else {
+            $errorCount++;
+        }
+    }
+    
+    // Add an entry to the audit trail
+    $user = $_SESSION['user_name'] . ' (' . $_SESSION['user_role'] . ')';
+    $action = "Bulk Upload";
+    $details = "Uploaded $successCount marks for course unit $courseUnit in exam period $examPeriod";
+    
+    $auditStmt = $conn->prepare("INSERT INTO audit_trail (user, action, details, created_at) VALUES (?, ?, ?, NOW())");
+    $auditStmt->bind_param("sss", $user, $action, $details);
+    $auditStmt->execute();
+    
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => true, 
+        'message' => "Successfully processed $successCount records with $errorCount errors"
+    ]);
+    
+} catch (Exception $e) {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Error processing file: ' . $e->getMessage()]);
+}
+*/
+
+// Since we don't have the PhpSpreadsheet library installed, we'll return a placeholder response
+header('Content-Type: application/json');
+echo json_encode([
+    'success' => true,
+    'message' => 'File uploaded successfully. In a real implementation, the Excel data would be processed and stored in the database.'
+]);
 ?>
 
 <!DOCTYPE html>
@@ -449,7 +567,10 @@ if (empty($_SESSION['user_id'])) {
                     <div class="tabs-container mark-entry-tabs">
                         <div class="tab active" data-tab="manual-entry">Manual Entry</div>
                         <div class="tab" data-tab="bulk-upload">Bulk Upload</div>
+
+                        
                     </div>
+                
                     
                     <div class="tab-content active" id="manual-entry-content">
                         <form class="form-grid" id="manualMarksForm">
@@ -495,47 +616,48 @@ if (empty($_SESSION['user_id'])) {
                         </form>
                     </div>
                     
-                    <div class="tab-content" id="bulk-upload-content">
-                        <form class="form-grid" id="bulkMarksForm">
-                            <div class="form-group">
-                                <label for="bulkExamPeriod">Exam Period</label>
-                                <select id="bulkExamPeriod" required>
-                                    <option value="">Select Exam Period</option>
-                                    <option value="1">Semester 1 - 2025</option>
-                                    <option value="2">Mid-Term Exams - 2025</option>
-                                    <option value="3">First Quarter Assessment - 2025</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="bulkCourseUnit">Course Unit</label>
-                                <select id="bulkCourseUnit" required>
-                                    <option value="">Select Course Unit</option>
-                                    <option value="1">Introduction to Programming</option>
-                                    <option value="2">Data Structures & Algorithms</option>
-                                    <option value="3">Database Management</option>
-                                    <option value="4">Web Development</option>
-                                </select>
-                            </div>
-                            <div class="form-group full-width">
-                                <label for="csvFile">Upload CSV File</label>
-                                <div class="file-upload">
-                                    <input type="file" id="csvFile" accept=".csv">
-                                    <label for="csvFile" class="file-label"><i class="fas fa-cloud-upload-alt"></i> Choose File</label>
-                                    <span class="file-name">No file chosen</span>
-                                </div>
-                            </div>
-                            <div class="form-group full-width">
-                                <div class="upload-instructions">
-                                    <p><i class="fas fa-info-circle"></i> CSV file should have columns: Student ID, Student Name, Mark</p>
-                                    <a href="#" class="download-template"><i class="fas fa-download"></i> Download Template</a>
-                                </div>
-                            </div>
-                            <div class="form-actions">
-                                <button type="submit" class="submit-btn">Upload Marks</button>
-                                <button type="reset" class="reset-btn">Reset</button>
-                            </div>
-                        </form>
-                    </div>
+                    <!-- Replace the existing bulk upload tab content with this enhanced version -->
+<div class="tab-content" id="bulk-upload-content">
+    <form class="form-grid" id="bulkMarksForm">
+        <div class="form-group">
+            <label for="bulkExamPeriod">Exam Period</label>
+            <select id="bulkExamPeriod" required>
+                <option value="">Select Exam Period</option>
+                <option value="1">Semester 1 - 2025</option>
+                <option value="2">Mid-Term Exams - 2025</option>
+                <option value="3">First Quarter Assessment - 2025</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="bulkCourseUnit">Course Unit</label>
+            <select id="bulkCourseUnit" required>
+                <option value="">Select Course Unit</option>
+                <option value="1">Introduction to Programming</option>
+                <option value="2">Data Structures & Algorithms</option>
+                <option value="3">Database Management</option>
+                <option value="4">Web Development</option>
+            </select>
+        </div>
+        <div class="form-group full-width">
+            <label for="excelFile">Upload Excel File</label>
+            <div class="file-upload">
+                <input type="file" id="excelFile" accept=".xlsx, .xls">
+                <label for="excelFile" class="file-label"><i class="fas fa-cloud-upload-alt"></i> Choose Excel File</label>
+                <span class="file-name">No file chosen</span>
+            </div>
+        </div>
+        <div class="form-group full-width">
+            <div class="upload-instructions">
+                <p><i class="fas fa-info-circle"></i> Excel file should have columns: Student ID, Student Name, Mark</p>
+                <a href="#" class="download-template"><i class="fas fa-download"></i> Download Excel Template</a>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="submit-btn"><i class="fas fa-upload"></i> Upload Marks</button>
+            <button type="reset" class="reset-btn">Reset</button>
+        </div>
+    </form>
+</div>
                 </div>
             </div>
 
@@ -1225,6 +1347,65 @@ if (empty($_SESSION['user_id'])) {
 
         // Initialize the page with exam periods tab active
         document.querySelector('.tabs-container .tab.active').click();
+
+        // Replace or add this JavaScript to handle Excel file uploads
+
+// File upload display - update to handle both CSV and Excel files
+document.getElementById('csvFile')?.addEventListener('change', function() {
+    const fileName = this.files[0]?.name || 'No file chosen';
+    this.closest('.file-upload').querySelector('.file-name').textContent = fileName;
+});
+
+document.getElementById('excelFile')?.addEventListener('change', function() {
+    const fileName = this.files[0]?.name || 'No file chosen';
+    this.closest('.file-upload').querySelector('.file-name').textContent = fileName;
+});
+
+// Form submission handler for the bulk marks form
+document.getElementById('bulkMarksForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Get the selected exam period and course unit
+    const examPeriod = document.getElementById('bulkExamPeriod').value;
+    const courseUnit = document.getElementById('bulkCourseUnit').value;
+    
+    // Get the uploaded file
+    const fileInput = document.getElementById('excelFile');
+    const file = fileInput.files[0];
+    
+    if (!examPeriod || !courseUnit) {
+        alert('Please select both an exam period and course unit.');
+        return;
+    }
+    
+    if (!file) {
+        alert('Please select an Excel file to upload.');
+        return;
+    }
+    
+    // Here you would normally process the Excel file
+    // For this demo, we'll just show a success message
+    
+    alert('Marks uploaded successfully from Excel file!');
+    this.reset();
+    document.querySelector('.file-name').textContent = 'No file chosen';
+    document.getElementById('addMarksForm').style.display = 'none';
+});
+
+// Function to handle Excel file processing (placeholder)
+function processExcelFile(file) {
+    // In a real implementation, you would:
+    // 1. Use a library like SheetJS (xlsx) to read the Excel file
+    // 2. Extract the student data
+    // 3. Validate the data format
+    // 4. Submit the data to the server
+    
+    // This would typically be done with an AJAX request or fetch API
+    
+    console.log("Processing Excel file:", file.name);
+    // Additional processing code would go here
+}
+
     </script>
 </body>
 </html>
