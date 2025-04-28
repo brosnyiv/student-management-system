@@ -282,7 +282,7 @@ if ($result) {
 </div>
 
 
-<div class="user-profile">
+                <div class="user-profile">
                     <div class="user-avatar">
                         <?php echo isset($_SESSION['username']) ? substr($_SESSION['username'], 0, 1) : 'U'; ?>
                     </div>
