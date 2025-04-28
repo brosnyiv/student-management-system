@@ -10,7 +10,7 @@ if (session_status() === PHP_SESSION_NONE) {
 include 'dbconnect.php'; // Include the database connection file
 
 // Check if user is not logged in
-if (empty($_SESSION['userid'])) {
+if (empty($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
 }

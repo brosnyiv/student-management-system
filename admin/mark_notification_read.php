@@ -3,7 +3,7 @@ session_start();
 include 'dbconnect.php';
 
 // Check if user is logged in
-if (empty($_SESSION['userid'])) {
+if (empty($_SESSION['user_id'])) {
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'error' => 'Not logged in']);
     exit;

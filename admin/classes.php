@@ -9,6 +9,11 @@ if (session_status() === PHP_SESSION_NONE) {
 
 include 'dbconnect.php'; // Include the database connection file
 
+// Check if user is not logged in
+if (empty($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
 
 // Function to get class status
 function getClassStatus($day_of_week, $start_time, $end_time, $status) {

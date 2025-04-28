@@ -1,6 +1,18 @@
-<?php
-session_start();
-include 'dbconnect.php';
+<?
+session_start(); // Start the session
+ob_start();
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+include 'dbconnect.php'; // Include the database connection file
+
+// Check if user is not logged in
+if (empty($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
 
 if(isset($_POST['exportFormat'])) {
     $format = $_POST['exportFormat'];
