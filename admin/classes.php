@@ -9,7 +9,6 @@ if (session_status() === PHP_SESSION_NONE) {
 
 include 'dbconnect.php'; // Include the database connection file
 
-
 // Function to get class status
 function getClassStatus($day_of_week, $start_time, $end_time, $status) {
     $current_day = strtolower(date('l'));
@@ -26,12 +25,88 @@ function getClassStatus($day_of_week, $start_time, $end_time, $status) {
     }
 }
 
-// Count classes by status
-$completed_count = 0;
-$ongoing_count = 0;
-$upcoming_count = 0;
-$canceled_count = 0;
+// Get class sessions for display
+$sql = "SELECT cs.session_id, cu.unit_name, cu.unit_id, r.room_code, 
+        cs.day_of_week, cs.start_time, cs.end_time, cs.status, 
+        CONCAT(ts.title, ' ', s.first_name, ' ', s.last_name) as instructor_name,
+        ts.teaching_id,
+        cs.status as db_status
+    FROM class_sessions cs
+    JOIN course_units cu ON cs.course_unit_id = cu.unit_id
+    JOIN rooms r ON cs.room_id = r.room_id
+    JOIN teaching_staff ts ON cu.instructor_id = ts.teaching_id
+    JOIN staff s ON ts.staff_id = s.staff_id";
 
+// Add filter condition if provided
+if (isset($_GET['filterCourse']) && !empty($_GET['filterCourse'])) {
+    $sql .= " WHERE cu.unit_id = " . intval($_GET['filterCourse']);
+} else {
+    $sql .= " WHERE 1=1"; // Add WHERE clause for subsequent AND conditions
+}
+
+if (isset($_GET['filterInstructor']) && !empty($_GET['filterInstructor'])) {
+    $sql .= " AND ts.teaching_id = " . intval($_GET['filterInstructor']);
+}
+
+if (isset($_GET['filterRoom']) && !empty($_GET['filterRoom'])) {
+    $sql .= " AND r.room_code = '" . $conn->real_escape_string($_GET['filterRoom']) . "'";
+}
+
+if (isset($_GET['filterStatus']) && !empty($_GET['filterStatus'])) {
+    // Handle dynamic status from the database
+    $sql .= " AND cs.status = '" . $conn->real_escape_string($_GET['filterStatus']) . "'";
+}
+
+$sql .= " ORDER BY FIELD(cs.day_of_week, 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'), cs.start_time";
+
+$result = $conn->query($sql);
+
+// Get courses for filter dropdown
+$sql_courses = "SELECT unit_id, unit_name, unit_code FROM course_units ORDER BY unit_name";
+$result_courses = $conn->query($sql_courses);
+
+// Get instructors for filter dropdown
+$sql_instructors = "SELECT ts.teaching_id, CONCAT(ts.title, ' ', s.first_name, ' ', s.last_name) as instructor_name 
+                    FROM teaching_staff ts 
+                    JOIN staff s ON ts.staff_id = s.staff_id 
+                    ORDER BY s.last_name";
+$result_instructors = $conn->query($sql_instructors);
+
+// Get rooms for filter dropdown
+$sql_rooms = "SELECT room_id, room_code, room_name FROM rooms ORDER BY room_code";
+$result_rooms = $conn->query($sql_rooms);
+
+// Prepare timetable data structure
+$timetable = [];
+$class_list = [];
+
+// Time slots for timetable
+$timeSlots = [
+    '08:00:00-10:00:00' => '8:00 - 10:00',
+    '10:30:00-12:30:00' => '10:30 - 12:30',
+    '13:30:00-15:30:00' => '13:30 - 15:30',
+    '16:00:00-18:00:00' => '16:00 - 18:00'
+];
+
+// Days of week
+$days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+// Initialize timetable with empty slots
+foreach ($timeSlots as $timeRange => $displayTime) {
+    list($startTime, $endTime) = explode('-', $timeRange);
+    $timetable[$timeRange] = [
+        'display' => $displayTime,
+        'monday' => [],
+        'tuesday' => [],
+        'wednesday' => [],
+        'thursday' => [],
+        'friday' => [],
+        'saturday' => [],
+        'sunday' => []
+    ];
+}
+
+// SQL query to count classes by status
 $sql_count = "SELECT 
     SUM(CASE WHEN cs.status = 'completed' THEN 1 ELSE 0 END) as completed,
     SUM(CASE WHEN cs.status = 'scheduled' AND DAYOFWEEK(NOW()) = 
@@ -71,132 +146,68 @@ $sql_count = "SELECT
     SUM(CASE WHEN cs.status = 'canceled' THEN 1 ELSE 0 END) as canceled
 FROM class_sessions cs";
 
+// Execute the count query
 $result_count = $conn->query($sql_count);
-if ($result_count->num_rows > 0) {
+if ($result_count && $result_count->num_rows > 0) {
     $counts = $result_count->fetch_assoc();
-    $completed_count = $counts['completed'];
-    $ongoing_count = $counts['ongoing'];
-    $upcoming_count = $counts['upcoming'];
-    $canceled_count = $counts['canceled'];
+    $completed_count = $counts['completed'] ?? 0;
+    $ongoing_count = $counts['ongoing'] ?? 0;
+    $upcoming_count = $counts['upcoming'] ?? 0;
+    $canceled_count = $counts['canceled'] ?? 0;
+} else {
+    // Set default values if query fails
+    $completed_count = 0;
+    $ongoing_count = 0;
+    $upcoming_count = 0;
+    $canceled_count = 0;
 }
 
-// Get class sessions for display
-$sql = "SELECT cs.session_id, cu.unit_name, r.room_code, 
-        cs.day_of_week, cs.start_time, cs.end_time, cs.status, 
-        CONCAT(ts.title, ' ', s.first_name, ' ', s.last_name) as instructor_name,
-        cs.status as db_status
-    FROM class_sessions cs
-    JOIN course_units cu ON cs.course_unit_id = cu.unit_id
-    JOIN rooms r ON cs.room_id = r.room_id
-    JOIN teaching_staff ts ON cu.instructor_id = ts.teaching_id
-    JOIN staff s ON ts.staff_id = s.staff_id";
-
-// Add filter condition if provided
-if (isset($_GET['filterCourse']) && !empty($_GET['filterCourse'])) {
-    $sql .= " AND cu.unit_id = " . intval($_GET['filterCourse']);
-}
-
-if (isset($_GET['filterInstructor']) && !empty($_GET['filterInstructor'])) {
-    $sql .= " AND ts.teaching_id = " . intval($_GET['filterInstructor']);
-}
-
-if (isset($_GET['filterRoom']) && !empty($_GET['filterRoom'])) {
-    $sql .= " AND r.room_code = '" . $conn->real_escape_string($_GET['filterRoom']) . "'";
-}
-
-if (isset($_GET['filterStatus']) && !empty($_GET['filterStatus'])) {
-    // Handle dynamic status from the database
-    $sql .= " AND cs.status = '" . $conn->real_escape_string($_GET['filterStatus']) . "'";
-}
-
-$sql .= " ORDER BY FIELD(cs.day_of_week, 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'), cs.start_time";
-
-$result = $conn->query($sql);
-
-// Get courses for filter dropdown
-$sql_courses = "SELECT unit_id, unit_name FROM course_units ORDER BY unit_name";
-$result_courses = $conn->query($sql_courses);
-
-// Get instructors for filter dropdown
-$sql_instructors = "SELECT ts.teaching_id, CONCAT(ts.title, ' ', s.first_name, ' ', s.last_name) as instructor_name 
-                    FROM teaching_staff ts 
-                    JOIN staff s ON ts.staff_id = s.staff_id 
-                    ORDER BY s.last_name";
-$result_instructors = $conn->query($sql_instructors);
-
-// Get rooms for filter dropdown
-$sql_rooms = "SELECT room_code FROM rooms ORDER BY room_code";
-$result_rooms = $conn->query($sql_rooms);
-
-// Prepare timetable data structure
-$timetable = [];
-$class_list = [];
-
-// Time slots for timetable
-$timeSlots = [
-    '08:00:00-10:00:00' => '8:00 - 10:00',
-    '10:30:00-12:30:00' => '10:30 - 12:30',
-    '13:30:00-15:30:00' => '13:30 - 15:30',
-    '16:00:00-18:00:00' => '16:00 - 18:00'
-];
-
-// Days of week
-$days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-
-// Initialize timetable with empty slots
-foreach ($timeSlots as $timeRange => $displayTime) {
-    list($startTime, $endTime) = explode('-', $timeRange);
-    $timetable[$timeRange] = [
-        'display' => $displayTime,
-        'monday' => [],
-        'tuesday' => [],
-        'wednesday' => [],
-        'thursday' => [],
-        'friday' => [],
-        'saturday' => [],
-        'sunday' => []
-    ];
-}
-
-// Populate timetable and class list from database results
-if ($result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        // Determine status based on current time and day
+// Process the class data for the list view after running the main query
+if ($result && $result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        // Calculate dynamic status
         $status = getClassStatus($row['day_of_week'], $row['start_time'], $row['end_time'], $row['db_status']);
         
-        $class_data = [
-            'session_id' => $row['session_id'],
-            'class_name' => $row['unit_name'],
-            'room' => $row['room_code'],
-            'instructor' => $row['instructor_name'],
-            'status' => $status
-        ];
+        // Format display time
+        $start_time_display = date('g:i A', strtotime($row['start_time']));
+        $end_time_display = date('g:i A', strtotime($row['end_time']));
         
-        // Add to class list view
+        // Add class to list view array
         $class_list[] = [
             'session_id' => $row['session_id'],
             'class_name' => $row['unit_name'],
             'day' => ucfirst($row['day_of_week']),
-            'time' => date('g:i A', strtotime($row['start_time'])) . ' - ' . date('g:i A', strtotime($row['end_time'])),
+            'time' => $start_time_display . ' - ' . $end_time_display,
             'room' => $row['room_code'],
             'instructor' => $row['instructor_name'],
             'status' => $status
         ];
         
-        // Find appropriate time slot for timetable view
-        foreach ($timeSlots as $timeRange => $displayTime) {
-            list($slotStart, $slotEnd) = explode('-', $timeRange);
-            if ($row['start_time'] >= $slotStart && $row['end_time'] <= $slotEnd) {
-                $timetable[$timeRange][$row['day_of_week']][] = $class_data;
+        // Also process for timetable view
+        $time_key = $row['start_time'] . '-' . $row['end_time'];
+        // Find the closest matching time slot
+        $best_time_slot = null;
+        foreach (array_keys($timeSlots) as $slot) {
+            list($slot_start, $slot_end) = explode('-', $slot);
+            if ($slot_start <= $row['start_time'] && $slot_end >= $row['end_time']) {
+                $best_time_slot = $slot;
                 break;
             }
+        }
+        
+        if ($best_time_slot) {
+            $timetable[$best_time_slot][$row['day_of_week']][] = [
+                'session_id' => $row['session_id'],
+                'class_name' => $row['unit_name'],
+                'room' => $row['room_code'],
+                'instructor' => $row['instructor_name'],
+                'status' => $status
+            ];
         }
     }
 }
 
 ?>
-
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -209,16 +220,24 @@ if ($result->num_rows > 0) {
     <style>
         /* Additional CSS for Classes Page */
         .class-filters {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 20px;
-            background-color: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    align-items: center;
+}
 
+.class-filters form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+    flex: 1;
+}
         .filter-group {
             display: flex;
             align-items: center;
@@ -677,8 +696,8 @@ if ($result->num_rows > 0) {
 
         <h2><i class="fas fa-chalkboard-teacher"></i> Classes Management</h2>
 
-          <!-- Status Summary -->
-          <div class="status-summary">
+              <!-- Status Summary -->
+              <div class="status-summary">
             <div class="status-card completed">
                 <div class="status-icon">
                     <i class="fas fa-check"></i>
@@ -717,68 +736,67 @@ if ($result->num_rows > 0) {
             </div>
         </div>
 
-        <!-- Filters -->
-        <div class="class-filters">
-            <form method="GET" action="">
-                <div class="filter-group">
-                    <label for="filterCourse">Course:</label>
-                    <select id="filterCourse" name="filterCourse">
-                        <option value="">All Courses</option>
-                        <?php
-                        if ($result_courses->num_rows > 0) {
-                            while ($course = $result_courses->fetch_assoc()) {
-                                $selected = (isset($_GET['filterCourse']) && $_GET['filterCourse'] == $course['unit_id']) ? 'selected' : '';
-                                echo "<option value='{$course['unit_id']}' {$selected}>{$course['unit_name']} ({$course['unit_code']})</option>";
-                            }
-                        }
-                        ?>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filterInstructor">Instructor:</label>
-                    <select id="filterInstructor" name="filterInstructor">
-                        <option value="">All Instructors</option>
-                        <?php
-                        if ($result_staff->num_rows > 0) {
-                            while ($staff = $result_staff->fetch_assoc()) {
-                                $selected = (isset($_GET['filterInstructor']) && $_GET['filterInstructor'] == $staff['teaching_id']) ? 'selected' : '';
-                                echo "<option value='{$staff['teaching_id']}' {$selected}>{$staff['instructor_name']}</option>";
-                            }
-                        }
-                        ?>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filterRoom">Room:</label>
-                    <select id="filterRoom" name="filterRoom">
-                        <option value="">All Rooms</option>
-                        <?php
-                        if ($result_rooms->num_rows > 0) {
-                            while ($room = $result_rooms->fetch_assoc()) {
-                                $selected = (isset($_GET['filterRoom']) && $_GET['filterRoom'] == $room['room_id']) ? 'selected' : '';
-                                echo "<option value='{$room['room_id']}' {$selected}>{$room['room_code']} - {$room['room_name']}</option>";
-                            }
-                        }
-                        ?>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filterStatus">Status:</label>
-                    <select id="filterStatus" name="filterStatus">
-                        <option value="">All Statuses</option>
-                        <option value="completed" <?php echo (isset($_GET['filterStatus']) && $_GET['filterStatus'] == 'completed') ? 'selected' : ''; ?>>Completed</option>
-                        <option value="ongoing" <?php echo (isset($_GET['filterStatus']) && $_GET['filterStatus'] == 'ongoing') ? 'selected' : ''; ?>>Ongoing</option>
-                        <option value="upcoming" <?php echo (isset($_GET['filterStatus']) && $_GET['filterStatus'] == 'upcoming') ? 'selected' : ''; ?>>Upcoming</option>
-                        <option value="canceled" <?php echo (isset($_GET['filterStatus']) && $_GET['filterStatus'] == 'canceled') ? 'selected' : ''; ?>>Canceled</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-primary" style="padding: 8px 15px; margin-left: 10px;">Filter</button>
-            </form>
-            <div class="view-toggle">
-                <button class="active" id="week-view-btn"><i class="fas fa-calendar-week"></i> Week</button>
-                <button id="list-view-btn"><i class="fas fa-list"></i> List</button>
-            </div>
+       <!-- Filters -->
+<div class="class-filters">
+    <form method="GET" action="" class="d-flex align-items-center">
+        <div class="filter-group">
+            <label for="filterCourse">Course:</label>
+            <select id="filterCourse" name="filterCourse">
+                <option value="">All Courses</option>
+                <?php
+                if ($result_courses->num_rows > 0) {
+                    while ($course = $result_courses->fetch_assoc()) {
+                        $selected = (isset($_GET['filterCourse']) && $_GET['filterCourse'] == $course['unit_id']) ? 'selected' : '';
+                        echo "<option value='{$course['unit_id']}' {$selected}>{$course['unit_name']} ({$course['unit_code']})</option>";
+                    }
+                }
+                ?>
+            </select>
         </div>
+        <div class="filter-group">
+            <label for="filterInstructor">Instructor:</label>
+            <select id="filterInstructor" name="filterInstructor">
+                <option value="">All Instructors</option>
+                <?php
+                if ($result_instructors->num_rows > 0) {
+                    while ($instructor = $result_instructors->fetch_assoc()) {
+                        $selected = (isset($_GET['filterInstructor']) && $_GET['filterInstructor'] == $instructor['teaching_id']) ? 'selected' : '';
+                        echo "<option value='{$instructor['teaching_id']}' {$selected}>{$instructor['instructor_name']}</option>";
+                    }
+                }
+                ?>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="filterRoom">Room:</label>
+            <select id="filterRoom" name="filterRoom">
+                <option value="">All Rooms</option>
+                <?php
+                if ($result_rooms->num_rows > 0) {
+                    while ($room = $result_rooms->fetch_assoc()) {
+                        $selected = (isset($_GET['filterRoom']) && $_GET['filterRoom'] == $room['room_code']) ? 'selected' : '';
+                        echo "<option value='{$room['room_code']}' {$selected}>{$room['room_code']} - {$room['room_name']}</option>";
+                    }
+                }
+                ?>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="filterStatus">Status:</label>
+            <select id="filterStatus" name="filterStatus">
+                <option value="">All Statuses</option>
+                <option value="completed" <?php echo (isset($_GET['filterStatus']) && $_GET['filterStatus'] == 'completed') ? 'selected' : ''; ?>>Completed</option>
+                <option value="scheduled" <?php echo (isset($_GET['filterStatus']) && $_GET['filterStatus'] == 'scheduled') ? 'selected' : ''; ?>>Scheduled</option>
+                <option value="canceled" <?php echo (isset($_GET['filterStatus']) && $_GET['filterStatus'] == 'canceled') ? 'selected' : ''; ?>>Canceled</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Filter</button>
+    </form>
+    <div class="view-toggle">
+        <button class="active" id="week-view-btn"><i class="fas fa-calendar-week"></i> Week</button>
+        <button id="list-view-btn"><i class="fas fa-list"></i> List</button>
+    </div>
+</div>
 
         <!-- Week View -->
         <div class="timetable" id="week-view">
@@ -821,333 +839,460 @@ if ($result->num_rows > 0) {
             </div>
         </div>
 
-        <!-- List View (hidden by default) -->
-        <!-- List View (hidden by default) -->
-        <div class="class-list-view" style="display: none;">
-            <div class="class-list-header">
-                <div>Class Name</div>
-                <div>Schedule</div>
-                <div>Room</div>
-                <div>Instructor</div>
-                <div>Status</div>
-                <div>Actions</div>
-            </div>
-            <div class="class-list-row">
-                <div>Introduction to Programming</div>
-                <div>Mon, 8:00 - 10:00</div>
-                <div>Room B12</div>
-                <div>Prof. Anderson</div>
-                <div><span class="status-badge completed">Completed</span></div>
-                <div class="class-actions">
-                    <button class="view"><i class="fas fa-eye"></i></button>
-                    <button class="edit"><i class="fas fa-edit"></i></button>
-                    <button class="cancel"><i class="fas fa-ban"></i></button>
-                </div>
-            </div>
-            <div class="class-list-row">
-                <div>Data Structures & Algorithms</div>
-                <div>Tue, 10:30 - 12:30</div>
-                <div>Room A5</div>
-                <div>Dr. Smith</div>
-                <div><span class="status-badge ongoing">Ongoing</span></div>
-                <div class="class-actions">
-                    <button class="view"><i class="fas fa-eye"></i></button>
-                    <button class="edit"><i class="fas fa-edit"></i></button>
-                    <button class="cancel"><i class="fas fa-ban"></i></button>
-                </div>
-            </div>
-            <div class="class-list-row">
-                <div>Marketing Principles</div>
-                <div>Wed, 10:30 - 12:30</div>
-                <div>Room D7</div>
-                <div>Mrs. Peterson</div>
-                <div><span class="status-badge canceled">Canceled</span></div>
-                <div class="class-actions">
-                    <button class="view"><i class="fas fa-eye"></i></button>
-                    <button class="edit"><i class="fas fa-edit"></i></button>
-                    <button class="cancel"><i class="fas fa-ban"></i></button>
-                </div>
-            </div>
-            <div class="class-list-row">
-                <div>Web Development</div>
-                <div>Mon, 13:30 - 15:30</div>
-                <div>Room D7</div>
-                <div>Mr. Williams</div>
-                <div><span class="status-badge upcoming">Upcoming</span></div>
-                <div class="class-actions">
-                    <button class="view"><i class="fas fa-eye"></i></button>
-                    <button class="edit"><i class="fas fa-edit"></i></button>
-                    <button class="cancel"><i class="fas fa-ban"></i></button>
-                </div>
-            </div>
-            <div class="class-list-row">
-                <div>UI/UX Design</div>
-                <div>Fri, 10:30 - 12:30</div>
-                <div>Lab C3</div>
-                <div>Mr. Thomas</div>
-                <div><span class="status-badge upcoming">Upcoming</span></div>
-                <div class="class-actions">
-                    <button class="view"><i class="fas fa-eye"></i></button>
-                    <button class="edit"><i class="fas fa-edit"></i></button>
-                    <button class="cancel"><i class="fas fa-ban"></i></button>
-                </div>
-            </div>
-            <div class="class-list-row">
-                <div>Mobile App Development</div>
-                <div>Tue, 16:00 - 18:00</div>
-                <div>Lab C3</div>
-                <div>Prof. Brown</div>
-                <div><span class="status-badge ongoing">Ongoing</span></div>
-                <div class="class-actions">
-                    <button class="view"><i class="fas fa-eye"></i></button>
-                    <button class="edit"><i class="fas fa-edit"></i></button>
-                    <button class="cancel"><i class="fas fa-ban"></i></button>
-                </div>
+       <!-- List View (hidden by default) -->
+<div class="class-list-view" id="list-view" style="display: none;">
+    <div class="class-list-header">
+        <div>Class Name</div>
+        <div>Schedule</div>
+        <div>Room</div>
+        <div>Instructor</div>
+        <div>Status</div>
+        <div>Actions</div>
+    </div>
+    
+    <?php if (count($class_list) > 0): ?>
+        <?php foreach ($class_list as $class): ?>
+        <div class="class-list-row">
+            <div><?php echo htmlspecialchars($class['class_name']); ?></div>
+            <div><?php echo htmlspecialchars($class['day'] . ', ' . $class['time']); ?></div>
+            <div><?php echo htmlspecialchars($class['room']); ?></div>
+            <div><?php echo htmlspecialchars($class['instructor']); ?></div>
+            <div><span class="status-badge <?php echo $class['status']; ?>"><?php echo ucfirst($class['status']); ?></span></div>
+            <div class="class-actions">
+                <button class="view" onclick="viewClass(<?php echo $class['session_id']; ?>)"><i class="fas fa-eye"></i></button>
+                <button class="edit" onclick="editClass(<?php echo $class['session_id']; ?>)"><i class="fas fa-edit"></i></button>
+                <button class="cancel" onclick="cancelClass(<?php echo $class['session_id']; ?>)"><i class="fas fa-ban"></i></button>
             </div>
         </div>
+        <?php endforeach; ?>
+    <?php else: ?>
+    <div class="class-list-row">
+        <div colspan="6" style="text-align: center;">No classes found matching the selected filters.</div>
+    </div>
+    <?php endif; ?>
+</div>
 
-        <!-- Add Class Modal (hidden by default) -->
-        <div class="add-class-modal" style="display: none;">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3><i class="fas fa-plus-circle"></i> Add New Class</h3>
-                    <button class="close-modal">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <form>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="className">Class Name</label>
-                                <input type="text" id="className" placeholder="Enter class name">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="courseSelect">Course</label>
-                                <select id="courseSelect">
-                                    <option value="">Select a course</option>
-                                    <option value="1">Computer Science</option>
-                                    <option value="2">Business Administration</option>
-                                    <option value="3">Digital Marketing</option>
-                                    <option value="4">Graphic Design</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="instructorSelect">Instructor</label>
-                                <select id="instructorSelect">
-                                    <option value="">Select an instructor</option>
-                                    <option value<option value="">Select an instructor</option>
-                                    <option value="1">Dr. Smith</option>
-                                    <option value="2">Prof. Anderson</option>
-                                    <option value="3">Ms. Johnson</option>
-                                    <option value="4">Mr. Williams</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="classDay">Day of Week</label>
-                                <select id="classDay">
-                                    <option value="">Select day</option>
-                                    <option value="monday">Monday</option>
-                                    <option value="tuesday">Tuesday</option>
-                                    <option value="wednesday">Wednesday</option>
-                                    <option value="thursday">Thursday</option>
-                                    <option value="friday">Friday</option>
-                                    <option value="saturday">Saturday</option>
-                                    <option value="sunday">Sunday</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="roomSelect">Room</label>
-                                <select id="roomSelect">
-                                    <option value="">Select a room</option>
-                                    <option value="A5">Room A5</option>
-                                    <option value="B12">Room B12</option>
-                                    <option value="C3">Lab C3</option>
-                                    <option value="D7">Room D7</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="startTime">Start Time</label>
-                                <input type="time" id="startTime">
-                            </div>
-                            <div class="form-group">
-                                <label for="endTime">End Time</label>
-                                <input type="time" id="endTime">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="classDescription">Description (Optional)</label>
-                            <textarea id="classDescription" rows="3" placeholder="Enter class description"></textarea>
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-secondary close-add-modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Add Class</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+
+   <!-- Add Class Modal (hidden by default) -->
+<div class="add-class-modal" id="addClassModal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus-circle"></i> Add New Class</h3>
+            <button class="close-modal" id="closeAddModal">&times;</button>
         </div>
-
-        <!-- Edit Class Modal (hidden by default) -->
-        <div class="edit-class-modal" style="display: none;">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3><i class="fas fa-edit"></i> Edit Class</h3>
-                    <button class="close-modal">&times;</button>
+        <div class="modal-body">
+            <form id="addClassForm" method="POST" action="add_class.php">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="className">Class Name</label>
+                        <input type="text" id="className" name="class_name" placeholder="Enter class name" required>
+                    </div>
                 </div>
-                <div class="modal-body">
-                    <form>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="editClassName">Class Name</label>
-                                <input type="text" id="editClassName" value="Data Structures & Algorithms">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="editCourseSelect">Course</label>
-                                <select id="editCourseSelect">
-                                    <option value="">Select a course</option>
-                                    <option value="1" selected>Computer Science</option>
-                                    <option value="2">Business Administration</option>
-                                    <option value="3">Digital Marketing</option>
-                                    <option value="4">Graphic Design</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="editInstructorSelect">Instructor</label>
-                                <select id="editInstructorSelect">
-                                    <option value="">Select an instructor</option>
-                                    <option value="1" selected>Dr. Smith</option>
-                                    <option value="2">Prof. Anderson</option>
-                                    <option value="3">Ms. Johnson</option>
-                                    <option value="4">Mr. Williams</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="editClassDay">Day of Week</label>
-                                <select id="editClassDay">
-                                    <option value="">Select day</option>
-                                    <option value="monday">Monday</option>
-                                    <option value="tuesday" selected>Tuesday</option>
-                                    <option value="wednesday">Wednesday</option>
-                                    <option value="thursday">Thursday</option>
-                                    <option value="friday">Friday</option>
-                                    <option value="saturday">Saturday</option>
-                                    <option value="sunday">Sunday</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="editRoomSelect">Room</label>
-                                <select id="editRoomSelect">
-                                    <option value="">Select a room</option>
-                                    <option value="A5" selected>Room A5</option>
-                                    <option value="B12">Room B12</option>
-                                    <option value="C3">Lab C3</option>
-                                    <option value="D7">Room D7</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="editStartTime">Start Time</label>
-                                <input type="time" id="editStartTime" value="10:30">
-                            </div>
-                            <div class="form-group">
-                                <label for="editEndTime">End Time</label>
-                                <input type="time" id="editEndTime" value="12:30">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="editClassStatus">Status</label>
-                                <select id="editClassStatus">
-                                    <option value="upcoming">Upcoming</option>
-                                    <option value="ongoing" selected>Ongoing</option>
-                                    <option value="completed">Completed</option>
-                                    <option value="canceled">Canceled</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="editCancelReason">Cancellation Reason (if applicable)</label>
-                            <textarea id="editCancelReason" rows="2" placeholder="Reason for cancellation"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="editClassDescription">Description (Optional)</label>
-                            <textarea id="editClassDescription" rows="3" placeholder="Enter class description">Advanced programming techniques and algorithmic analysis.</textarea>
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-danger">Cancel Class</button>
-                            <button type="button" class="btn btn-secondary close-edit-modal">Close</button>
-                            <button type="submit" class="btn btn-primary">Save Changes</button>
-                        </div>
-                    </form>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="courseSelect">Course</label>
+                        <select id="courseSelect" name="course_unit_id" required>
+                            <option value="">Select a course</option>
+                            <?php
+                            $result_courses->data_seek(0); // Reset pointer to beginning
+                            while ($course = $result_courses->fetch_assoc()) {
+                                echo "<option value='{$course['unit_id']}'>{$course['unit_name']} ({$course['unit_code']})</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="instructorSelect">Instructor</label>
+                        <select id="instructorSelect" name="instructor_id" required>
+                            <option value="">Select an instructor</option>
+                            <?php
+                            $result_instructors->data_seek(0); // Reset pointer to beginning
+                            while ($instructor = $result_instructors->fetch_assoc()) {
+                                echo "<option value='{$instructor['teaching_id']}'>{$instructor['instructor_name']}</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
                 </div>
-            </div>
-        </div>
-
-        <div class="footer">
-            <p>&copy; 2025 Monaco Institute. All rights reserved.</p>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="classDay">Day of Week</label>
+                        <select id="classDay" name="day_of_week" required>
+                            <option value="">Select day</option>
+                            <option value="monday">Monday</option>
+                            <option value="tuesday">Tuesday</option>
+                            <option value="wednesday">Wednesday</option>
+                            <option value="thursday">Thursday</option>
+                            <option value="friday">Friday</option>
+                            <option value="saturday">Saturday</option>
+                            <option value="sunday">Sunday</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="roomSelect">Room</label>
+                        <select id="roomSelect" name="room_id" required>
+                            <option value="">Select a room</option>
+                            <?php
+                            $result_rooms->data_seek(0); // Reset pointer to beginning
+                            while ($room = $result_rooms->fetch_assoc()) {
+                                echo "<option value='{$room['room_id']}'>{$room['room_code']} - {$room['room_name']}</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="startTime">Start Time</label>
+                        <input type="time" id="startTime" name="start_time" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="endTime">End Time</label>
+                        <input type="time" id="endTime" name="end_time" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="classDescription">Description (Optional)</label>
+                    <textarea id="classDescription" name="description" rows="3" placeholder="Enter class description"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary close-add-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Class</button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 
-    <script>
-        // Display current date and time
-        function updateDateTime() {
-            const now = new Date();
-            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', dateOptions);
-            
-            const timeOptions = { hour: '2-digit', minute: '2-digit' };
-            document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', timeOptions);
-        }
-        
-        updateDateTime();
-        setInterval(updateDateTime, 60000); // Update every minute
+<!-- Edit Class Modal (hidden by default) -->
+<div class="edit-class-modal" id="editClassModal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> Edit Class</h3>
+            <button class="close-modal" id="closeEditModal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="editClassForm" method="POST" action="update_class.php">
+                <input type="hidden" id="editSessionId" name="session_id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editClassName">Class Name</label>
+                        <input type="text" id="editClassName" name="class_name" readonly>
+                    </div>
+                </div>
 
-        // Toggle between week and list views
-        const viewToggleButtons = document.querySelectorAll('.view-toggle button');
-        const timetableView = document.querySelector('.timetable');
-        const listView = document.querySelector('.class-list-view');
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editCourseSelect">Course</label>
+                        <select id="editCourseSelect" name="course_unit_id" required>
+                            <option value="">Select a course</option>
+                            <?php
+                            $result_courses->data_seek(0); // Reset pointer to beginning
+                            while ($course = $result_courses->fetch_assoc()) {
+                                echo "<option value='{$course['unit_id']}'>{$course['unit_name']} ({$course['unit_code']})</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editInstructorSelect">Instructor</label>
+                        <select id="editInstructorSelect" name="instructor_id" required>
+                            <option value="">Select an instructor</option>
+                            <?php
+                            $result_instructors->data_seek(0); // Reset pointer to beginning
+                            while ($instructor = $result_instructors->fetch_assoc()) {
+                                echo "<option value='{$instructor['teaching_id']}'>{$instructor['instructor_name']}</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editClassDay">Day of Week</label>
+                        <select id="editClassDay" name="day_of_week" required>
+                            <option value="">Select day</option>
+                            <option value="monday">Monday</option>
+                            <option value="tuesday">Tuesday</option>
+                            <option value="wednesday">Wednesday</option>
+                            <option value="thursday">Thursday</option>
+                            <option value="friday">Friday</option>
+                            <option value="saturday">Saturday</option>
+                            <option value="sunday">Sunday</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editRoomSelect">Room</label>
+                        <select id="editRoomSelect" name="room_id" required>
+                            <option value="">Select a room</option>
+                            <?php
+                            $result_rooms->data_seek(0); // Reset pointer to beginning
+                            while ($room = $result_rooms->fetch_assoc()) {
+                                echo "<option value='{$room['room_id']}'>{$room['room_code']} - {$room['room_name']}</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editStartTime">Start Time</label>
+                        <input type="time" id="editStartTime" name="start_time" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEndTime">End Time</label>
+                        <input type="time" id="editEndTime" name="end_time" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editClassStatus">Status</label>
+                        <select id="editClassStatus" name="status" required>
+                            <option value="scheduled">Scheduled</option>
+                            <option value="completed">Completed</option>
+                            <option value="canceled">Canceled</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" id="cancelReasonGroup" style="display: none;">
+                    <label for="editCancelReason">Cancellation Reason</label>
+                    <textarea id="editCancelReason" name="cancel_reason" rows="2" placeholder="Reason for cancellation"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="editClassDescription">Description (Optional)</label>
+                    <textarea id="editClassDescription" name="description" rows="3" placeholder="Enter class description"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="deleteClassBtn" class="btn btn-danger">Delete Class</button>
+                    <button type="button" class="btn btn-secondary close-edit-modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Current date/time display (for header)
+    function updateDateTime() {
+        const now = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', options);
         
-        viewToggleButtons.forEach((button, index) => {
-            button.addEventListener('click', () => {
-                viewToggleButtons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
+        let hours = now.getHours();
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // hour '0' should be '12'
+        document.getElementById('currentTime').textContent = `${hours}:${minutes} ${ampm}`;
+    }
+    
+    // Update time immediately and then every minute
+    updateDateTime();
+    setInterval(updateDateTime, 60000);
+
+    // View toggle functionality
+    document.getElementById('week-view-btn').addEventListener('click', function() {
+        document.getElementById('week-view').style.display = 'block';
+        document.getElementById('list-view').style.display = 'none';
+        this.classList.add('active');
+        document.getElementById('list-view-btn').classList.remove('active');
+    });
+
+    document.getElementById('list-view-btn').addEventListener('click', function() {
+        document.getElementById('week-view').style.display = 'none';
+        document.getElementById('list-view').style.display = 'block';
+        this.classList.add('active');
+        document.getElementById('week-view-btn').classList.remove('active');
+    });
+
+    // Add Class Modal functionality
+    const addClassBtn = document.querySelector('.add-button');
+    const addClassModal = document.getElementById('addClassModal');
+    
+    // Show add class modal when add button is clicked
+    addClassBtn.addEventListener('click', function() {
+        addClassModal.style.display = 'flex';
+    });
+    
+    // Close add class modal
+    document.querySelectorAll('#closeAddModal, .close-add-modal').forEach(element => {
+        element.addEventListener('click', function() {
+            addClassModal.style.display = 'none';
+        });
+    });
+    
+    // Handle add class form submission
+    document.getElementById('addClassForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        fetch('add_class.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Class added successfully!');
+                window.location.reload(); // Reload the page to show the new class
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while adding the class.');
+        });
+    });
+
+    // Function to edit class (called when clicking edit button or class card)
+    function editClass(sessionId) {
+        // Show the edit modal
+        document.getElementById('editClassModal').style.display = 'flex';
+        
+        // Set the session ID in the hidden field
+        document.getElementById('editSessionId').value = sessionId;
+        
+        // Fetch class data via AJAX and populate form
+        fetch('get_class_data.php?session_id=' + sessionId)
+            .then(response => response.json())
+            .then(data => {
+                // Populate form fields with class data
+                document.getElementById('editClassName').value = data.unit_name;
+                document.getElementById('editCourseSelect').value = data.unit_id;
+                document.getElementById('editInstructorSelect').value = data.teaching_id;
+                document.getElementById('editClassDay').value = data.day_of_week;
+                document.getElementById('editRoomSelect').value = data.room_id;
+                document.getElementById('editStartTime').value = data.start_time.substring(0, 5); // Format HH:MM
+                document.getElementById('editEndTime').value = data.end_time.substring(0, 5); // Format HH:MM
+                document.getElementById('editClassStatus').value = data.status;
+                document.getElementById('editClassDescription').value = data.description || '';
                 
-                if (index === 0) {
-                    timetableView.style.display = 'block';
-                    listView.style.display = 'none';
-                } else {
-                    timetableView.style.display = 'none';
-                    listView.style.display = 'block';
-                }
+                // Show/hide cancel reason based on status
+                document.getElementById('cancelReasonGroup').style.display = 
+                    data.status === 'canceled' ? 'block' : 'none';
+                document.getElementById('editCancelReason').value = data.cancel_reason || '';
+            })
+            .catch(error => {
+                console.error('Error fetching class data:', error);
+                alert('Error loading class data. Please try again.');
             });
-        });
-
-
-        // Open edit modal when clicking on edit buttons
-        const editButtons = document.querySelectorAll('.edit');
-        editButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                editClassModal.style.display = 'flex';
-            });
-        });
+    }
+    
+    // Handle edit class form submission
+    document.getElementById('editClassForm').addEventListener('submit', function(e) {
+        e.preventDefault();
         
-        // Make class cards clickable to open edit modal
-        const classCards = document.querySelectorAll('.class-card');
-        classCards.forEach(card => {
-            card.addEventListener('click', () => {
-                editClassModal.style.display = 'flex';
-            });
+        const formData = new FormData(this);
+        
+        fetch('update_class.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Class updated successfully!');
+                window.location.reload(); // Reload the page to reflect changes
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while updating the class.');
         });
-    </script>
+    });
+    
+    // Function to cancel/delete a class
+    function cancelClass(sessionId) {
+        if (confirm('Are you sure you want to cancel this class?')) {
+            fetch('cancel_class.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'session_id=' + sessionId
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Class has been canceled successfully.');
+                    window.location.reload(); // Reload the page to reflect changes
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while canceling the class.');
+            });
+        }
+    }
+    
+    // Function to view class details
+    function viewClass(sessionId) {
+        // Similar to editClass but read-only view
+        editClass(sessionId); // For now, just reuse the edit modal
+    }
+    
+    // Show/hide cancellation reason field based on status selection
+    document.getElementById('editClassStatus').addEventListener('change', function() {
+        document.getElementById('cancelReasonGroup').style.display = 
+            this.value === 'canceled' ? 'block' : 'none';
+        
+        if (this.value === 'canceled') {
+            document.getElementById('editCancelReason').setAttribute('required', 'required');
+        } else {
+            document.getElementById('editCancelReason').removeAttribute('required');
+        }
+    });
+    
+    // Delete class button handler
+    document.getElementById('deleteClassBtn').addEventListener('click', function() {
+        const sessionId = document.getElementById('editSessionId').value;
+        if (confirm('Are you sure you want to permanently delete this class? This action cannot be undone.')) {
+            fetch('delete_class.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'session_id=' + sessionId
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Class has been deleted successfully.');
+                    window.location.reload(); // Reload the page to reflect changes
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while deleting the class.');
+            });
+        }
+    });
+    
+    // Close edit modal handlers
+    document.querySelectorAll('#closeEditModal, .close-edit-modal').forEach(element => {
+        element.addEventListener('click', function() {
+            document.getElementById('editClassModal').style.display = 'none';
+        });
+    });
+    
+    // Close modals when clicking outside of them
+    window.addEventListener('click', function(event) {
+        if (event.target === addClassModal) {
+            addClassModal.style.display = 'none';
+        }
+        if (event.target === document.getElementById('editClassModal')) {
+            document.getElementById('editClassModal').style.display = 'none';
+        }
+    });
+</script>
 </body>
 </html>

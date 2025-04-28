@@ -1,3 +1,104 @@
+
+<?php
+
+session_start(); // Start the session
+ob_start();
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+include 'dbconnect.php'; // Include the database connection file
+
+// Get filter parameters from request
+$course_id = isset($_GET['course']) ? $_GET['course'] : '';
+$semester_id = isset($_GET['semester']) ? $_GET['semester'] : '';
+$academic_year_id = isset($_GET['academic-year']) ? $_GET['academic-year'] : '';
+$search_term = isset($_GET['student-search']) ? $_GET['student-search'] : '';
+
+// Build the base query
+$query = "SELECT 
+            sr.semester_result_id,
+            s.student_id,
+            CONCAT(s.first_name, ' ', s.surname) AS student_name,
+            c.course_name,
+            sem.semester_number AS semester,
+            ay.year_number AS academic_year,
+            sr.average_score,
+            sr.final_grade,
+            sr.status
+          FROM semester_result sr
+          JOIN students s ON sr.student_id = s.student_id
+          JOIN courses c ON sr.course_id = c.course_id
+          JOIN semesters sem ON sr.semester_id = sem.semester_id
+          JOIN academic_years ay ON sr.academic_year_id = ay.academic_year_id
+          WHERE 1=1";
+
+// Add filters if provided
+if (!empty($course_id)) {
+    $course_id = mysqli_real_escape_string($conn, $course_id);
+    $query .= " AND sr.course_id = '$course_id'";
+}
+if (!empty($semester_id)) {
+    $semester_id = mysqli_real_escape_string($conn, $semester_id);
+    $query .= " AND sr.semester_id = '$semester_id'";
+}
+if (!empty($academic_year_id)) {
+    $academic_year_id = mysqli_real_escape_string($conn, $academic_year_id);
+    $query .= " AND sr.academic_year_id = '$academic_year_id'";
+}
+if (!empty($search_term)) {
+    $search_term = mysqli_real_escape_string($conn, $search_term);
+    $query .= " AND (s.student_id LIKE '%$search_term%' OR s.first_name LIKE '%$search_term%' OR s.surname LIKE '%$search_term%')";
+}
+
+// Order by student name
+$query .= " ORDER BY s.surname, s.first_name";
+
+// Execute the query
+$result = mysqli_query($conn, $query);
+$results = [];
+
+// Fetch all results
+if ($result) {
+    while ($row = mysqli_fetch_assoc($result)) {
+        $results[] = $row;
+    }
+}
+
+// Get summary statistics
+$summaryQuery = "SELECT 
+                    COUNT(*) AS total_students,
+                    SUM(CASE WHEN status = 'Passed' THEN 1 ELSE 0 END) AS passed_students,
+                    SUM(CASE WHEN status = 'Failed' THEN 1 ELSE 0 END) AS failed_students,
+                    AVG(average_score) AS average_score
+                 FROM semester_result";
+$summaryResult = mysqli_query($conn, $summaryQuery);
+$summary = mysqli_fetch_assoc($summaryResult);
+
+// Get courses for dropdown
+$coursesResult = mysqli_query($conn, "SELECT course_id, course_name FROM courses");
+$courses = [];
+while ($row = mysqli_fetch_assoc($coursesResult)) {
+    $courses[] = $row;
+}
+
+// Get semesters for dropdown
+$semestersResult = mysqli_query($conn, "SELECT semester_id, semester_number FROM semesters");
+$semesters = [];
+while ($row = mysqli_fetch_assoc($semestersResult)) {
+    $semesters[] = $row;
+}
+
+// Get academic years for dropdown
+$academicYearsResult = mysqli_query($conn, "SELECT academic_year_id, year_number FROM academic_years ORDER BY year_number DESC");
+$academicYears = [];
+while ($row = mysqli_fetch_assoc($academicYearsResult)) {
+    $academicYears[] = $row;
+}
+
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -405,33 +506,35 @@
             <input type="text" placeholder="Search by Student Name or ID..." aria-label="Search">
         </div>
 
+
+
         <div class="summary-cards">
             <div class="summary-card">
                 <div class="summary-icon icon-total">
                     <i class="fas fa-users"></i>
                 </div>
-                <div class="summary-value">362</div>
+                <div class="summary-value"><?php echo $summary['total_students']; ?></div>
                 <div class="summary-label">Total Students</div>
             </div>
             <div class="summary-card">
                 <div class="summary-icon icon-pass">
                     <i class="fas fa-check-circle"></i>
                 </div>
-                <div class="summary-value">298</div>
+                <div class="summary-value"><?php echo $summary['passed_students']; ?></div>
                 <div class="summary-label">Passed Students</div>
             </div>
             <div class="summary-card">
                 <div class="summary-icon icon-fail">
                     <i class="fas fa-times-circle"></i>
                 </div>
-                <div class="summary-value">64</div>
+                <div class="summary-value"><?php echo $summary['failed_students']; ?></div>
                 <div class="summary-label">Failed Students</div>
             </div>
             <div class="summary-card">
                 <div class="summary-icon icon-average">
                     <i class="fas fa-chart-line"></i>
                 </div>
-                <div class="summary-value">72%</div>
+                <div class="summary-value"><?php echo round($summary['average_score'], 0) . '%'; ?></div>
                 <div class="summary-label">Average Score</div>
             </div>
         </div>
@@ -440,44 +543,51 @@
             <div class="section-header">
                 <div class="section-title"><i class="fas fa-filter"></i> Filter Results</div>
             </div>
-            <div class="filter-controls">
-                <div class="filter-group">
-                    <label for="course">Course</label>
-                    <select id="course">
-                        <option value="">All Courses</option>
-                        <option value="1">BSc Computer Science</option>
-                        <option value="2">Diploma in Business Administration</option>
-                        <option value="3">Certificate in Digital Marketing</option>
-                        <option value="4">Diploma in Graphic Design</option>
-                    </select>
+            <form method="GET" action="results.php">
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label for="course">Course</label>
+                        <select id="course" name="course">
+                            <option value="">All Courses</option>
+                            <?php foreach ($courses as $course): ?>
+                                <option value="<?php echo $course['course_id']; ?>" <?php echo $course_id == $course['course_id'] ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($course['course_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="semester">Semester</label>
+                        <select id="semester" name="semester">
+                            <option value="">All Semesters</option>
+                            <?php foreach ($semesters as $semester): ?>
+                                <option value="<?php echo $semester['semester_id']; ?>" <?php echo $semester_id == $semester['semester_id'] ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($semester['semester_number']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="academic-year">Academic Year</label>
+                        <select id="academic-year" name="academic-year">
+                            <option value="">All Years</option>
+                            <?php foreach ($academicYears as $year): ?>
+                                <option value="<?php echo $year['academic_year_id']; ?>" <?php echo $academic_year_id == $year['academic_year_id'] ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($year['year_number']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="student-search">Search Student</label>
+                        <input type="text" id="student-search" name="student-search" placeholder="Name or Student ID" value="<?php echo htmlspecialchars($search_term); ?>">
+                    </div>
                 </div>
-                <div class="filter-group">
-                    <label for="semester">Semester</label>
-                    <select id="semester">
-                        <option value="">All Semesters</option>
-                        <option value="1">Semester 1</option>
-                        <option value="2">Semester 2</option>
-                        <option value="3">Summer Semester</option>
-                    </select>
+                <div class="filter-actions">
+                    <button type="submit" class="filter-button"><i class="fas fa-filter"></i> Filter Results</button>
+                    <button type="button" class="reset-button" onclick="window.location.href='results.php'"><i class="fas fa-undo"></i> Reset Filters</button>
                 </div>
-                <div class="filter-group">
-                    <label for="academic-year">Academic Year</label>
-                    <select id="academic-year">
-                        <option value="">All Years</option>
-                        <option value="2024-2025" selected>2024/2025</option>
-                        <option value="2023-2024">2023/2024</option>
-                        <option value="2022-2023">2022/2023</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="student-search">Search Student</label>
-                    <input type="text" id="student-search" placeholder="Name or Student ID">
-                </div>
-            </div>
-            <div class="filter-actions">
-                <button class="filter-button"><i class="fas fa-filter"></i> Filter Results</button>
-                <button class="reset-button"><i class="fas fa-undo"></i> Reset Filters</button>
-            </div>
+            </form>
         </div>
 
         <div class="results-table">
@@ -501,176 +611,54 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>
-                            <div class="student-info">
-                                <div class="student-photo">AM</div>
-                                <div>Alice Miller</div>
-                            </div>
-                        </td>
-                        <td>STU24501</td>
-                        <td>BSc Computer Science</td>
-                        <td>Semester 1</td>
-                        <td><span class="grade grade-a">A</span></td>
-                        <td>92%</td>
-                        <td><span style="color: #2ecc71">Passed</span></td>
-                        <td>
-                            <div class="action-icons">
-                                <button class="action-icon view"><i class="fas fa-eye"></i></button>
-                                <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                <button class="action-icon print"><i class="fas fa-print"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="student-info">
-                                <div class="student-photo">BJ</div>
-                                <div>Bob Johnson</div>
-                            </div>
-                        </td>
-                        <td>STU24502</td>
-                        <td>BSc Computer Science</td>
-                        <td>Semester 1</td>
-                        <td><span class="grade grade-b">B</span></td>
-                        <td>85%</td>
-                        <td><span style="color: #2ecc71">Passed</span></td>
-                        <td>
-                            <div class="action-icons">
-                                <button class="action-icon view"><i class="fas fa-eye"></i></button>
-                                <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                <button class="action-icon print"><i class="fas fa-print"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="student-info">
-                                <div class="student-photo">CW</div>
-                                <div>Carol White</div>
-                            </div>
-                        </td>
-                        <td>STU24503</td>
-                        <td>Diploma in Business Administration</td>
-                        <td>Semester 1</td>
-                        <td><span class="grade grade-a">A</span></td>
-                        <td>94%</td>
-                        <td><span style="color: #2ecc71">Passed</span></td>
-                        <td>
-                            <div class="action-icons">
-                                <button class="action-icon view"><i class="fas fa-eye"></i></button>
-                                <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                <button class="action-icon print"><i class="fas fa-print"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="student-info">
-                                <div class="student-photo">DT</div>
-                                <div>David Thompson</div>
-                            </div>
-                        </td>
-                        <td>STU24504</td>
-                        <td>Certificate in Digital Marketing</td>
-                        <td>Semester 1</td>
-                        <td><span class="grade grade-c">C</span></td>
-                        <td>75%</td>
-                        <td><span style="color: #2ecc71">Passed</span></td>
-                        <td>
-                            <div class="action-icons">
-                                <button class="action-icon view"><i class="fas fa-eye"></i></button>
-                                <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                <button class="action-icon print"><i class="fas fa-print"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="student-info">
-                                <div class="student-photo">ES</div>
-                                <div>Emma Smith</div>
-                            </div>
-                        </td>
-                        <td>STU24505</td>
-                        <td>Diploma in Graphic Design</td>
-                        <td>Semester 1</td>
-                        <td><span class="grade grade-a">A</span></td>
-                        <td>90%</td>
-                        <td><span style="color: #2ecc71">Passed</span></td>
-                        <td>
-                            <div class="action-icons">
-                                <button class="action-icon view"><i class="fas fa-eye"></i></button>
-                                <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                <button class="action-icon print"><i class="fas fa-print"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="student-info">
-                                <div class="student-photo">FD</div>
-                                <div>Frank Davis</div>
-                            </div>
-                        </td>
-                        <td>STU24506</td>
-                        <td>BSc Computer Science</td>
-                        <td>Semester 1</td>
-                        <td><span class="grade grade-f">F</span></td>
-                        <td>48%</td>
-                        <td><span style="color: #e74c3c">Failed</span></td>
-                        <td>
-                            <div class="action-icons">
-                                <button class="action-icon view"><i class="fas fa-eye"></i></button>
-                                <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                <button class="action-icon print"><i class="fas fa-print"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="student-info">
-                                <div class="student-photo">GA</div>
-                                <div>Grace Anderson</div>
-                            </div>
-                        </td>
-                        <td>STU24507</td>
-                        <td>Diploma in Business Administration</td>
-                        <td>Semester 1</td>
-                        <td><span class="grade grade-b">B</span></td>
-                        <td>87%</td>
-                        <td><span style="color: #2ecc71">Passed</span></td>
-                        <td>
-                            <div class="action-icons">
-                            <button class="action-icon view"><i class="fas fa-eye"></i></button>
-                                <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                <button class="action-icon print"><i class="fas fa-print"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="student-info">
-                                <div class="student-photo">HW</div>
-                                <div>Henry Wilson</div>
-                            </div>
-                        </td>
-                        <td>STU24508</td>
-                        <td>Certificate in Digital Marketing</td>
-                        <td>Semester 1</td>
-                        <td><span class="grade grade-d">D</span></td>
-                        <td>62%</td>
-                        <td><span style="color: #e67e22">Passed</span></td>
-                        <td>
-                            <div class="action-icons">
-                                <button class="action-icon view"><i class="fas fa-eye"></i></button>
-                                <button class="action-icon edit"><i class="fas fa-edit"></i></button>
-                                <button class="action-icon print"><i class="fas fa-print"></i></button>
-                            </div>
-                        </td>
-                    </tr>
+                    <?php if (count($results) > 0): ?>
+                        <?php foreach ($results as $result): 
+                            // Get initials for profile photo
+                            $names = explode(' ', $result['student_name']);
+                            $initials = substr($names[0], 0, 1) . substr(end($names), 0, 1);
+                            
+                            // Determine grade class
+                            $grade_class = 'grade-' . strtolower($result['final_grade']);
+                            
+                            // Determine status color
+                            $status_color = $result['status'] == 'Passed' ? '#2ecc71' : '#e74c3c';
+                        ?>
+                            <tr>
+                                <td>
+                                    <div class="student-info">
+                                        <div class="student-photo"><?php echo $initials; ?></div>
+                                        <div><?php echo htmlspecialchars($result['student_name']); ?></div>
+                                    </div>
+                                </td>
+                                <td><?php echo htmlspecialchars($result['student_id']); ?></td>
+                                <td><?php echo htmlspecialchars($result['course_name']); ?></td>
+                                <td><?php echo htmlspecialchars($result['semester']); ?></td>
+                                <td><span class="grade <?php echo $grade_class; ?>"><?php echo $result['final_grade']; ?></span></td>
+                                <td><?php echo round($result['average_score'], 0) . '%'; ?></td>
+                                <td><span style="color: <?php echo $status_color; ?>"><?php echo $result['status']; ?></span></td>
+                                <td>
+                                    <div class="action-icons">
+                                        <button class="action-icon view" onclick="viewResult(<?php echo $result['semester_result_id']; ?>)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="action-icon edit" onclick="editResult(<?php echo $result['semester_result_id']; ?>)">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="action-icon print" onclick="printResult(<?php echo $result['semester_result_id']; ?>)">
+                                            <i class="fas fa-print"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="8" style="text-align: center;">No results found matching your criteria</td>
+                        </tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
+
             <div class="pagination">
                 <button><i class="fas fa-angle-double-left"></i></button>
                 <button><i class="fas fa-angle-left"></i></button>
@@ -690,7 +678,7 @@
     </div>
 
     <script>
-        // Display current date and time
+          // Display current date and time
         function updateDateTime() {
             const now = new Date();
             const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -702,6 +690,19 @@
         
         updateDateTime();
         setInterval(updateDateTime, 60000); // Update every minute
+
+        function viewResult(resultId) {
+            window.location.href = 'view_result.php?id=' + resultId;
+        }
+        
+        function editResult(resultId) {
+            window.location.href = 'edit_result.php?id=' + resultId;
+        }
+        
+        function printResult(resultId) {
+            window.open('print_result.php?id=' + resultId, '_blank');
+        }
+
     </script>
 </body>
 </html>
