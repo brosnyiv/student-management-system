@@ -159,7 +159,7 @@ if($password_hash==$confirmPassword){
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Registration Portal</title>
-    <link rel="stylesheet" href="satff register.css">
+    <link rel="stylesheet" href="staff register.css">
     
     <style>
     
@@ -344,7 +344,7 @@ if($password_hash==$confirmPassword){
                     <div class="form-row">
                         <div class="form-group">
                             <label for="phone" class="required">Phone Number</label>
-                            <input type="tel" id="phone" name="phone_number" required>
+                            <input type="text" id="phone" name="phone_number" required>
                         </div>
                         
                         <div class="form-group">
@@ -356,7 +356,7 @@ if($password_hash==$confirmPassword){
                     <div class="form-row">
                         <div class="form-group-full">
                             <label for="address" class="required">Residential Address</label>
-                            <textarea id="address" name="residential_address" rows="3" required></textarea>
+                            <textarea id="address" name="residential_address" rows="3"></textarea>
                         </div>
                     </div>
                 </div>
@@ -433,8 +433,8 @@ if($password_hash==$confirmPassword){
                                     <label for="userRole">Department</label>
                                     <select id="userRole" name="department" required>
                                         <option value="">Select a department</option>
-                                            <?php foreach($roles as $r): ?>
-                                                <option value="<?= $r['department_id']; ?>"><?= $r['department']; ?></option>
+                                            <?php foreach($departments as $r): ?>
+                                                <option value="<?= $r['department_id']; ?>"><?= $r['department_name']; ?></option>
                                             <?php endforeach; ?>
                                         </option>
                                     </select>
@@ -573,8 +573,8 @@ if($password_hash==$confirmPassword){
                 </div>
                 
                 <!-- System Access & Permissions Section -->
-                <div class="form-section">
-                    <!-- <div class="section-header">
+                <!-- <div class="form-section">
+                    <div class="section-header">
                         <div class="section-icon">🔐</div>
                         <div class="section-title">6. System Access & Permissions</div>
                     </div>
@@ -599,9 +599,9 @@ if($password_hash==$confirmPassword){
                             <input type="text" id="assigned_classes" name="assigned_classes" placeholder="e.g., Room 101, Lab 3">
                         </div>
                         
-                    </div> -->
+                    </div>
                     
-                    <!-- <div class="form-row">
+                    <div class="form-row">
                         <div class="form-group">
                             <label for="access_level">System Access Level</label>
                             <select id="access_level" name="access_level">
@@ -616,8 +616,8 @@ if($password_hash==$confirmPassword){
                             <label for="access_start">Access Start Date</label>
                             <input type="date" id="access_start" name="access_start">
                         </div>
-                    </div> -->
-                </div>
+                    </div>
+                </div> -->
                 
                 <!-- Payroll & Bank Details Section -->
                 <div class="form-section">
@@ -777,7 +777,7 @@ if($password_hash==$confirmPassword){
                     <div>
                         <button type="button" class="btn btn-primary" id="prevStep" style="margin-right: 10px;">Previous</button>
                         <button type="button" class="btn btn-primary" id="nextStep">Next</button>
-                        <button type="submit" class="btn btn-success" id="submitForm" style="display: none;">Submit Registration</button>
+                        <button type="submit" class="btn btn-success" id="submitForm" style="display: none;" name="submit">Submit Registration</button>
                     </div>
                 </div>
             </form>
@@ -1183,73 +1183,73 @@ if($password_hash==$confirmPassword){
         });
     }
 
-    // Form submission
-    const staffRegistrationForm = document.getElementById('staffRegistrationForm');
-    const saveAsDraftBtn = document.getElementById('saveAsDraft');
+    // // Form submission
+    // // const staffRegistrationForm = document.getElementById('staffRegistrationForm');
+    // // const saveAsDraftBtn = document.getElementById('saveAsDraft');
 
-    if (staffRegistrationForm) {
-        staffRegistrationForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            console.log("Form submission triggered");
+    // // if (staffRegistrationForm) {
+    // //     staffRegistrationForm.addEventListener('submit', function(e) {
+    // //         e.preventDefault();
+    // //         console.log("Form submission triggered");
             
-            // Validate form before submission
-            const requiredFields = document.querySelectorAll('[required]');
-            let isValid = true;
+    // //         // Validate form before submission
+    // //         const requiredFields = document.querySelectorAll('[required]');
+    // //         let isValid = true;
             
-            requiredFields.forEach(field => {
-                if (!field.value) {
-                    field.classList.add('invalid');
-                    isValid = false;
-                    console.log("Invalid field:", field.id);
-                } else {
-                    field.classList.remove('invalid');
-                }
-            });
+    // //         requiredFields.forEach(field => {
+    // //             if (!field.value) {
+    // //                 field.classList.add('invalid');
+    // //                 isValid = false;
+    // //                 console.log("Invalid field:", field.id);
+    // //             } else {
+    // //                 field.classList.remove('invalid');
+    // //             }
+    // //         });
             
-            if (isValid) {
-                console.log("Form is valid, preparing to submit");
-                // Collect form data
-                const formData = new FormData(this);
+    // //         if (isValid) {
+    // //             console.log("Form is valid, preparing to submit");
+    // //             // Collect form data
+    // //             const formData = new FormData(this);
                 
-                // Add file uploads to form data
-                const photoPathInput = document.getElementById('photo_path');
-                if (photoPathInput && photoPathInput.files.length > 0) {
-                    formData.append('profilePhoto', photoPathInput.files[0]);
-                }
+    // //             // Add file uploads to form data
+    // //             const photoPathInput = document.getElementById('photo_path');
+    // //             if (photoPathInput && photoPathInput.files.length > 0) {
+    // //                 formData.append('profilePhoto', photoPathInput.files[0]);
+    // //             }
                 
-                // Log formData keys for debugging
-                for (let key of formData.keys()) {
-                    console.log("FormData includes key:", key);
-                }
+    // //             // Log formData keys for debugging
+    // //             for (let key of formData.keys()) {
+    // //                 console.log("FormData includes key:", key);
+    // //             }
                 
-                // Submit via AJAX with better error handling
-                fetch('submit_staff.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => {
-                    console.log("Response status:", response.status);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log("Server response:", data);
-                    if (data.success) {
-                        alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
-                        // Redirect to confirmation page or clear form
-                        // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while submitting the form.');
-                });
-            } else {
-                alert('Please fill in all required fields before submitting.');
-            }
-        });
-    }
+    //             // Submit via AJAX with better error handling
+    //             // fetch('submit_staff.php', {
+    //             //     method: 'POST',
+    //             //     body: formData
+    //             // })
+    //             // .then(response => {
+    //             //     console.log("Response status:", response.status);
+    //             //     return response.json();
+    //             // })
+    //             // .then(data => {
+    //             //     console.log("Server response:", data);
+    //             //     if (data.success) {
+    //             //         alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
+    //             //         // Redirect to confirmation page or clear form
+    //             //         // window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
+    //             //     } else {
+    //             //         alert('Error: ' + data.message);
+    //             //     }
+    //             // })
+    //             // .catch(error => {
+    //             //     console.error('Error:', error);
+    //             //     alert('An error occurred while submitting the form.');
+    //             // });
+    //         // } else {
+    //         //     alert('Please fill in all required fields before submitting.');
+    //         // }
+    //     });
+    // }
 
     // Save as draft functionality
     if (saveAsDraftBtn) {
