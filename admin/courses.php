@@ -1,6 +1,4 @@
 <?php
-
-
 ob_start();
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -41,21 +39,76 @@ function getCourseIcon($department) {
     }
 }
 
-// Prepare and execute query to fetch courses
-$sql = "SELECT * FROM courses";
-$result = $conn->query($sql);
+// Handle course insertion if form was submitted
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_course'])) {
+    // Sanitize and validate input
+    $course_name = $conn->real_escape_string($_POST['course_name']);
+    $course_code = $conn->real_escape_string($_POST['course_code']);
+    $level_id = $conn->real_escape_string($_POST['level_id']);
+    $department_id = (int)$_POST['department_id'];
+    $duration = (int)$_POST['duration'];
+    $max_capacity = (int)$_POST['max_capacity'];
+    $faculty_leader_id = (int)$_POST['faculty_leader_id'];
+    $status = $conn->real_escape_string($_POST['status']);
+    $description = $conn->real_escape_string($_POST['description']);
+    $course_fee = (float)$_POST['course_fee'];
+    
+    // Create SQL query to insert course
+    $sql = "INSERT INTO courses (course_name, course_code, level_id, department_id, duration, max_capacity, faculty_leader_id, status, description, course_fee) 
+            VALUES ('$course_name', '$course_code', '$level_id', $department_id, $duration, $max_capacity, $faculty_leader_id, '$status', '$description', $course_fee)";
+    
+    if ($conn->query($sql) === TRUE) {
+        // Success message
+        $success_message = "Course added successfully!";
+        // Redirect to prevent form resubmission
+        header("Location: courses.php?success=added");
+        exit();
+    } else {
+        // Error message
+        $error_message = "Error: " . $sql . "<br>" . $conn->error;
+    }
+}
 
-// Check for errors
+// Prepare and execute query to fetch courses with department and faculty leader info
+$sql = "SELECT 
+            c.course_id, 
+            c.course_name, 
+            c.course_code, 
+            cl.level_name as level,
+            d.department_name,
+            c.duration,
+            c.status,
+            c.course_fee,
+            s.full_name as faculty_leader,
+            COUNT(e.student_id) as student_count
+        FROM courses c
+        LEFT JOIN course_levels cl ON c.level_id = cl.level_id
+        LEFT JOIN departments d ON c.department_id = d.department_id
+        LEFT JOIN faculty_leaders fl ON c.faculty_leader_id = fl.faculty_leader_id
+        LEFT JOIN staff s ON fl.staff_id = s.staff_id
+        LEFT JOIN enrollments e ON c.course_id = e.course_id AND e.status = 'active'
+        GROUP BY c.course_id
+        ORDER BY c.course_name";
+
+$result = $conn->query($sql);   // Execute the query
 if ($result === false) {
     die("Error executing query: " . $conn->error);
-}else{
-    // Fetch all courses
-    $tables = $result->fetch_all(MYSQLI_ASSOC);
 }
+
+// Fetch all departments for the dropdown
+$dept_sql = "SELECT department_id, department_name FROM departments ORDER BY department_name";
+$dept_result = $conn->query($dept_sql);
+
+// Fetch all course levels for the dropdown
+$level_sql = "SELECT level_id, level_name FROM course_levels ORDER BY level_name";
+$level_result = $conn->query($level_sql);
+
+// Fetch all faculty leaders for the dropdown
+$faculty_sql = "SELECT fl.faculty_leader_id, s.full_name 
+                FROM faculty_leaders fl 
+                JOIN staff s ON fl.staff_id = s.staff_id 
+                ORDER BY s.full_name";
 ?>
-
-
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -66,8 +119,8 @@ if ($result === false) {
     <link rel="stylesheet" href="dash.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-         /* Additional Styles for Course Unit Section */
-         .course-units-container {
+        /* Additional Styles for Course Unit Section */
+        .course-units-container {
             margin-top: 20px;
             border: 1px solid #ddd;
             border-radius: 8px;
@@ -188,7 +241,73 @@ if ($result === false) {
         .add-course-form {
             display: none;
         }
-     
+        
+        /* Status tag styles */
+        .status-tag {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-upcoming {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-archived {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        /* Course badge styles */
+        .course-badge {
+            display: flex;
+            align-items: center;
+        }
+        
+        .course-icon {
+            margin-right: 10px;
+            font-size: 20px;
+            color: #8B1818;
+        }
+        
+        /* Action buttons */
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .btn-icon {
+            border: none;
+            background: none;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            width: 30px;
+            height: 30px;
+        }
+        
+        .btn-view {
+            color: #17a2b8;
+        }
+        
+        .btn-edit {
+            color: #ffc107;
+        }
+        
+        .btn-delete {
+            color: #dc3545;
+        }
+        
+        .btn-icon:hover {
+            background-color: #f0f0f0;
+        }
     </style>
 </head>
 <body>
@@ -204,10 +323,10 @@ if ($result === false) {
             <button class="support-button"><i class="fas fa-headset"></i> Support</button>
         </div>
         <ul class="sidebar-menu">
-            <li class="active" onclick="window.location.href='dash.php'"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></li>
+            <li onclick="window.location.href='dash.php'"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></li>
             <li onclick="window.location.href='student.php'"><i class="fas fa-user-graduate"></i> <span>Student Management</span></li>
             <li onclick="window.location.href='staff.php'"><i class="fas fa-user-tie"></i> <span>Staff Management</span></li>
-            <li onclick="window.location.href='courses.php'"><i class="fas fa-book"></i> <span>Courses</span></li>
+            <li class="active" onclick="window.location.href='courses.php'"><i class="fas fa-book"></i> <span>Courses</span></li>
             <li onclick="window.location.href='payments.php'"><i class="fas fa-money-bill-wave"></i> <span>Payments Info</span></li>
             <li onclick="window.location.href='marks&exams.php'"><i class="fas fa-file-alt"></i> <span>Marks & Exams</span></li>
             <li onclick="window.location.href='results.php'"><i class="fas fa-search"></i> <span>Result</span></li>
@@ -223,7 +342,7 @@ if ($result === false) {
     <div class="main-content">
         <div class="welcome-banner">
             <div class="welcome-text">
-                <h1>MONACO INSTITUTE</h1>
+            <h1>MONACO INSTITUTE</h1>
                 <p>Course Management</p>
                 <div class="date-display">
                     <i class="fas fa-calendar-alt"></i> <span id="currentDate"></span>
@@ -249,22 +368,38 @@ if ($result === false) {
             </div>
         </div>
 
+        <?php if(isset($success_message)): ?>
+            <div class="alert alert-success">
+                <?php echo $success_message; ?>
+            </div>
+        <?php endif; ?>
+        
+        <?php if(isset($error_message)): ?>
+            <div class="alert alert-danger">
+                <?php echo $error_message; ?>
+            </div>
+        <?php endif; ?>
+
         <div class="search-bar">
-            <input type="text" placeholder="Search courses..." aria-label="Search">
+            <input type="text" id="courseSearch" placeholder="Search courses..." aria-label="Search">
         </div>
 
         <div class="course-actions">
             <div class="course-filters">
                 <div class="filter-dropdown">
-                    <select name="course-level">
+                    <select name="course-level" id="filterLevel">
                         <option value="">All Levels</option>
-                        <option value="certificate">Certificate</option>
-                        <option value="diploma">Diploma</option>
-                        
+                        <?php if($level_result && $level_result->num_rows > 0): ?>
+                            <?php while($level = $level_result->fetch_assoc()): ?>
+                                <option value="<?php echo htmlspecialchars($level['level_name']); ?>">
+                                    <?php echo htmlspecialchars($level['level_name']); ?>
+                                </option>
+                            <?php endwhile; ?>
+                        <?php endif; ?>
                     </select>
                 </div>
                 <div class="filter-dropdown">
-                    <select name="course-status">
+                    <select name="course-status" id="filterStatus">
                         <option value="">All Status</option>
                         <option value="active">Active</option>
                         <option value="upcoming">Upcoming</option>
@@ -272,130 +407,95 @@ if ($result === false) {
                     </select>
                 </div>
                 <div class="filter-dropdown">
-                    <select name="course-department">
+                    <select name="course-department" id="filterDepartment">
                         <option value="">All Departments</option>
-                        <option value="it">Information Technology</option>
-                        <option value="business">Business</option>
-                        <option value="design">Design</option>
-                        <option value="marketing">Marketing</option>
+                        <?php if($dept_result && $dept_result->num_rows > 0): ?>
+                            <?php while($dept = $dept_result->fetch_assoc()): ?>
+                                <option value="<?php echo htmlspecialchars($dept['department_name']); ?>">
+                                    <?php echo htmlspecialchars($dept['department_name']); ?>
+                                </option>
+                            <?php endwhile; ?>
+                        <?php endif; ?>
                     </select>
                 </div>
             </div>
-            <button class="add-button"  onclick="window.location.href='new course.php'" ><i class="fas fa-plus"></i> Add New Course</button>
+            <button onclick="window.location.href='new course.php'" class="add-button" id="showAddCourseForm" ><i class="fas fa-plus" ></i> Add New Course</button>
         </div>
 
         <div class="course-tabs">
-            <div class="course-tab active">View courses</div>
-            
+            <div class="course-tab active" id="viewCoursesTab">View courses</div>
+           
         </div>
 
-       <!-- This part goes in your HTML where you display the course table -->
-      <div style="margin: 20px; padding: 15px; border: 1px solid #ddd; background-color: #f9f9f9;">
-        <h3>Database Debug Information:</h3>
-        <p>Tables in database:</p>
-        <ul>
-            <?php foreach($tables as $table): ?>
-                <li><?php echo htmlspecialchars($table); ?></li>
-            <?php endforeach; ?>
-        </ul>
-        
-        <?php if($courses_exists): ?>
-            <p>Structure of courses table:</p>
-            <table border="1" cellpadding="5" cellspacing="0">
-                <tr>
-                    <th>Field</th>
-                    <th>Type</th>
-                    <th>Null</th>
-                    <th>Key</th>
-                </tr>
-                <?php foreach($structure as $field): ?>
+        <!-- View Courses Section -->
+        <div class="detailed-courses" id="viewCoursesSection">
+            <table>
+                <thead>
                     <tr>
-                        <td><?php echo htmlspecialchars($field['Field']); ?></td>
-                        <td><?php echo htmlspecialchars($field['Type']); ?></td>
-                        <td><?php echo htmlspecialchars($field['Null']); ?></td>
-                        <td><?php echo htmlspecialchars($field['Key']); ?></td>
+                        <th>Course</th>
+                        <th>Level</th>
+                        <th>Duration</th>
+                        <th>Students</th>
+                        <th>Course Fee</th>
+                        <th>Faculty leader</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                     </tr>
-                <?php endforeach; ?>
-            </table>
-            <?php else: ?>
-            <p style="color: red;">Courses table does not exist!</p>
-        <?php endif; ?>
-    </div>
-    
-    <div class="detailed-courses">
-        <table>
-            <thead>
-                <tr>
-                    <th>Course</th>
-                    <th>Level</th>
-                    <th>Duration</th>
-                    <th>Students</th>
-                    <th>Faculty leader</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if($result && $result->num_rows > 0): ?>
-                    <?php while($row = $result->fetch_assoc()): ?>
-                        <tr>
-                            <td>
-                                <div class="course-badge">
-                                    <div class="course-icon">
-                                        <i class="<?php echo getCourseIcon($row['department_name'] ?? ''); ?>"></i>
-                                    </div>
-                                    <div>
-                                        <?php echo htmlspecialchars($row['course_name'] ?? 'Unknown Course'); ?>
-                                        <div style="font-size: 12px; color: #777;">
-                                            <?php echo htmlspecialchars($row['department_name'] ?? 'Unknown Department'); ?>
+                </thead>
+                <tbody>
+                    <?php if($result && $result->num_rows > 0): ?>
+                        <?php while($row = $result->fetch_assoc()): ?>
+                            <tr>
+                                <td>
+                                    <div class="course-badge">
+                                        <div class="course-icon">
+                                            <i class="<?php echo getCourseIcon($row['department_name'] ?? ''); ?>"></i>
+                                        </div>
+                                        <div>
+                                            <?php echo htmlspecialchars($row['course_name']); ?>
+                                            <div style="font-size: 12px; color: #777;">
+                                                <?php echo htmlspecialchars($row['department_name']); ?>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </td>
-                            <td><?php echo htmlspecialchars($row['level'] ?? 'N/A'); ?></td>
-                            <td><?php echo htmlspecialchars($row['duration'] ?? 'N/A'); ?></td>
-                            <td><?php echo htmlspecialchars($row['student_count'] ?? '0'); ?></td>
-                            <td><?php echo htmlspecialchars($row['faculty_leader'] ?? 'Unassigned'); ?></td>
-                            <td>
-                                <span class="status-tag status-<?php echo strtolower($row['status'] ?? 'unknown'); ?>">
-                                    <?php echo htmlspecialchars($row['status'] ?? 'Unknown'); ?>
-                                </span>
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <button class="btn-icon btn-view" onclick="viewCourse(<?php echo $row['course_id'] ?? 0; ?>)">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn-icon btn-edit" onclick="editCourse(<?php echo $row['course_id'] ?? 0; ?>)">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn-icon btn-delete" onclick="deleteCourse(<?php echo $row['course_id'] ?? 0; ?>)">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
+                                </td>
+                                <td><?php echo htmlspecialchars($row['level']); ?></td>
+                                <td><?php echo htmlspecialchars($row['duration']); ?> years</td>
+                                <td><?php echo htmlspecialchars($row['student_count']); ?></td>
+                                <td>$<?php echo number_format($row['course_fee'], 2); ?></td>
+                                <td><?php echo htmlspecialchars($row['faculty_leader'] ?? 'Unassigned'); ?></td>
+                                <td>
+                                    <span class="status-tag status-<?php echo strtolower($row['status']); ?>">
+                                        <?php echo htmlspecialchars($row['status']); ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn-icon btn-view" onclick="viewCourse(<?php echo $row['course_id']; ?>)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn-icon btn-edit" onclick="editCourse(<?php echo $row['course_id']; ?>)">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn-icon btn-delete" onclick="deleteCourse(<?php echo $row['course_id']; ?>)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="8" style="text-align: center;">
+                                No courses found in the database
                             </td>
                         </tr>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <tr>
-                        <td colspan="7" style="text-align: center;">
-                            No courses found in the database
-                        </td>
-                    </tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
 
-
-
-       
-        <div class="add-course-form">
-            <div class="section-header">
-                <div class="section-title"><i class="fas fa-plus-circle"></i> Add New Course</div>
-            </div>
-            <form>
-              
+        
 
         <div class="footer">
             <p>&copy; 2025 Monaco Institute. All rights reserved.</p>
@@ -416,20 +516,109 @@ if ($result === false) {
         updateDateTime();
         setInterval(updateDateTime, 60000); // Update every minute
         
-          // Functions for course actions
-    function viewCourse(courseId) {
-        window.location.href = 'view_course.php?id=' + courseId;
-    }
-    
-    function editCourse(courseId) {
-        window.location.href = 'edit_course.php?id=' + courseId;
-    }
-    
-    function deleteCourse(courseId) {
-        if(confirm('Are you sure you want to delete this course?')) {
-            window.location.href = 'delete_course.php?id=' + courseId;
+        // Functions for course actions
+        function viewCourse(courseId) {
+            window.location.href = 'view_course.php?id=' + courseId;
         }
-    }
-</script>
+        
+        function editCourse(courseId) {
+            window.location.href = 'edit_course.php?id=' + courseId;
+        }
+        
+        function deleteCourse(courseId) {
+            if(confirm('Are you sure you want to delete this course?')) {
+                window.location.href = 'delete_course.php?id=' + courseId;
+            }
+        }
+        
+        // Tab switching
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get tab elements
+            const viewCoursesTab = document.getElementById('viewCoursesTab');
+            const addCourseTab = document.getElementById('addCourseTab');
+            
+            // Get content sections
+            const viewCoursesSection = document.getElementById('viewCoursesSection');
+            const addCourseSection = document.getElementById('addCourseSection');
+            
+            // Get buttons
+            const showAddCourseFormBtn = document.getElementById('showAddCourseForm');
+            const cancelAddCourseBtn = document.getElementById('cancelAddCourse');
+            
+            // Function to show View Courses section
+            function showViewCourses() {
+                viewCoursesTab.classList.add('active');
+                addCourseTab.classList.remove('active');
+                viewCoursesSection.style.display = 'block';
+                addCourseSection.style.display = 'none';
+            }
+            
+            // Function to show Add Course section
+            function showAddCourse() {
+                viewCoursesTab.classList.remove('active');
+                addCourseTab.classList.add('active');
+                viewCoursesSection.style.display = 'none';
+                addCourseSection.style.display = 'block';
+            }
+            
+            // Set initial state
+            showViewCourses();
+            
+            // Add event listeners
+            viewCoursesTab.addEventListener('click', showViewCourses);
+            addCourseTab.addEventListener('click', showAddCourse);
+            showAddCourseFormBtn.addEventListener('click', showAddCourse);
+            cancelAddCourseBtn.addEventListener('click', showViewCourses);
+            
+            // Course search functionality
+            const courseSearch = document.getElementById('courseSearch');
+            courseSearch.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const rows = document.querySelectorAll('.detailed-courses table tbody tr');
+                
+                rows.forEach(row => {
+                    const courseName = row.querySelector('td:first-child').textContent.toLowerCase();
+                    if (courseName.includes(searchTerm)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+            
+            // Course filtering functionality
+            const filterLevel = document.getElementById('filterLevel');
+            const filterStatus = document.getElementById('filterStatus');
+            const filterDepartment = document.getElementById('filterDepartment');
+            
+            function applyFilters() {
+                const levelFilter = filterLevel.value.toLowerCase();
+                const statusFilter = filterStatus.value.toLowerCase();
+                const departmentFilter = filterDepartment.value.toLowerCase();
+                
+                const rows = document.querySelectorAll('.detailed-courses table tbody tr');
+                
+                rows.forEach(row => {
+                    const level = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                    const department = row.querySelector('td:first-child div div:last-child div').textContent.toLowerCase();
+                    const status = row.querySelector('td:nth-child(7) span').textContent.toLowerCase();
+                    
+                    const levelMatch = levelFilter === '' || level.includes(levelFilter);
+                    const statusMatch = statusFilter === '' || status.includes(statusFilter);
+                    const departmentMatch = departmentFilter === '' || department.includes(departmentFilter);
+                    
+                    if (levelMatch && statusMatch && departmentMatch) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            }
+            
+            filterLevel.addEventListener('change', applyFilters);
+            filterStatus.addEventListener('change', applyFilters);
+            filterDepartment.addEventListener('change', applyFilters);
+        });
+    </script>
 </body>
 </html>
