@@ -64,25 +64,25 @@ if (isset($_GET['filterStatus']) && !empty($_GET['filterStatus'])) {
     $sql .= " AND cs.status = '" . $conn->real_escape_string($_GET['filterStatus']) . "'";
 }
 
-$sql .= " ORDER BY FIELD(cs.day_of_week, 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'), cs.start_time";
+/* $sql .= " ORDER BY FIELD(cs.day_of_week, 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'), cs.start_time";
+ */
+// session_id 	course_unit_id 	room_id 	day_of_week 	start_time 	end_time 	status 	cancellation_reason 	created_at 	updated_at 	
+/* $result = $conn->query($sql);
+if (!$result) {
 
-$result = $conn->query($sql);
-
+    die("Query failed: " . $conn->error)s;
+}
+ */
 // Get courses for filter dropdown
 $sql_courses = "SELECT unit_id, unit_name, unit_code FROM course_units ORDER BY unit_name";
 $result_courses = $conn->query($sql_courses);
 
 // Get instructors for filter dropdown
-$sql = "SELECT cs.session_id, cu.unit_name, cu.unit_id, r.room_code, 
-        cs.day_of_week, cs.start_time, cs.end_time, cs.status, 
-        s.full_name as instructor_name,
-        ts.teaching_id,
-        cs.status as db_status
-    FROM class_sessions cs
-    JOIN course_units cu ON cs.course_unit_id = cu.unit_id
-    JOIN rooms r ON cs.room_id = r.room_id
-    JOIN teaching_staff ts ON cu.instructor_id = ts.teaching_id
-    JOIN staff s ON ts.staff_id = s.staff_id";
+$sql_instructors = "SELECT ts.teaching_id, CONCAT(full_name) as instructor_name 
+                   FROM teaching_staff ts
+                   JOIN staff s ON ts.staff_id = s.staff_id
+                   ORDER BY instructor_name";
+$result_instructors = $conn->query($sql_instructors);
 
 // Get rooms for filter dropdown
 $sql_rooms = "SELECT room_id, room_code, room_name FROM rooms ORDER BY room_code";
@@ -174,6 +174,29 @@ if ($result_count && $result_count->num_rows > 0) {
     $canceled_count = 0;
 }
 
+// Execute the main query to get class sessions
+
+$sql = "SELECT cs.session_id, cu.unit_name, cu.unit_id, r.room_code, 
+        cs.day_of_week, cs.start_time, cs.end_time, cs.status, 
+        s.full_name as instructor_name,
+        ts.teaching_id,
+        cs.status as db_status
+    FROM class_sessions cs
+    JOIN course_units cu ON cs.course_unit_id = cu.unit_id
+    JOIN rooms r ON cs.room_id = r.room_id
+    JOIN teaching_staff ts ON cu.instructor_id = ts.teaching_id
+    JOIN staff s ON ts.staff_id = s.staff_id";
+    
+    $result = $conn->query($sql);
+if (!$result) {
+    echo "Error executing query: " . $conn->error;
+}
+else {
+    // Check if any classes were found
+    if ($result->num_rows == 0) {
+        echo "<p>No classes found.</p>";
+    }
+}
 // Process the class data for the list view after running the main query
 if ($result && $result->num_rows > 0) {
     while($row = $result->fetch_assoc()) {
