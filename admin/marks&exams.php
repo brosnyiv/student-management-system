@@ -11,6 +11,17 @@ if (empty($_SESSION['user_id'])) {
 }
 
     
+//pull notifications count from notifications table where the user_id is the same as the current session user_id
+$user_notified=$_SESSION['user_id'];
+$sql="select count(*) from notifications where user_id is not null and user_id='$user_notified' and is_read='unread' order by created_at desc";
+$result=mysqli_query($conn,$sql);
+if ($result) {
+   $notification_count= mysqli_fetch_assoc($result)['count(*)'];
+} else {
+    $notifications_count = 0;
+    // For debugging
+    // echo "Error in student query: " . mysqli_error($conn);
+}
 
 
 // Process bulk upload if submitted
@@ -180,6 +191,9 @@ if ($result) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monaco Institute - Marks & Exams</title>
+    <link rel="stylesheet" href="dash.css">
+
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* Base Styles */
@@ -190,220 +204,10 @@ if ($result) {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
-        body {
-            background-color: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
-        }
+      
         
-        /* Sidebar Styles */
-        .sidebar {
-            width: 250px;
-            background: #2c3e50;
-            color: white;
-            position: fixed;
-            height: 100%;
-            padding: 20px 0;
-            transition: all 0.3s;
-            z-index: 100;
-        }
-        
-        .sidebar-header {
-            padding: 0 20px 20px;
-            text-align: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .sidebar-logo {
-            margin-bottom: 10px;
-        }
-        
-        .institute-name {
-            font-weight: 700;
-            font-size: 18px;
-            margin-bottom: 5px;
-        }
-        
-        .institute-motto {
-            font-size: 12px;
-            opacity: 0.8;
-            margin-bottom: 15px;
-        }
-        
-        .support-button {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            width: 100%;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
-        }
-        
-        .support-button:hover {
-            background: #c0392b;
-        }
-        
-        .sidebar-menu {
-            list-style: none;
-            padding: 20px 0;
-        }
-        
-        .sidebar-menu li {
-            padding: 10px 20px;
-            cursor: pointer;
-            transition: background 0.3s;
-            display: flex;
-            align-items: center;
-        }
-        
-        .sidebar-menu li:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-        
-        .sidebar-menu li.active {
-            background: #8B1818;
-        }
-        
-        .sidebar-menu li i {
-            margin-right: 10px;
-            width: 20px;
-            text-align: center;
-        }
-        
-        .sidebar-menu li span {
-            flex: 1;
-        }
-        
-        /* Main Content Styles */
-        .main-content {
-            margin-left: 250px;
-            min-height: 100vh;
-            transition: all 0.3s;
-        }
-        
-        .welcome-banner {
-            background: white;
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        
-        .welcome-text h1 {
-            font-size: 24px;
-            color: #8B1818;
-            margin-bottom: 5px;
-        }
-        
-        .welcome-text p {
-            color: #666;
-            margin-bottom: 10px;
-        }
-        
-        .date-display {
-            display: flex;
-            align-items: center;
-            font-size: 14px;
-            color: #666;
-        }
-        
-        .date-display i {
-            margin-right: 5px;
-        }
-        
-        .time-display {
-            margin-left: 15px;
-        }
-        
-        .weather-widget {
-            display: inline-flex;
-            align-items: center;
-            margin-left: 15px;
-        }
-        
-        .weather-icon {
-            color: #f39c12;
-            margin-right: 5px;
-        }
-        
-        .temperature {
-            font-weight: 600;
-        }
-        
-        .user-section {
-            display: flex;
-            align-items: center;
-        }
-        
-        .notification-bell {
-            position: relative;
-            margin-right: 20px;
-            font-size: 18px;
-            color: #666;
-            cursor: pointer;
-        }
-        
-        .notification-count {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #e74c3c;
-            color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .user-profile {
-            display: flex;
-            align-items: center;
-        }
-        
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            background: #8B1818;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 10px;
-            font-weight: bold;
-        }
-        
-        .user-info {
-            line-height: 1.3;
-        }
-        
-        .role {
-            font-size: 12px;
-            color: #666;
-        }
-        
-        /* Search Bar */
-        .search-bar {
-            padding: 15px 20px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .search-bar input {
-            width: 100%;
-            padding: 10px 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        
+       
+       
         /* Tabs */
         .tabs-container {
             display: flex;
@@ -440,6 +244,95 @@ if ($result) {
             display: block;
         }
         
+        .filters-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.filter-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+}
+
+.filter-group select,
+.filter-group input[type="text"] {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 180px;
+}
+
+.view-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.view-toggle label {
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+}
+
+.toggle-options {
+    display: inline-flex;
+    gap: 5px;
+}
+
+.toggle-btn {
+    padding: 8px 15px;
+    border: 1px solid #ddd;
+    background: #f8f9fa;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.toggle-btn.active {
+    background: #8B1818;
+    color: white;
+    border-color: #8B1818;
+}
+
+.filter-actions {
+    display: inline-flex;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.filter-btn,
+.reset-filter-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.filter-btn {
+    background: #8B1818;
+    color: white;
+}
+
+.reset-filter-btn {
+    background: #f0f0f0;
+    color: #333;
+}
         /* Cards */
         .card {
             background: white;
@@ -933,35 +826,131 @@ if ($result) {
 
     <div class="main-content">
         <div class="welcome-banner">
-            <div class="welcome-text">
-                <h1>MARKS & EXAMS</h1>
-                <p>Welcome back, <?php echo htmlspecialchars($_SESSION['user_name']); ?>!</p>
-                <div class="date-display">
-                    <i class="fas fa-calendar-alt"></i> <span id="currentDate"></span>
-                    <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
-                    <div class="weather-widget">
-                        <i class="fas fa-sun weather-icon"></i>
-                        <span class="temperature">26°C</span>
+          <!-- welcome message   -->
+
+          <div class="welcome-text">
+    <h1>MONACO INSTITUTE</h1>
+    <div class="welcome-message">
+        <?php
+        // Time-based greeting
+        $hour = date('H');
+        $greeting = ($hour < 12) ? "Good Morning" : (($hour < 17) ? "Good Afternoon" : "Good Evening");
+        
+        // Get username
+        $username = isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : "User";
+        echo "<p class='welcome-user'>{$greeting}, <span class='username'>{$username}</span></p>";
+        
+        // Dynamic messages
+        $month = date('n');
+        $seasonalMessages = [
+            1 => "Happy New Year! New year, new learning opportunities",
+            5 => "Spring into your educational journey",
+            9 => "Welcome to the new academic year!",
+            12 => "Season's greetings! Wrapping up the year with excellence"
+        ];
+        
+        $dailyMessages = [
+            "Empowering your educational journey every day!",
+            "Building futures, one lesson at a time",
+            "Today is a great day to learn something new!",
+            "Where skills meet innovation",
+            "Excellence in education since 2007",
+            "Together, we grow"
+        ];
+        
+        $message = $seasonalMessages[$month] ?? $dailyMessages[date('z') % count($dailyMessages)];
+        echo "<p class='welcome-message-text'>{$message}</p>";
+        ?>
+    </div>
+    <div class="date-display">
+        <i class="fas fa-calendar-alt"></i> <span id="currentDate"><?php echo date('l, F j, Y'); ?></span>
+        <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"><?php echo date('h:i:s A'); ?></span></span>
+    </div>
+</div>
+
+
+             <!-- Notifications  -->
+   
+            <div class="user-section" style="display:flex; align-items:center;">
+            <div class="notification-bell" id="notificationBell">
+    <i class="fas fa-bell"></i>
+    <span class="notification-count"><?php echo $notification_count; ?></span>
+    
+    <!-- Notifications dropdown -->
+    <div class="notifications-dropdown" id="notificationsDropdown">
+        <div class="notifications-header">
+            <h3></h3>
+            <?php if ($notification_count > 0): ?>
+                <a href="mark_all_read.php" class="mark-all-read">Mark all as read</a>
+            <?php endif; ?>
+        </div>
+        
+        <div class="notifications-list">
+            <?php if (empty($notifications)): ?>
+                <div class="no-notifications"></div>
+            <?php else: ?>
+                <?php foreach ($notifications as $notification): ?>
+                    <div class="notification-item" data-id="<?php echo $notification['id']; ?>">
+                        <div class="notification-icon">
+                            <?php if ($notification['type'] == 'message'): ?>
+                                <i class="fas fa-envelope"></i>
+                            <?php elseif ($notification['type'] == 'event'): ?>
+                                <i class="fas fa-calendar-alt"></i>
+                            <?php elseif ($notification['type'] == 'alert'): ?>
+                                <i class="fas fa-exclamation-circle"></i>
+                            <?php else: ?>
+                                <i class="fas fa-bell"></i>
+                            <?php endif; ?>
+                        </div>
+                        <div class="notification-content">
+                            <div class="notification-text"><?php echo htmlspecialchars($notification['message']); ?></div>
+                            <div class="notification-time">
+                                <?php 
+                                    $time_diff = time() - strtotime($notification['created_at']);
+                                    if ($time_diff < 60) {
+                                        echo "Just now";
+                                    } elseif ($time_diff < 3600) {
+                                        echo floor($time_diff / 60) . " min ago";
+                                    } elseif ($time_diff < 86400) {
+                                        echo floor($time_diff / 3600) . " hrs ago";
+                                    } else {
+                                        echo floor($time_diff / 86400) . " days ago";
+                                    }
+                                ?>
+                            </div>
+                        </div>
+                        <button class="mark-read" onclick="markAsRead(<?php echo $notification['id']; ?>)">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
-                </div>
-            </div>
-            <div class="user-section">
-                <div class="notification-bell">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-count">3</span>
-                </div>
+                <?php endforeach; ?>
+                
+                <?php if ($notification_count > count($notifications)): ?>
+                    <a href="all_notifications.php" class="view-all-notifications">
+                        View all notifications (<?php echo $notification_count; ?>)
+                    </a>
+                <?php endif; ?>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+
                 <div class="user-profile">
-                    <div class="user-avatar"><?php echo strtoupper(substr($_SESSION['user_name'], 0, 1)); ?></div>
+                    <div class="user-avatar">
+                        <?php echo isset($_SESSION['username']) ? substr($_SESSION['username'], 0, 1) : 'U'; ?>
+                    </div>
                     <div class="user-info">
-                        <?php echo htmlspecialchars($_SESSION['user_name']); ?><br>
-                        <span class="role"><?php echo htmlspecialchars($_SESSION['user_role']); ?></span>
+                        <?php echo isset($_SESSION['username']) ? $_SESSION['username'] : 'User'; ?><br>
+                        <span class="role"><?php echo isset($_SESSION['role_name']) ? $_SESSION['role_name'] : 'User'; ?></span>
                     </div>
                 </div>
             </div>
         </div>
 
+
         <div class="search-bar">
-            <input type="text" placeholder="Search for students, exams, or courses..." aria-label="Search">
+            <input type="text" placeholder="Search..." aria-label="Search">
         </div>
 
         <div class="tabs-container">

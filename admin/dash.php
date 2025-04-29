@@ -200,7 +200,7 @@ if ($result) {
             "Building futures, one lesson at a time",
             "Today is a great day to learn something new!",
             "Where skills meet innovation",
-            "Excellence in education since 2010",
+            "Excellence in education since 2007",
             "Together, we grow"
         ];
         
@@ -575,18 +575,7 @@ if ($result) {
 
     <script>
 
-        // Display current date and time
-        function updateDateTime() {
-            const now = new Date();
-            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', dateOptions);
-            
-            const timeOptions = { hour: '2-digit', minute: '2-digit' };
-            document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', timeOptions);
-        }
-        
-        updateDateTime();
-        setInterval(updateDateTime, 60000); // Update every minute
+     
 
         // Function to show different sections
         function showSection(sectionId) {
