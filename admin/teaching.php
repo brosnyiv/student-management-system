@@ -25,12 +25,12 @@ if ($result) {
 
 //fetch data from departments table
 $sql = "SELECT * FROM departments";
-$result_departmnet = mysqli_query($conn, $sql);
-// if ($result) {
-//     $departments = mysqli_fetch_all($result, MYSQLI_ASSOC);
-// } else {
-//     echo "Error: " . mysqli_error($conn);
-// }
+$result = mysqli_query($conn, $sql);
+if ($result) {
+    $departments = mysqli_fetch_all($result, MYSQLI_ASSOC);
+} else {
+    echo "Error: " . mysqli_error($conn);
+}
 
 
 // Initialize all variables in one line
@@ -51,8 +51,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
     $role_name = filter_input(INPUT_POST, 'role_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $access_level = filter_input(INPUT_POST, 'access_level', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    $password_hash = filter_input(INPUT_POST, 'password_hash', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $password = filter_input(INPUT_POST, 'password_hash', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $confirmPassword = filter_input(INPUT_POST, 'confirmPassword', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+
     
     //staff table
     $full_name = filter_input(INPUT_POST, 'full_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
@@ -103,12 +104,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 
 //first insert into users table, the username,email, role, access level and password id the password hash is the same as confirm password.
-if($password_hash==$confirmPassword){
-    $sql="insert into users(suernem,email,password_hash,role_id,access_level) values('$username','$email','$password_hash','$role_name','$access_level')";
-    $result=mysqli_query($conn,$sql);
+if($password==$confirmPassword){
+    $password_hash= sha1($password);
+    $sql="insert into users(suername,email,password_hash,role_id,access_level) values('$username','$email','$password_hash','$role_name','$access_level')";
+    $userstable=mysqli_query($conn,$sql);
+
+    if( $userstable){
+
+        $sql2="insert into staff() values()";
+    }
+
 }
-
-
 
 }
 
@@ -165,18 +171,18 @@ if($password_hash==$confirmPassword){
                     <div class="form-row">
                         <div class="form-group">
                             <label for="username" class="required">Username</label>
-                            <input type="text" id="username" name="username" required>
+                            <input type="text" id="username" name="username">
                             <div class="help-text">Will be used for logging into the system</div>
                         </div>
                         
                         <div class="form-group">
                             <label for="email" class="required">Email Address</label>
-                            <input type="email" id="email" name="email" required>
+                            <input type="email" id="email" name="email">
                         </div>
 
                         <div class="form-group">
                             <label for="userRole">Role</label>
-                            <select id="userRole" name="role_name" required>
+                            <select id="userRole" name="role_name">
                                 <option value="">Select a role</option>
                                 <?php foreach($roles as $r): ?>
                                     <option value="<?= $r['role_id']; ?>"><?= htmlspecialchars($r['role_name']); ?></option>
@@ -197,13 +203,13 @@ if($password_hash==$confirmPassword){
                         </div>
                         <div class="form-group">
                             <label for="password" class="required">Password</label>
-                            <input type="password" id="password" name="password_hash" required>
+                            <input type="password" id="password" name="password_hash">
                             <div class="help-text">Must be at least 8 characters with numbers and special characters</div>
                         </div>
                         
                         <div class="form-group">
                             <label for="confirmPassword" class="required">Confirm Password</label>
-                            <input type="password" id="confirmPassword" name="confirmPassword" required>
+                            <input type="password" id="confirmPassword" name="confirmPassword">
                         </div>
                     </div>
                 </div>
@@ -318,13 +324,9 @@ if($password_hash==$confirmPassword){
                             <label for="department">Department</label>
                             <select id="department" name="department" required>
                                 <option value="">--Select a department--</option>
-                            <?php
-                                if($result_departmnet->num_rows>0){
-                                    while($row=$result_departmnet->fetch_row()){
-                                        echo"<option value='" . $row[0] . "'>".htmlspecialchars($row[1]). "</option>";
-                                    }
-                                }
-                            ?>
+                                <?php foreach($roles as $r): ?>
+                                    <option value="<?= $r['department_id']; ?>"><?= htmlspecialchars($r['department_name']); ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
