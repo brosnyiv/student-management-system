@@ -1062,684 +1062,176 @@ select.filter-input {
         </div>
     </div>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js">
-
-    // Wait for the document to be fully loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // ===== DATE AND TIME DISPLAY =====
+<script>
+    // JavaScript for dynamic date and time display
     function updateDateTime() {
         const now = new Date();
-        
-        // Format date: e.g., "Monday, April 29, 2025"
-        const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', dateOptions);
-        
-        // Format time: e.g., "15:30:45"
-        const timeOptions = { hour: '2-digit', minute: '2-digit' };
-        document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', timeOptions);
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('currentDate').textContent = now.toLocaleDateString(undefined, options);
+        document.getElementById('currentTime').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
-    
-    // Update date and time immediately and then every second
+    setInterval(updateDateTime, 1000);
     updateDateTime();
-    setInterval(updateDateTime, 60000);
 
-    // ===== TAB SWITCHING =====
-    const tabs = document.querySelectorAll('.tabs .tab');
-    const tabContents = document.querySelectorAll('.tab-content');
-    
-    tabs.forEach((tab, index) => {
-        tab.addEventListener('click', () => {
-            // Remove active class from all tabs and contents
-            tabs.forEach(t => t.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
-            
-            // Add active class to clicked tab and corresponding content
-            tab.classList.add('active');
-            tabContents[index].classList.add('active');
-        });
-    });
-    
-    // ===== CHART INITIALIZATION =====
-    // Initialize Payment Status Pie Chart
-    initPaymentStatusChart();
-    
-    // Initialize Expense Categories Donut Chart
-    initExpenseCategoriesChart();
-    
-    // Initialize Line Chart for Fees Collection
-    initFeesCollectionChart();
-    
-    // ===== BUTTON EVENT LISTENERS =====
-    // Send Reminders Button
-    document.getElementById('sendReminders').addEventListener('click', function() {
-        alert('Reminders will be sent to all students with outstanding payments.');
-    });
-    
-    // Export to Excel Button
-    document.getElementById('exportExcel').addEventListener('click', function() {
-        exportToExcel();
-    });
-    
-    // Generate PDF Report Button
-    document.getElementById('generatePDF').addEventListener('click', function() {
-        generatePDFReport();
-    });
-    
-    // Individual Send Reminder Buttons
-    document.querySelectorAll('.send-reminder').forEach(button => {
-        button.addEventListener('click', function() {
-            const studentId = this.getAttribute('data-student-id');
-            sendIndividualReminder(studentId);
-        });
-    });
-    
-    // Record Payment Buttons
-    document.querySelectorAll('.record-payment').forEach(button => {
-        button.addEventListener('click', function() {
-            const invoiceId = this.getAttribute('data-invoice-id');
-            redirectToRecordPayment(invoiceId);
-        });
-    });
-    
-    // View Details Buttons
-    document.querySelectorAll('.view-details').forEach(button => {
-        button.addEventListener('click', function() {
-            const invoiceId = this.getAttribute('data-invoice-id');
-            viewInvoiceDetails(invoiceId);
-        });
-    });
-    
-    // View Receipt Buttons
-    document.querySelectorAll('.view-receipt').forEach(button => {
-        button.addEventListener('click', function() {
-            const paymentId = this.getAttribute('data-payment-id');
-            viewReceipt(paymentId);
-        });
-    });
-    
-    // Email Receipt Buttons
-    document.querySelectorAll('.email-receipt').forEach(button => {
-        button.addEventListener('click', function() {
-            const paymentId = this.getAttribute('data-payment-id');
-            emailReceipt(paymentId);
-        });
-    });
-    
-    // Edit Expense Buttons
-    document.querySelectorAll('.edit-expense').forEach(button => {
-        button.addEventListener('click', function() {
-            const expenseId = this.getAttribute('data-expense-id');
-            editExpense(expenseId);
-        });
-    });
-    
-    // Delete Expense Buttons
-    document.querySelectorAll('.delete-expense').forEach(button => {
-        button.addEventListener('click', function() {
-            const expenseId = this.getAttribute('data-expense-id');
-            deleteExpense(expenseId);
-        });
-    });
-    
-    // Filter form submissions
-    const filterInputs = document.querySelectorAll('#paymentFiltersForm select, #paymentFiltersForm input');
-    filterInputs.forEach(input => {
-        input.addEventListener('change', function() {
-            // Wait to see if user makes other changes
-            setTimeout(() => {
-                document.getElementById('paymentFiltersForm').submit();
-            }, 500);
-        });
-    });
-});
-
-// ===== CHART FUNCTIONS =====
-function initPaymentStatusChart() {
-    // Get data from PHP
-    const fullyPaid = parseInt(document.querySelector('.legend-item:nth-child(1) span').textContent.match(/\((\d+)%\)/)[1]);
-    const partiallyPaid = parseInt(document.querySelector('.legend-item:nth-child(2) span').textContent.match(/\((\d+)%\)/)[1]);
-    const notPaid = parseInt(document.querySelector('.legend-item:nth-child(3) span').textContent.match(/\((\d+)%\)/)[1]);
-    
-    // Create SVG pie chart
-    const pieChartContainer = document.getElementById('paymentStatusChart');
-    
-    // Calculate angles for pie slices
-    const total = fullyPaid + partiallyPaid + notPaid;
-    const fullyPaidAngle = (fullyPaid / total) * 360;
-    const partiallyPaidAngle = (partiallyPaid / total) * 360;
-    const notPaidAngle = (notPaid / total) * 360;
-    
-    // Create SVG elements for pie chart
-    const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("width", "100%");
-    svg.setAttribute("height", "200");
-    svg.setAttribute("viewBox", "0 0 200 200");
-    
-    const radius = 80;
-    const centerX = 100;
-    const centerY = 100;
-    
-    // Draw pie slices
-    let currentAngle = 0;
-    
-    // Fully Paid slice
-    if (fullyPaid > 0) {
-        const fullyPaidSlice = createPieSlice(centerX, centerY, radius, currentAngle, currentAngle + fullyPaidAngle, "#ff0303");
-        svg.appendChild(fullyPaidSlice);
-        currentAngle += fullyPaidAngle;
-    }
-    
-    // Partially Paid slice
-    if (partiallyPaid > 0) {
-        const partiallyPaidSlice = createPieSlice(centerX, centerY, radius, currentAngle, currentAngle + partiallyPaidAngle, "#ffc107");
-        svg.appendChild(partiallyPaidSlice);
-        currentAngle += partiallyPaidAngle;
-    }
-    
-    // Not Paid slice
-    if (notPaid > 0) {
-        const notPaidSlice = createPieSlice(centerX, centerY, radius, currentAngle, currentAngle + notPaidAngle, "#dc3545");
-        svg.appendChild(notPaidSlice);
-    }
-    
-    pieChartContainer.appendChild(svg);
-}
-
-function createPieSlice(cx, cy, r, startAngle, endAngle, fill) {
-    // Convert angles from degrees to radians
-    const startRad = (startAngle - 90) * Math.PI / 180;
-    const endRad = (endAngle - 90) * Math.PI / 180;
-    
-    // Calculate coordinates
-    const x1 = cx + r * Math.cos(startRad);
-    const y1 = cy + r * Math.sin(startRad);
-    const x2 = cx + r * Math.cos(endRad);
-    const y2 = cy + r * Math.sin(endRad);
-    
-    // Determine the large arc flag
-    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-    
-    // Create path for the slice
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    const d = [
-        "M", cx, cy,
-        "L", x1, y1,
-        "A", r, r, 0, largeArcFlag, 1, x2, y2,
-        "Z"
-    ].join(" ");
-    
-    path.setAttribute("d", d);
-    path.setAttribute("fill", fill);
-    path.setAttribute("stroke", "#fff");
-    path.setAttribute("stroke-width", "1");
-    
-    return path;
-}
-
-function initExpenseCategoriesChart() {
-    // Get all expense categories and their percentages
-    const legendItems = document.querySelectorAll('#expenseCategoriesChart + .chart-legend .legend-item');
-    const categories = [];
-    const percentages = [];
-    const colors = [];
-    
-    legendItems.forEach(item => {
-        const text = item.querySelector('span').textContent;
-        const category = text.substring(0, text.indexOf('(')).trim();
-        const percentage = parseInt(text.match(/\((\d+)%\)/)[1]);
-        const color = item.querySelector('.legend-color').style.backgroundColor;
-        
-        categories.push(category);
-        percentages.push(percentage);
-        colors.push(color);
-    });
-    
-    // Create SVG donut chart
-    const donutChartContainer = document.getElementById('expenseCategoriesChart');
-    
-    const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("width", "100%");
-    svg.setAttribute("height", "200");
-    svg.setAttribute("viewBox", "0 0 200 200");
-    
-    const outerRadius = 80;
-    const innerRadius = 40; // Hole in the donut
-    const centerX = 100;
-    const centerY = 100;
-    
-    // Draw donut slices
-    let currentAngle = 0;
-    
-    for (let i = 0; i < categories.length; i++) {
-        if (percentages[i] > 0) {
-            const angle = (percentages[i] / 100) * 360;
-            const slice = createDonutSlice(centerX, centerY, innerRadius, outerRadius, currentAngle, currentAngle + angle, colors[i]);
-            svg.appendChild(slice);
-            currentAngle += angle;
-        }
-    }
-    
-    // Add center circle for donut hole
-    const circle = document.createElementNS(svgNS, "circle");
-    circle.setAttribute("cx", centerX);
-    circle.setAttribute("cy", centerY);
-    circle.setAttribute("r", innerRadius);
-    circle.setAttribute("fill", "#fff");
-    svg.appendChild(circle);
-    
-    donutChartContainer.appendChild(svg);
-}
-
-function createDonutSlice(cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill) {
-    // Convert angles from degrees to radians
-    const startRad = (startAngle - 90) * Math.PI / 180;
-    const endRad = (endAngle - 90) * Math.PI / 180;
-    
-    // Calculate coordinates for outer arc
-    const x1 = cx + outerRadius * Math.cos(startRad);
-    const y1 = cy + outerRadius * Math.sin(startRad);
-    const x2 = cx + outerRadius * Math.cos(endRad);
-    const y2 = cy + outerRadius * Math.sin(endRad);
-    
-    // Calculate coordinates for inner arc
-    const x3 = cx + innerRadius * Math.cos(endRad);
-    const y3 = cy + innerRadius * Math.sin(endRad);
-    const x4 = cx + innerRadius * Math.cos(startRad);
-    const y4 = cy + innerRadius * Math.sin(startRad);
-    
-    // Determine the large arc flags
-    const outerLargeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-    const innerLargeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-    
-    // Create path for the donut slice
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    const d = [
-        "M", x1, y1,
-        "A", outerRadius, outerRadius, 0, outerLargeArcFlag, 1, x2, y2,
-        "L", x3, y3,
-        "A", innerRadius, innerRadius, 0, innerLargeArcFlag, 0, x4, y4,
-        "Z"
-    ].join(" ");
-    
-    path.setAttribute("d", d);
-    path.setAttribute("fill", fill);
-    path.setAttribute("stroke", "#fff");
-    path.setAttribute("stroke-width", "1");
-    
-    return path;
-}
-
-function initFeesCollectionChart() {
-    // Monthly income data from PHP bar chart
-    const barContainers = document.querySelectorAll('.bar-container');
-    const labels = [];
-    const incomeData = [];
-    const expenseData = [];
-    
-    barContainers.forEach(container => {
-        const label = container.querySelector('.bar-label').textContent;
-        // Calculate income from bar height (approximate since we're reversing the calculation)
-        const incomeBar = container.querySelector('.bar');
-        const expenseBar = container.querySelector('.expense-bar');
-        
-        // Extract height values and convert back to approximate dollar amounts
-        // Height was set as min(round(amount / 1000), 200)
-        const incomeHeight = parseInt(incomeBar.style.height);
-        const expenseHeight = parseInt(expenseBar.style.height);
-        
-        // Approximate dollar amounts (just for demonstration)
-        const income = incomeHeight * 1000;
-        const expense = expenseHeight * 1000;
-        
-        labels.push(label);
-        incomeData.push(income);
-        expenseData.push(expense);
-    });
-    
-    // Get Canvas context
-    const ctx = document.getElementById('feesCollectionChart').getContext('2d');
-    
-    // Create Line Chart
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Income',
-                data: incomeData,
-                borderColor: '#8B1818',
-                backgroundColor: 'rgba(139, 24, 24, 0.1)',
-                borderWidth: 2,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Amount ($)'
-                    }
-                }
-            }
-        }
-    });
-}
-
-// ===== ACTION FUNCTIONS =====
-function sendIndividualReminder(studentId) {
-    alert(`Payment reminder will be sent to student ID: ${studentId}`);
-    // In a real implementation, this would send an AJAX request to a PHP endpoint
-}
-
-function redirectToRecordPayment(invoiceId) {
-    window.location.href = `recipt.php?invoice_id=${invoiceId}`;
-}
-
-function viewInvoiceDetails(invoiceId) {
-    // In a real implementation, this could open a modal or redirect
-    alert(`Viewing details for invoice ID: ${invoiceId}`);
-}
-
-function viewReceipt(paymentId) {
-    window.open(`view_receipt.php?payment_id=${paymentId}`, '_blank');
-}
-
-function emailReceipt(paymentId) {
-    alert(`Receipt will be emailed for payment ID: ${paymentId}`);
-    // In a real implementation, this would send an AJAX request to a PHP endpoint
-}
-
-function editExpense(expenseId) {
-    window.location.href = `expenses.php?edit=${expenseId}`;
-}
-
-function deleteExpense(expenseId) {
-    if (confirm('Are you sure you want to delete this expense record?')) {
-        // In a real implementation, this would send an AJAX request to a PHP endpoint
-        alert(`Expense ID ${expenseId} will be deleted`);
-    }
-}
-
-function exportToExcel() {
-    alert('Exporting payment data to Excel...');
-    window.location.href = 'export_payments.php?format=excel';
-}
-
-function generatePDFReport() {
-    alert('Generating PDF report...');
-    window.open('generate_report.php?type=payments&format=pdf', '_blank');
-}
-
-// Helper function to get color for expense category
-function getColorForCategory(category) {
-    const colorMap = {
-        "Salaries": "#4e73df",
-        "Supplies": "#1cc88a",
-        "Utilities": "#36b9cc",
-        "Maintenance": "#f6c23e",
-        "Equipment": "#e74a3b",
-        "Events": "#fd7e14",
-        "Other": "#6c757d"
+    // JavaScript for weather widget (dummy data)
+    const weatherWidget = document.querySelector('.weather-widget');
+    const temperature = weatherWidget.querySelector('.temperature');
+    const weatherIcon = weatherWidget.querySelector('.weather-icon');
+    const weatherData = {
+        temperature: '26°C',
+        icon: 'fas fa-sun'
     };
-    
-    return colorMap[category] || "#8B1818"; // Default to school color
-}
-// Enhanced filter functionality
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize filter enhancement
-    enhanceFilters();
-    
-    // Add event listeners to filters
-    setupFilterEventListeners();
-    
-    // Display any currently active filters
-    displayActiveFilters();
-});
+    temperature.textContent = weatherData.temperature;
+    weatherIcon.className = 'fas ' + weatherData.icon + ' weather-icon';
 
-function enhanceFilters() {
-    // Add placeholder texts to dropdowns
-    document.getElementById('classFilter').setAttribute('placeholder', 'Select Class');
-    document.getElementById('termFilter').setAttribute('placeholder', 'Select Term');
-    document.getElementById('statusFilter').setAttribute('placeholder', 'Select Status');
-    
-    // Add titles for better accessibility
-    document.getElementById('classFilter').setAttribute('title', 'Filter by class');
-    document.getElementById('termFilter').setAttribute('title', 'Filter by term');
-    document.getElementById('statusFilter').setAttribute('title', 'Filter by payment status');
-    
-    // Create applied filters container if it doesn't exist
-    if (!document.querySelector('.applied-filters')) {
-        const filterRow = document.querySelector('.filter-row');
-        const filterForm = document.getElementById('paymentFiltersForm');
-        
-        const appliedFiltersDiv = document.createElement('div');
-        appliedFiltersDiv.className = 'applied-filters';
-        filterRow.insertBefore(appliedFiltersDiv, filterForm.nextSibling);
-        
-        const clearAllBtn = document.createElement('button');
-        clearAllBtn.className = 'clear-filters';
-        clearAllBtn.textContent = 'Clear all filters';
-        clearAllBtn.addEventListener('click', clearAllFilters);
-        appliedFiltersDiv.appendChild(clearAllBtn);
-    }
-}
+    // JavaScript for donut chart (dummy functionality)
+    const donutChart = document.querySelector('.donut-chart');
+    donutChart.style.width = '200px';
+    donutChart.style.height = '200px';
+    donutChart.style.borderRadius = '50%';
+    donutChart.style.background = 'conic-gradient(#28a745 0%, #28a745 60%, #ffc107 60%, #ffc107 85%, #dc3545 85%, #dc3545 100%)';
+    donutChart.style.position = 'relative';
+    donutChart.style.display = 'flex';
+    donutChart.style.alignItems = 'center';
+    donutChart.style.justifyContent = 'center';
+    donutChart.innerHTML = '<div style="width: 80px; height: 80px; border-radius: 50%; background-color: white; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold;">15%</div>';
+    donutChart.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+    donutChart.style.margin = '0 auto';
+    donutChart.style.padding = '20px';
+    donutChart.style.border = '2px solid #8B1818';
+    donutChart.style.borderRadius = '50%';
+    donutChart.style.transition = 'transform 0.3s ease-in-out';
+    donutChart.addEventListener('mouseover', () => {
+        donutChart.style.transform = 'scale(1.05)';
+    });
+    donutChart.addEventListener('mouseout', () => {
+        donutChart.style.transform = 'scale(1)';
+    });
 
-function setupFilterEventListeners() {
-    // Class filter
-    document.getElementById('classFilter').addEventListener('change', function() {
-        updateFilterBadges('class', this.options[this.selectedIndex].text, this.value);
+    // JavaScript for bar chart (dummy functionality)
+    const barChart = document.querySelector('.bar-chart');
+    barChart.style.display = 'flex';
+    barChart.style.justifyContent = 'space-between';
+    barChart.style.alignItems = 'flex-end';
+    barChart.style.height = '200px';
+    barChart.style.width = '100%';
+    barChart.style.position = 'relative';
+    barChart.style.backgroundColor = '#f8f9fa';
+    barChart.style.borderRadius = '10px';
+    barChart.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+    barChart.style.padding = '10px';
+    barChart.style.margin = '0 auto';
+    barChart.style.padding = '20px';
+    barChart.style.border = '2px solid #8B1818';
+    barChart.style.borderRadius = '10px';           
+    barChart.style.transition = 'transform 0.3s ease-in-out';
+    barChart.addEventListener('mouseover', () => {
+        barChart.style.transform = 'scale(1.05)';
+    }); 
+    barChart.addEventListener('mouseout', () => {
+        barChart.style.transform = 'scale(1)';
     });
-    
-    // Term filter
-    document.getElementById('termFilter').addEventListener('change', function() {
-        updateFilterBadges('term', this.options[this.selectedIndex].text, this.value);
-    });
-    
-    // Status filter
-    document.getElementById('statusFilter').addEventListener('change', function() {
-        updateFilterBadges('status', this.options[this.selectedIndex].text, this.value);
-    });
-    
-    // Search input - add debounce to avoid frequent submissions
-    let searchTimeout;
-    document.querySelector('.search-box').addEventListener('input', function() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            updateFilterBadges('search', this.value, this.value);
-        }, 500);
-    });
-}
 
-function updateFilterBadges(type, label, value) {
-    if (!value) {
-        // Remove filter badge if empty
-        removeFilterBadge(type);
-        return;
-    }
-    
-    const appliedFilters = document.querySelector('.applied-filters');
-    
-    // Remove existing badge of same type
-    removeFilterBadge(type);
-    
-    // Create new badge
-    if (type !== 'search' || value.trim() !== '') {
-        const badge = document.createElement('div');
-        badge.className = 'selected-filter-badge';
-        badge.dataset.filterType = type;
-        
-        let displayText = '';
-        switch(type) {
-            case 'class':
-                displayText = 'Class: ' + label;
-                break;
-            case 'term':
-                displayText = 'Term: ' + label;
-                break;
-            case 'status':
-                displayText = 'Status: ' + label;
-                break;
-            case 'search':
-                displayText = 'Search: ' + value;
-                break;
-        }
-        
-        badge.innerHTML = displayText + ' <i class="fas fa-times"></i>';
-        
-        // Add remove functionality
-        badge.querySelector('i').addEventListener('click', function() {
-            removeFilter(type);
+    // JavaScript for action icons (dummy functionality)    
+    const actionIcons = document.querySelectorAll('.action-icon');
+    actionIcons.forEach(icon => {
+        icon.addEventListener('click', () => {
+            const action = icon.classList.contains('edit') ? 'Edit' : 'View Details';
+            console.log(`${action} clicked`);
         });
-        
-        // Insert before clear all button
-        const clearButton = document.querySelector('.clear-filters');
-        appliedFilters.insertBefore(badge, clearButton);
-    }
-}
+    });
 
-function removeFilterBadge(type) {
-    const existingBadge = document.querySelector(`.selected-filter-badge[data-filter-type="${type}"]`);
-    if (existingBadge) {
-        existingBadge.remove();
-    }
-}
+    // JavaScript for filter functionality (dummy data)
+    const filterButton = document.querySelector('.action-button');
+    filterButton.addEventListener('click', () => {
+        const classFilter = document.getElementById('classFilter').value;
+        const termFilter = document.getElementById('termFilter').value;
+        const statusFilter = document.getElementById('statusFilter').value;
+        const searchInput = document.querySelector('.search-box').value.toLowerCase();
+        console.log(`Filters applied: Class - ${classFilter}, Term - ${termFilter}, Status - ${statusFilter}, Search - ${searchInput}`);
+    });
 
-function removeFilter(type) {
-    // Reset the corresponding form element
-    switch(type) {
-        case 'class':
-            document.getElementById('classFilter').value = '';
-            break;
-        case 'term':
-            document.getElementById('termFilter').value = '';
-            break;
-        case 'status':
-            document.getElementById('statusFilter').value = '';
-            break;
-        case 'search':
-            document.querySelector('.search-box').value = '';
-            break;
-    }
-    
-    // Remove the badge
-    removeFilterBadge(type);
-    
-    // Submit the form to update results
-    document.getElementById('paymentFiltersForm').submit();
-}
+    // JavaScript for search box (dummy functionality)
+    const searchBox = document.querySelector('.search-box');
+    searchBox.addEventListener('input', () => {
+        const query = searchBox.value.toLowerCase();
+        console.log(`Searching for: ${query}`);
+    });
 
-function clearAllFilters() {
-    // Reset all form elements
-    document.getElementById('classFilter').value = '';
-    document.getElementById('termFilter').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.querySelector('.search-box').value = '';
-    
-    // Remove all badges
-    const badges = document.querySelectorAll('.selected-filter-badge');
-    badges.forEach(badge => badge.remove());
-    
-    // Submit the form to update results
-    document.getElementById('paymentFiltersForm').submit();
-}
+    // JavaScript for pagination (dummy functionality)
+    const paginationButtons = document.querySelectorAll('.pagination-button');
+    paginationButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const page = button.textContent;
+            console.log(`Page ${page} clicked`);
+        });
+    });
 
-function displayActiveFilters() {
-    // Get current URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    // Check for class filter
-    const classFilter = urlParams.get('classFilter');
-    if (classFilter) {
-        const select = document.getElementById('classFilter');
-        const selectedOption = select.options[select.selectedIndex];
-        if (selectedOption) {
-            updateFilterBadges('class', selectedOption.text, classFilter);
-        }
-    }
-    
-    // Check for term filter
-    const termFilter = urlParams.get('termFilter');
-    if (termFilter) {
-        const select = document.getElementById('termFilter');
-        const selectedOption = select.options[select.selectedIndex];
-        if (selectedOption) {
-            updateFilterBadges('term', selectedOption.text, termFilter);
-        }
-    }
-    
-    // Check for status filter
-    const statusFilter = urlParams.get('statusFilter');
-    if (statusFilter) {
-        const select = document.getElementById('statusFilter');
-        const selectedOption = select.options[select.selectedIndex];
-        if (selectedOption) {
-            updateFilterBadges('status', selectedOption.text, statusFilter);
-        }
-    }
-    
-    // Check for search query
-    const searchQuery = urlParams.get('search');
-    if (searchQuery) {
-        updateFilterBadges('search', searchQuery, searchQuery);
-    }
-}
+    // Consolidated tab functionality
+    document.addEventListener("DOMContentLoaded", () => {
+        const tabs = document.querySelectorAll(".tab");
+        const tabContents = document.querySelectorAll(".tab-content");
 
-// Add custom styling to dropdowns based on selection
-function styleDropdowns() {
-    // Get all filter dropdowns
-    const dropdowns = document.querySelectorAll('.filter-input');
-    
-    dropdowns.forEach(dropdown => {
-        // Add selected class when option is chosen
-        dropdown.addEventListener('change', function() {
-            if (this.value) {
-                this.classList.add('filter-selected');
-            } else {
-                this.classList.remove('filter-selected');
+        // Add click event listeners to all tabs
+        tabs.forEach((tab, index) => {
+            tab.addEventListener("click", () => {
+                // Remove the active class from all tabs and hide all tab contents
+                tabs.forEach(t => t.classList.remove("active"));
+                tabContents.forEach(content => content.style.display = "none");
+
+                // Add the active class to the clicked tab and show the corresponding content
+                tab.classList.add("active");
+                tabContents[index].style.display = "block";
+
+                // If "Payment History" tab is clicked, load the history data
+                if (tab.textContent.trim() === "Payment History") {
+                    loadPaymentHistory();
+                }
+            });
+        });
+
+        // Function to load payment history data
+        function loadPaymentHistory() {
+            const paymentHistoryContent = document.querySelector(".tab-content:nth-child(2)");
+            if (paymentHistoryContent) {
+                paymentHistoryContent.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Student Name</th>
+                                <th>Amount Paid</th>
+                                <th>Payment Method</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>April 10, 2025</td>
+                                <td>Michael Johnson</td>
+                                <td>$1,200</td>
+                                <td>Credit Card</td>
+                            </tr>
+                            <tr>
+                                <td>April 12, 2025</td>
+                                <td>Sarah Smith</td>
+                                <td>$800</td>
+                                <td>Bank Transfer</td>
+                            </tr>
+                            <tr>
+                                <td>April 13, 2025</td>
+                                <td>Emily Davis</td>
+                                <td>$1,500</td>
+                                <td>Cash</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
             }
-        });
-        
-        // Check initial state
-        if (dropdown.value) {
-            dropdown.classList.add('filter-selected');
         }
-    });
-    
-    // Add special styling for status dropdown
-    const statusDropdown = document.getElementById('statusFilter');
-    statusDropdown.addEventListener('change', function() {
-        // Remove all status classes
-        this.classList.remove('status-overdue', 'status-partial', 'status-unpaid');
-        
-        // Add appropriate class based on selection
-        if (this.value === 'Overdue') {
-            this.classList.add('status-overdue');
-        } else if (this.value === 'Partially Paid') {
-            this.classList.add('status-partial');
-        } else if (this.value === 'Not Paid') {
-            this.classList.add('status-unpaid');
-        }
-    });
-    
-    // Initialize status styling
-    if (statusDropdown.value === 'Overdue') {
-        statusDropdown.classList.add('status-overdue');
-    } else if (statusDropdown.value === 'Partially Paid') {
-        statusDropdown.classList.add('status-partial');
-    } else if (statusDropdown.value === 'Not Paid') {
-        statusDropdown.classList.add('status-unpaid');
-    }
-}
 
-// Call this function after DOM is loaded
-document.addEventListener('DOMContentLoaded', styleDropdowns);
-
+        // Initialize by showing the first tab content
+        tabs[0].click();
+    });
 </script>
 </body>
 </html>
