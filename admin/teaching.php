@@ -25,12 +25,12 @@ if ($result) {
 
 //fetch data from departments table
 $sql = "SELECT * FROM departments";
-$result = mysqli_query($conn, $sql);
-if ($result) {
-    $departments = mysqli_fetch_all($result, MYSQLI_ASSOC);
-} else {
-    echo "Error: " . mysqli_error($conn);
-}
+$result_departmnet = mysqli_query($conn, $sql);
+// if ($result) {
+//     $departments = mysqli_fetch_all($result, MYSQLI_ASSOC);
+// } else {
+//     echo "Error: " . mysqli_error($conn);
+// }
 
 
 // Initialize all variables in one line
@@ -45,7 +45,7 @@ $terms_consent = $data_consent = $update_consent = $digital_signature = $digital
 
 // Get and sanitize form values if submitted
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Account Setup
+    // users table
     $staff_type = filter_input(INPUT_POST, 'staff_type', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
@@ -54,18 +54,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $password_hash = filter_input(INPUT_POST, 'password_hash', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $confirmPassword = filter_input(INPUT_POST, 'confirmPassword', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     
-    // Personal Details
+    //staff table
     $full_name = filter_input(INPUT_POST, 'full_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $date_of_birth = filter_input(INPUT_POST, 'date_of_birth', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $gender = filter_input(INPUT_POST, 'gender', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $marital_status = filter_input(INPUT_POST, 'marital_status', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $national_id = filter_input(INPUT_POST, 'national_id', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $profile_photo_path = filter_input(INPUT_POST, 'profile_photo_path', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    
-    // Contact Information
     $phone_number = filter_input(INPUT_POST, 'phone_number', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $personal_email = filter_input(INPUT_POST, 'personal_email', FILTER_SANITIZE_EMAIL);
     $residential_address = filter_input(INPUT_POST, 'residential_address', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $staff_number = filter_input(INPUT_POST, 'staff_number', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     
     // Academic Qualifications
     $degree = filter_input(INPUT_POST, 'degree', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
@@ -75,7 +74,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $certification_path = filter_input(INPUT_POST, 'certification_path', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     
     // Employment Information
-    $staff_number = filter_input(INPUT_POST, 'staff_number', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $designation = filter_input(INPUT_POST, 'designation', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $hire_date = filter_input(INPUT_POST, 'hire_date', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $employment_type = filter_input(INPUT_POST, 'employment_type', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
@@ -152,7 +150,7 @@ if($password_hash==$confirmPassword){
                 <div class="step">4</div>
             </div>
             
-            <form id="staffRegistrationForm" action="" method="POST">
+            <form id="staffRegistrationForm" action="<?php ?>" method="POST">
                 <!-- Hidden field for staff type -->
                 <input type="hidden" id="staff_type" name="staff_type" value="teaching">
                 
@@ -162,7 +160,8 @@ if($password_hash==$confirmPassword){
                         <div class="section-icon">🔐</div>
                         <div class="section-title">Account Setup</div>
                     </div>
-                    
+
+            <!-- users table insert -->
                     <div class="form-row">
                         <div class="form-group">
                             <label for="username" class="required">Username</label>
@@ -179,14 +178,13 @@ if($password_hash==$confirmPassword){
                             <label for="userRole">Role</label>
                             <select id="userRole" name="role_name" required>
                                 <option value="">Select a role</option>
-                                <option value="1">Professor</option>
-                                <option value="2">Assistant Professor</option>
-                                <option value="3">Lecturer</option>
-                                <option value="4">Teaching Assistant</option>
+                                <?php foreach($roles as $r): ?>
+                                    <option value="<?= $r['role_id']; ?>"><?= htmlspecialchars($r['role_name']); ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
-                    
+                
                     <div class="form-row">
                         <div class="form-group">
                             <label for="userStatus">Access Level</label>
@@ -209,8 +207,11 @@ if($password_hash==$confirmPassword){
                         </div>
                     </div>
                 </div>
-                
-                <!-- Personal Details Section -->
+            <!-- users table insert ends here-->
+            
+            <!-- staff table insert starts here -->
+
+                <!--Personal Details Section -->
                 <div class="form-section">
                     <div class="section-header">
                         <div class="section-icon">🧑‍🏫</div>
@@ -298,7 +299,88 @@ if($password_hash==$confirmPassword){
                         </div>
                     </div>
                 </div>
-                
+
+                <!-- Employment Information Section -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon">💼</div>
+                        <div class="section-title">4. Employment Information</div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="staff_number">Staff ID/Employee Number</label>
+                            <input type="text" id="staff_number" name="staff_number">
+                            <div class="help-text">If already assigned</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="department">Department</label>
+                            <select id="department" name="department" required>
+                                <option value="">--Select a department--</option>
+                            <?php
+                                if($result_departmnet->num_rows>0){
+                                    while($row=$result_departmnet->fetch_row()){
+                                        echo"<option value='" . $row[0] . "'>".htmlspecialchars($row[1]). "</option>";
+                                    }
+                                }
+                            ?>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="designation" class="required">Designation</label>
+                            <select id="designation" name="designation" required>
+                                <option value="">Select Designation</option>
+                                <option value="lecturer">Lecturer</option>
+                                <option value="assistant-professor">Assistant Professor</option>
+                                <option value="associate-professor">Associate Professor</option>
+                                <option value="professor">Professor</option>
+                                <option value="hod">Head of Department</option>
+                                <option value="dean">Dean</option>
+                                <option value="teacher">Teacher</option>
+                                <option value="instructor">Instructor</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="hire_date" class="required">Date of Hire</label>
+                            <input type="date" id="hire_date" name="hire_date" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="employment_type" class="required">Employment Type</label>
+                            <select id="employment_type" name="employment_type" required>
+                                <option value="">Select Type</option>
+                                <option value="full-time">Full-time</option>
+                                <option value="part-time">Part-time</option>
+                                <option value="visiting">Visiting</option>
+                                <option value="contract">Contract</option>
+                                <option value="temporary">Temporary</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="supervisor">Supervisor/Department Head</label><!-- to be deleted -->
+                            <input type="text" id="supervisor" name="supervisor">
+                        </div>
+                    </div>
+
+                    <div id="employment-additional-fields"></div>
+                    
+                    <button type="button" class="add-row-btn" id="addEmploymentField">
+                        <i>+</i> Add New Field
+                    </button>
+                </div>
+                <!-- staff table data ends here -->
+
+                <!-- staff qualifications table starts here -->
+
                 <!-- Academic Qualifications Section -->
                 <div class="form-section">
                     <div class="section-header">
@@ -352,85 +434,9 @@ if($password_hash==$confirmPassword){
                         <i>+</i> Add Another Qualification
                     </button>
                 </div>
-                
-                <!-- Employment Information Section -->
-                <div class="form-section">
-                    <div class="section-header">
-                        <div class="section-icon">💼</div>
-                        <div class="section-title">4. Employment Information</div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="staff_number">Staff ID/Employee Number</label>
-                            <input type="text" id="staff_number" name="staff_number">
-                            <div class="help-text">If already assigned</div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="department">Department</label>
-                            <select id="department" name="department" required>
-                                <option value="">Select a department</option>
-                                <option value="1">Mathematics</option>
-                                <option value="2">Computer Science</option>
-                                <option value="3">English</option>
-                                <option value="4">History</option>
-                                <option value="5">Biology</option>
-                                <option value="6">Physics</option>
-                                <option value="7">Chemistry</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="designation" class="required">Designation</label>
-                            <select id="designation" name="designation" required>
-                                <option value="">Select Designation</option>
-                                <option value="lecturer">Lecturer</option>
-                                <option value="assistant-professor">Assistant Professor</option>
-                                <option value="associate-professor">Associate Professor</option>
-                                <option value="professor">Professor</option>
-                                <option value="hod">Head of Department</option>
-                                <option value="dean">Dean</option>
-                                <option value="teacher">Teacher</option>
-                                <option value="instructor">Instructor</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="hire_date" class="required">Date of Hire</label>
-                            <input type="date" id="hire_date" name="hire_date" required>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="employment_type" class="required">Employment Type</label>
-                            <select id="employment_type" name="employment_type" required>
-                                <option value="">Select Type</option>
-                                <option value="full-time">Full-time</option>
-                                <option value="part-time">Part-time</option>
-                                <option value="visiting">Visiting</option>
-                                <option value="contract">Contract</option>
-                                <option value="temporary">Temporary</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="supervisor">Supervisor/Department Head</label>
-                            <input type="text" id="supervisor" name="supervisor">
-                        </div>
-                    </div>
-                    
-                    <div id="employment-additional-fields"></div>
-                    
-                    <button type="button" class="add-row-btn" id="addEmploymentField">
-                        <i>+</i> Add New Field
-                    </button>
-                </div>
-                
+                <!-- staff qualifications table ends here -->
+
+            <!--teaching_staff table starts here  -->                
                 <!-- Teaching Load & Timetable Section -->
                 <div class="form-section">
                     <div class="section-header">
@@ -464,7 +470,9 @@ if($password_hash==$confirmPassword){
                         </div>
                     </div>
                 </div>
-                
+            <!--teaching_staff table ends here  -->
+
+            <!-- bank details table starts here -->
                 <!-- Payroll & Bank Details Section -->
                 <div class="form-section">
                     <div class="section-header">
@@ -514,7 +522,9 @@ if($password_hash==$confirmPassword){
                         </div>
                     </div>
                 </div>
-                
+            <!-- bank details table ends here -->
+            
+            <!-- staff documents table starts here -->
                 <!-- Document Uploads Section -->
                 <div class="form-section">
                     <div class="section-header">
@@ -571,8 +581,10 @@ if($password_hash==$confirmPassword){
                         <i>+</i> Add Another Document
                     </button>
                 </div>
+            <!-- staff documents table ends here -->
                 
-                <!-- Consent & Declaration Section -->
+            <!-- staff consents tabe starts here -->
+            <!-- Consent & Declaration Section -->
                 <div class="form-section">
                     <div class="section-header">
                         <div class="section-icon">✓</div>
@@ -615,6 +627,7 @@ if($password_hash==$confirmPassword){
                         </div>
                     </div>
                 </div>
+            <!-- staff consents table ends here -->
                 
                 <!-- Submit Buttons -->
                 <div class="action-row">
