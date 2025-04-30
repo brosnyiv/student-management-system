@@ -1168,9 +1168,9 @@ select.filter-input {
     });
 
     // Consolidated tab functionality
-    document.addEventListener("DOMContentLoaded", () => {
+    document.addEventListener("DOMContentLoaded"), () => {
         const tabs = document.querySelectorAll(".tab");
-        const tabContents = document.querySelectorAll(".tab-content");
+        const tabContents = document.querySelectorAll(".tab-content")};
 
         // Add click event listeners to all tabs
         tabs.forEach((tab, index) => {
@@ -1190,7 +1190,7 @@ select.filter-input {
             });
         });
 
-        // Function to load payment history data
+       /*  // Function to load payment history data
         function loadPaymentHistory() {
             const paymentHistoryContent = document.querySelector(".tab-content:nth-child(2)");
             if (paymentHistoryContent) {
@@ -1231,7 +1231,7 @@ select.filter-input {
 
         // Initialize by showing the first tab content
         tabs[0].click();
-    });
+    }); */
 </script>
 </body>
 </html>
