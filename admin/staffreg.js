@@ -126,54 +126,54 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Handle file uploads with better error handling
-    function setupFileUpload(uploadEl, inputEl) {
-        if (!uploadEl || !inputEl) return;
+    // function setupFileUpload(uploadEl, inputEl) {
+    //     if (!uploadEl || !inputEl) return;
         
-        uploadEl.addEventListener('click', function() {
-            inputEl.click();
-        });
+    //     uploadEl.addEventListener('click', function() {
+    //         inputEl.click();
+    //     });
         
-        inputEl.addEventListener('change', function() {
-            if (this.files && this.files[0]) {
-                const file = this.files[0];
+    //     inputEl.addEventListener('change', function() {
+    //         if (this.files && this.files[0]) {
+    //             const file = this.files[0];
                 
-                // Validate file size
-                const maxSize = this.getAttribute('data-max-size') || 5 * 1024 * 1024; // Default 5MB
-                if (file.size > maxSize) {
-                    alert(`File is too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`);
-                    this.value = '';
-                    return;
-                }
+    //             // Validate file size
+    //             const maxSize = this.getAttribute('data-max-size') || 5 * 1024 * 1024; // Default 5MB
+    //             if (file.size > maxSize) {
+    //                 alert(`File is too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`);
+    //                 this.value = '';
+    //                 return;
+    //             }
                 
-                // Validate file type
-                const acceptedTypes = this.accept.split(',');
-                let isValidType = false;
-                for (let type of acceptedTypes) {
-                    if (file.type.match(type.replace('*', '.*')) || 
-                        file.name.endsWith(type.replace('.', '').trim())) {
-                        isValidType = true;
-                        break;
-                    }
-                }
+    //             // Validate file type
+    //             const acceptedTypes = this.accept.split(',');
+    //             let isValidType = false;
+    //             for (let type of acceptedTypes) {
+    //                 if (file.type.match(type.replace('*', '.*')) || 
+    //                     file.name.endsWith(type.replace('.', '').trim())) {
+    //                     isValidType = true;
+    //                     break;
+    //                 }
+    //             }
                 
-                if (!isValidType && this.accept) {
-                    alert(`Invalid file type. Please upload: ${this.accept}`);
-                    this.value = '';
-                    return;
-                }
+    //             if (!isValidType && this.accept) {
+    //                 alert(`Invalid file type. Please upload: ${this.accept}`);
+    //                 this.value = '';
+    //                 return;
+    //             }
                 
-                // Update UI
-                const fileName = file.name;
-                uploadEl.innerHTML = `
-                    <div class="upload-icon">✓</div>
-                    <div>${fileName}</div>
-                    <div class="help-text">File selected</div>
-                `;
-                uploadEl.classList.add('file-selected');
-                uploadEl.classList.remove('invalid');
-            }
-        });
-    }
+    //             // Update UI
+    //             const fileName = file.name;
+    //             uploadEl.innerHTML = `
+    //                 <div class="upload-icon">✓</div>
+    //                 <div>${fileName}</div>
+    //                 <div class="help-text">File selected</div>
+    //             `;
+    //             uploadEl.classList.add('file-selected');
+    //             uploadEl.classList.remove('invalid');
+    //         }
+    //     });
+    // }
     
     // Initialize all file uploads
     document.querySelectorAll('.image-upload').forEach(upload => {
@@ -330,119 +330,119 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Form submission with improved validation and error handling
-    const staffRegistrationForm = document.getElementById('staffRegistrationForm');
-    const saveAsDraftBtn = document.getElementById('saveAsDraft');
+    // const staffRegistrationForm = document.getElementById('staffRegistrationForm');
+    // const saveAsDraftBtn = document.getElementById('saveAsDraft');
 
-    if (staffRegistrationForm) {
-        staffRegistrationForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            console.log("Form submission triggered");
+    // if (staffRegistrationForm) {
+    //     staffRegistrationForm.addEventListener('submit', function(e) {
+    //         e.preventDefault();
+    //         console.log("Form submission triggered");
             
-            // Validate form before submission
-            const requiredFields = document.querySelectorAll('[required]');
-            let isValid = true;
-            let firstInvalidField = null;
+    //         // Validate form before submission
+    //         const requiredFields = document.querySelectorAll('[required]');
+    //         let isValid = true;
+    //         let firstInvalidField = null;
             
-            requiredFields.forEach(field => {
-                if (!field.value && field.type !== 'file' && field.type !== 'checkbox') {
-                    field.classList.add('invalid');
-                    isValid = false;
-                    if (!firstInvalidField) firstInvalidField = field;
-                    console.log("Invalid field:", field.id);
-                } else if (field.type === 'checkbox' && !field.checked) {
-                    field.classList.add('invalid');
-                    isValid = false;
-                    if (!firstInvalidField) firstInvalidField = field;
-                } else if (field.type === 'file' && !field.files.length) {
-                    field.parentElement.classList.add('invalid');
-                    isValid = false;
-                    if (!firstInvalidField) firstInvalidField = field;
-                } else {
-                    field.classList.remove('invalid');
-                    if (field.type === 'file') {
-                        field.parentElement.classList.remove('invalid');
-                    }
-                }
-            });
+    //         requiredFields.forEach(field => {
+    //             if (!field.value && field.type !== 'file' && field.type !== 'checkbox') {
+    //                 field.classList.add('invalid');
+    //                 isValid = false;
+    //                 if (!firstInvalidField) firstInvalidField = field;
+    //                 console.log("Invalid field:", field.id);
+    //             } else if (field.type === 'checkbox' && !field.checked) {
+    //                 field.classList.add('invalid');
+    //                 isValid = false;
+    //                 if (!firstInvalidField) firstInvalidField = field;
+    //             } else if (field.type === 'file' && !field.files.length) {
+    //                 field.parentElement.classList.add('invalid');
+    //                 isValid = false;
+    //                 if (!firstInvalidField) firstInvalidField = field;
+    //             } else {
+    //                 field.classList.remove('invalid');
+    //                 if (field.type === 'file') {
+    //                     field.parentElement.classList.remove('invalid');
+    //                 }
+    //             }
+    //         });
             
-            // Additional validation for password matching
-            const password = document.getElementById('password');
-            const confirmPassword = document.getElementById('confirmPassword');
-            if (password && confirmPassword && password.value !== confirmPassword.value) {
-                confirmPassword.classList.add('invalid');
-                isValid = false;
-                if (!firstInvalidField) firstInvalidField = confirmPassword;
-                alert('Passwords do not match!');
-            }
+    //         // Additional validation for password matching
+    //         const password = document.getElementById('password');
+    //         const confirmPassword = document.getElementById('confirmPassword');
+    //         if (password && confirmPassword && password.value !== confirmPassword.value) {
+    //             confirmPassword.classList.add('invalid');
+    //             isValid = false;
+    //             if (!firstInvalidField) firstInvalidField = confirmPassword;
+    //             alert('Passwords do not match!');
+    //         }
             
-            if (isValid) {
-                console.log("Form is valid, preparing to submit");
+    //         if (isValid) {
+    //             console.log("Form is valid, preparing to submit");
                 
-                // Disable submit button to prevent multiple submissions
-                const submitBtn = document.getElementById('submitForm');
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.textContent = 'Submitting...';
-                }
+    //             // Disable submit button to prevent multiple submissions
+    //             const submitBtn = document.getElementById('submitForm');
+    //             if (submitBtn) {
+    //                 submitBtn.disabled = true;
+    //                 submitBtn.textContent = 'Submitting...';
+    //             }
                 
-                // Collect form data
-                const formData = new FormData(this);
+    //             // Collect form data
+    //             const formData = new FormData(this);
                 
-                // Log formData keys for debugging
-                for (let key of formData.keys()) {
-                    console.log("FormData includes key:", key);
-                }
+    //             // Log formData keys for debugging
+    //             for (let key of formData.keys()) {
+    //                 console.log("FormData includes key:", key);
+    //             }
                 
-                // Submit via AJAX with better error handling
-                fetch('submit_staff.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => {
-                    console.log("Response status:", response.status);
+    //             // Submit via AJAX with better error handling
+    //             fetch('submit_staff.php', {
+    //                 method: 'POST',
+    //                 body: formData
+    //             })
+    //             .then(response => {
+    //                 console.log("Response status:", response.status);
                     
-                    if (!response.ok) {
-                        throw new Error(`Server responded with status ${response.status}`);
-                    }
+    //                 if (!response.ok) {
+    //                     throw new Error(`Server responded with status ${response.status}`);
+    //                 }
                     
-                    return response.json();
-                })
-                .then(data => {
-                    console.log("Server response:", data);
-                    if (data.success) {
-                        alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
-                        // Redirect to confirmation page or clear form
-                        window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
-                    } else {
-                        alert('Error: ' + (data.message || 'Unknown error occurred'));
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.textContent = 'Submit Registration';
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while submitting the form: ' + error.message);
+    //                 return response.json();
+    //             })
+    //             .then(data => {
+    //                 console.log("Server response:", data);
+    //                 if (data.success) {
+    //                     alert('Registration submitted successfully! Staff ID: ' + data.staff_id);
+    //                     // Redirect to confirmation page or clear form
+    //                     window.location.href = 'confirmation.html?staff_id=' + data.staff_id;
+    //                 } else {
+    //                     alert('Error: ' + (data.message || 'Unknown error occurred'));
+    //                     if (submitBtn) {
+    //                         submitBtn.disabled = false;
+    //                         submitBtn.textContent = 'Submit Registration';
+    //                     }
+    //                 }
+    //             })
+    //             .catch(error => {
+    //                 console.error('Error:', error);
+    //                 alert('An error occurred while submitting the form: ' + error.message);
                     
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = 'Submit Registration';
-                    }
-                });
-            } else {
-                alert('Please fill in all required fields before submitting.');
+    //                 if (submitBtn) {
+    //                     submitBtn.disabled = false;
+    //                     submitBtn.textContent = 'Submit Registration';
+    //                 }
+    //             });
+    //         } else {
+    //             alert('Please fill in all required fields before submitting.');
                 
-                // Scroll to the first invalid field
-                if (firstInvalidField) {
-                    firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    setTimeout(() => {
-                        firstInvalidField.focus();
-                    }, 500);
-                }
-            }
-        });
-    }
+    //             // Scroll to the first invalid field
+    //             if (firstInvalidField) {
+    //                 firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    //                 setTimeout(() => {
+    //                     firstInvalidField.focus();
+    //                 }, 500);
+    //             }
+    //         }
+    //     });
+    // }
 
     // Save as draft functionality with localStorage
     if (saveAsDraftBtn) {
@@ -532,44 +532,44 @@ document.addEventListener('DOMContentLoaded', function() {
     const password = document.getElementById('password');
     const confirmPassword = document.getElementById('confirmPassword');
 
-    if (password && confirmPassword) {
-        // Validate password strength
-        password.addEventListener('input', function() {
-            const value = this.value;
-            const minLength = 8;
-            const hasNumber = /\d/.test(value);
-            const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(value);
+    // if (password && confirmPassword) {
+    //     // Validate password strength
+    //     password.addEventListener('input', function() {
+    //         const value = this.value;
+    //         const minLength = 8;
+    //         const hasNumber = /\d/.test(value);
+    //         const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(value);
             
-            let isStrong = value.length >= minLength && hasNumber && hasSpecial;
+    //         let isStrong = value.length >= minLength && hasNumber && hasSpecial;
             
-            if (!isStrong && value) {
-                this.classList.add('weak-password');
-                let message = 'Password must ';
-                let requirements = [];
+    //         if (!isStrong && value) {
+    //             this.classList.add('weak-password');
+    //             let message = 'Password must ';
+    //             let requirements = [];
                 
-                if (value.length < minLength) requirements.push(`be at least ${minLength} characters`);
-                if (!hasNumber) requirements.push('contain at least one number');
-                if (!hasSpecial) requirements.push('contain at least one special character');
+    //             if (value.length < minLength) requirements.push(`be at least ${minLength} characters`);
+    //             if (!hasNumber) requirements.push('contain at least one number');
+    //             if (!hasSpecial) requirements.push('contain at least one special character');
                 
-                message += requirements.join(', ');
-                this.setCustomValidity(message);
-            } else {
-                this.classList.remove('weak-password');
-                this.setCustomValidity('');
-            }
-        });
+    //             message += requirements.join(', ');
+    //             this.setCustomValidity(message);
+    //         } else {
+    //             this.classList.remove('weak-password');
+    //             this.setCustomValidity('');
+    //         }
+    //     });
         
         // Check if passwords match
-        confirmPassword.addEventListener('input', function() {
-            if (password.value !== this.value) {
-                this.setCustomValidity('Passwords do not match');
-                this.classList.add('invalid');
-            } else {
-                this.setCustomValidity('');
-                this.classList.remove('invalid');
-            }
+        // confirmPassword.addEventListener('input', function() {
+        //     if (password.value !== this.value) {
+        //         this.setCustomValidity('Passwords do not match');
+        //         this.classList.add('invalid');
+        //     } else {
+        //         this.setCustomValidity('');
+        //         this.classList.remove('invalid');
+        //     }
         });
-    }
+    // }
 
     // Initialize date fields with current date
     const today = new Date().toISOString().split('T')[0];
@@ -579,37 +579,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Add custom validation for email fields
-    const emailFields = document.querySelectorAll('input[type="email"]');
-    emailFields.forEach(field => {
-        field.addEventListener('input', function() {
-            const value = this.value;
-            const validEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    // const emailFields = document.querySelectorAll('input[type="email"]');
+    // emailFields.forEach(field => {
+    //     field.addEventListener('input', function() {
+    //         const value = this.value;
+    //         const validEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
             
-            if (value && !validEmailRegex.test(value)) {
-                this.setCustomValidity('Please enter a valid email address');
-                this.classList.add('invalid');
-            } else {
-                this.setCustomValidity('');
-                this.classList.remove('invalid');
-            }
-        });
-    });
+    //         if (value && !validEmailRegex.test(value)) {
+    //             this.setCustomValidity('Please enter a valid email address');
+    //             this.classList.add('invalid');
+    //         } else {
+    //             this.setCustomValidity('');
+    //             this.classList.remove('invalid');
+    //         }
+    //     });
+    // });
     
     // Add custom validation for phone number fields
-    const phoneFields = document.querySelectorAll('input[type="tel"]');
-    phoneFields.forEach(field => {
-        field.addEventListener('input', function() {
-            const value = this.value;
-            // Allow various phone formats with optional country codes
-            const validPhoneRegex = /^(\+?\d{1,4}[\s-]?)?\(?\d{3,4}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/;
+//     const phoneFields = document.querySelectorAll('input[type="tel"]');
+//     phoneFields.forEach(field => {
+//         field.addEventListener('input', function() {
+//             const value = this.value;
+//             // Allow various phone formats with optional country codes
+//             const validPhoneRegex = /^(\+?\d{1,4}[\s-]?)?\(?\d{3,4}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/;
             
-            if (value && !validPhoneRegex.test(value)) {
-                this.setCustomValidity('Please enter a valid phone number');
-                this.classList.add('invalid');
-            } else {
-                this.setCustomValidity('');
-                this.classList.remove('invalid');
-            }
-        });
-    });
-});
+//             if (value && !validPhoneRegex.test(value)) {
+//                 this.setCustomValidity('Please enter a valid phone number');
+//                 this.classList.add('invalid');
+//             } else {
+//                 this.setCustomValidity('');
+//                 this.classList.remove('invalid');
+//             }
+//         });
+//     });
+// });
