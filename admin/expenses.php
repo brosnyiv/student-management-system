@@ -13,7 +13,7 @@ if (empty($_SESSION['user_id'])) {
 // Function to safely escape and format inputs
 function clean_input($data) {
     global $conn;
-    $data = trim($data);
+    //$data = trim($data);
     $data = stripslashes($data);
     $data = htmlspecialchars($data);
     return mysqli_real_escape_string($conn, $data);
@@ -21,7 +21,7 @@ function clean_input($data) {
 
 // Handle form submission for adding expense
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_expense'])) {
-    $date = clean_input($_POST['date']);
+  $date = clean_input($_POST['date']);
     $amount = clean_input($_POST['expense_amount']);
     $category_id = clean_input($_POST['expense_category']);
     $status = clean_input($_POST['expense_status']);
@@ -31,8 +31,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_expense'])) {
     $staff_id = $_SESSION['user_id']; // Current logged-in user
     
     // Insert into expenses table
-    $insert_query = "INSERT INTO expenses (staff_id, category_id, department_id, da, amount, vendor, description, status, created_at) 
-                    VALUES ('$staff_id', '$category_id', '$department_id', '$da', '$amount', '$vendor', '$description', '$status', NOW())";
+    $insert_query = "INSERT INTO expenses (staff_id, category_id, department_id, date, amount, vendor, description, status, created_at) 
+                    VALUES ('$staff_id', '$category_id', '$department_id', '$date', '$amount', '$vendor', '$description', '$status', NOW())";
     
     if(mysqli_query($conn, $insert_query)) {
         $success_message = "Expense added successfully!";
@@ -211,7 +211,7 @@ if (mysqli_num_rows($result) > 0) {
 echo "Selected Category: " . htmlspecialchars($top_category);
 
 // Calculate summary data
-$summary_query = "SELECT 
+$summary_query = "SELECT
                     SUM(amount) as total_expenses,
                     (SELECT SUM(amount) FROM expenses WHERE MONTH(date) = MONTH(CURRENT_DATE()) AND YEAR(date) = YEAR(CURRENT_DATE()) AND staff_id = '" . $_SESSION['user_id'] . "') as month_expenses,
                     (SELECT c.name FROM expenses e
@@ -220,16 +220,18 @@ $summary_query = "SELECT
                      GROUP BY e.category_id
                      ORDER BY SUM(e.amount) DESC
                      LIMIT 1) as top_category
-                  FROM expenses 
+                  FROM expenses
                   WHERE staff_id = '" . $_SESSION['user_id'] . "'";
 $summary_result = mysqli_query($conn, $summary_query);
+
+// Only fetch the result once
 $summary = mysqli_fetch_assoc($summary_result);
 
 // Set default values if null
-$summary = mysqli_fetch_assoc($summary_result);
-$total_expenses = $summary['total_expenses'] ? $summary['total_expenses'] : 0;
-$month_expenses = $summary['month_expenses'] ? $summary['month_expenses'] : 0;
-// top_category is already set above
+$total_expenses = $summary['total_expenses'] ?? 0;
+$month_expenses = $summary['month_expenses'] ?? 0;
+$top_category = $summary['top_category'] ?? 'None';
+
 
 ?>
 
@@ -717,8 +719,8 @@ $month_expenses = $summary['month_expenses'] ? $summary['month_expenses'] : 0;
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="da" class="required-field">Date</label>
-                        <input type="date" id="da" name="da" required value="<?php echo date('Y-m-d'); ?>">
+                        <label for="date" class="required-field">Date</label>
+                        <input type="date" id="date" name="date" required value="<?php echo date('Y-m-d'); ?>">
                     </div>
                     <div class="form-group">
                         <label for="expense_amount" class="required-field">Amount (UGX)</label>
@@ -736,6 +738,7 @@ $month_expenses = $summary['month_expenses'] ? $summary['month_expenses'] : 0;
                             <?php endforeach; ?>
                         </select>
                     </div>
+
                     <div class="form-group">
                         <label for="expense_status">Status</label>
                         <select id="expense_status" name="expense_status">
@@ -780,16 +783,17 @@ $month_expenses = $summary['month_expenses'] ? $summary['month_expenses'] : 0;
                 <form method="GET" action="">
                     <div class="filters">
                         <div class="form-group">
-                            <label for="filter_category">Filter by Category</label>
-                            <select id="filter_category" name="filter_category" onchange="this.form.submit()">
-                                <option value="">All Categories</option>
+                             <div class="form-row">
+                        <div class="form-group">
+                            <label for="expense_category" class="required-field">Category</label>
+                            <select id="expense_category" name="expense_category" required>
+                                <option value="">Select category</option>
                                 <?php foreach($categories as $category): ?>
-                                    <option value="<?php echo $category['category_id']; ?>" <?php echo (isset($_GET['filter_category']) && $_GET['filter_category'] == $category['category_id']) ? 'selected' : ''; ?>>
-                                        <?php echo $category['name']; ?>
-                                    </option>
+                                    <option value="<?php echo $category['category_id']; ?>"><?php echo $category['name']; ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
+
                         <div class="form-group">
                             <label for="filter_status">Filter by Status</label>
                             <select id="filter_status" name="filter_status" onchange="this.form.submit()">
