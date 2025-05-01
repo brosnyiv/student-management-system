@@ -1,6 +1,12 @@
 <?php
+
+// staff register.php
+// staff_id 	user_id 	staff_type 	staff_number 	full_name 	date_of_birth 	gender 	marital_status 	national_id 	profile_photo_path 	phone_number 	
+// personal_email 	residential_address 	department_id 	designation 	hire_date 	employment_type 	supervisor 	created_at 	updated_at 	
+//fetch data from role table
 session_start();
 include 'dbconnect.php';
+
 
 // Check if user is not logged in
 if (empty($_SESSION['user_id'])) {
@@ -8,245 +14,263 @@ if (empty($_SESSION['user_id'])) {
     exit();
 }
 
-// Initialize variables
-$error = '';
-$success = '';
+$error=$success='';
 
-// Process form submission
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    try {
-        // Begin transaction
-        mysqli_begin_transaction($conn);
-        
-        // 1. Get user_id from session (assuming the user is already logged in)
-        $user_id = $_SESSION['user_id'];
-        
-        // 2. Insert into staff table
-        $full_name = mysqli_real_escape_string($conn, $_POST['full_name']);
-        $date_of_birth = mysqli_real_escape_string($conn, $_POST['date_of_birth']);
-        $gender = mysqli_real_escape_string($conn, $_POST['gender']);
-        $marital_status = mysqli_real_escape_string($conn, $_POST['marital_status']);
-        $national_id = mysqli_real_escape_string($conn, $_POST['national_id']);
-        $phone_number = mysqli_real_escape_string($conn, $_POST['phone_number']);
-        $personal_email = mysqli_real_escape_string($conn, $_POST['personal_email']);
-        $residential_address = mysqli_real_escape_string($conn, $_POST['residential_address']);
-        $department_id = intval($_POST['department']);
-        $designation = mysqli_real_escape_string($conn, $_POST['designation']);
-        $hire_date = mysqli_real_escape_string($conn, $_POST['hire_date']);
-        $employment_type = mysqli_real_escape_string($conn, $_POST['employment_type']);
-        $supervisor = isset($_POST['supervisor']) ? mysqli_real_escape_string($conn, $_POST['supervisor']) : null;
-        
-        // Handle profile photo upload
-        $profile_photo_path = '';
-        if (isset($_FILES['profile_photo_path']) && $_FILES['profile_photo_path']['error'] == UPLOAD_ERR_OK) {
-            $photo_name = basename($_FILES['profile_photo_path']['name']);
-            $photo_tmp = $_FILES['profile_photo_path']['tmp_name'];
-            $photo_ext = strtolower(pathinfo($photo_name, PATHINFO_EXTENSION));
-            $allowed_extensions = array('jpg', 'jpeg', 'png', 'gif');
-            
-            if (in_array($photo_ext, $allowed_extensions)) {
-                $new_photo_name = uniqid('profile_', true) . '.' . $photo_ext;
-                $upload_dir = 'uploads/staff/';
-                if (!file_exists($upload_dir)) {
-                    mkdir($upload_dir, 0777, true);
-                }
-                $profile_photo_path = $upload_dir . $new_photo_name;
-                
-                if (!move_uploaded_file($photo_tmp, $profile_photo_path)) {
-                    throw new Exception("Failed to upload profile photo");
-                }
-            } else {
-                throw new Exception("Invalid profile photo format. Only JPG, JPEG, PNG, GIF are allowed.");
-            }
-        }
-        
-        // Generate staff number
-        $nameletter = strtoupper(substr($full_name, 0, 1));
-        $random = rand(0, 1000);
-        $staff_number = 'ST' . $random . $nameletter;
-        
-        // Insert into staff table
-        $sql = "INSERT INTO staff (
-            user_id, staff_type, staff_number, full_name, date_of_birth, gender, 
-            marital_status, national_id, profile_photo_path, phone_number, 
-            personal_email, residential_address, department_id, designation, 
-            hire_date, employment_type, supervisor
-        ) VALUES (
-            '$user_id', 'non-teaching', '$staff_number', '$full_name', '$date_of_birth', '$gender', 
-            '$marital_status', '$national_id', '$profile_photo_path', '$phone_number', 
-            '$personal_email', '$residential_address', $department_id, '$designation', 
-            '$hire_date', '$employment_type', " . ($supervisor ? "'$supervisor'" : "NULL") . "
-        )";
-        
-        if (!mysqli_query($conn, $sql)) {
-            throw new Exception("Error inserting staff record: " . mysqli_error($conn));
-        }
-        
-        $staff_id = mysqli_insert_id($conn);
-        
-        // 3. Insert into non_teaching_staff table
-        $working_days = mysqli_real_escape_string($conn, $_POST['working_days']);
-        $working_hours = mysqli_real_escape_string($conn, $_POST['working_hours']);
-        $schedule_notes = isset($_POST['schedule_notes']) ? mysqli_real_escape_string($conn, $_POST['schedule_notes']) : null;
-        $work_area = isset($_POST['work_area']) ? mysqli_real_escape_string($conn, $_POST['work_area']) : null;
-        
-        $sql = "INSERT INTO non_teaching_staff (
-            staff_id, working_days, working_hours, schedule_notes, work_area
-        ) VALUES (
-            $staff_id, '$working_days', '$working_hours', " . 
-            ($schedule_notes ? "'$schedule_notes'" : "NULL") . ", " . 
-            ($work_area ? "'$work_area'" : "NULL") . "
-        )";
-        
-        if (!mysqli_query($conn, $sql)) {
-            throw new Exception("Error inserting non-teaching staff record: " . mysqli_error($conn));
-        }
-        
-        // 4. Insert academic qualifications
-        if (isset($_POST['degree']) && is_array($_POST['degree'])) {
-            for ($i = 0; $i < count($_POST['degree']); $i++) {
-                $degree = mysqli_real_escape_string($conn, $_POST['degree'][$i]);
-                $institution = mysqli_real_escape_string($conn, $_POST['institution'][$i]);
-                $major = mysqli_real_escape_string($conn, $_POST['major'][$i]);
-                $graduation_year = intval($_POST['graduation_year'][$i]);
-                
-                // Handle certificate file upload
-                $certificate_path = '';
-                if (isset($_FILES['certification_path']['name'][$i]) && $_FILES['certification_path']['error'][$i] == UPLOAD_ERR_OK) {
-                    $cert_name = basename($_FILES['certification_path']['name'][$i]);
-                    $cert_tmp = $_FILES['certification_path']['tmp_name'][$i];
-                    $cert_ext = strtolower(pathinfo($cert_name, PATHINFO_EXTENSION));
-                    $allowed_extensions = array('pdf', 'jpg', 'jpeg', 'png');
-                    
-                    if (in_array($cert_ext, $allowed_extensions)) {
-                        $new_cert_name = uniqid('cert_', true) . '.' . $cert_ext;
-                        $upload_dir = 'uploads/qualifications/';
-                        if (!file_exists($upload_dir)) {
-                            mkdir($upload_dir, 0777, true);
-                        }
-                        $certificate_path = $upload_dir . $new_cert_name;
-                        
-                        if (!move_uploaded_file($cert_tmp, $certificate_path)) {
-                            throw new Exception("Failed to upload certificate file");
-                        }
-                    } else {
-                        throw new Exception("Invalid certificate format. Only PDF, JPG, JPEG, PNG are allowed.");
-                    }
-                }
-                
-                $sql = "INSERT INTO staff_qualifications (
-                    staff_id, degree, institution, major, graduation_year, certificate_path
-                ) VALUES (
-                    $staff_id, '$degree', '$institution', '$major', $graduation_year, '$certificate_path'
-                )";
-                
-                if (!mysqli_query($conn, $sql)) {
-                    throw new Exception("Error inserting qualification record: " . mysqli_error($conn));
-                }
-            }
-        }
-        
-        // 5. Insert bank details
-        $bank_name = mysqli_real_escape_string($conn, $_POST['bank_name']);
-        $account_number = mysqli_real_escape_string($conn, $_POST['account_number']);
-        $tax_id = mysqli_real_escape_string($conn, $_POST['tax_id']);
-        $tin_number = mysqli_real_escape_string($conn, $_POST['tin_number']);
-        $salary_scale = mysqli_real_escape_string($conn, $_POST['salary_scale']);
-        $payment_frequency = mysqli_real_escape_string($conn, $_POST['payment_frequency']);
-        
-        $sql = "INSERT INTO bank_details (
-            staff_id, bank_name, account_number, tax_id, tin_number, salary_scale, payment_frequency
-        ) VALUES (
-            $staff_id, '$bank_name', '$account_number', '$tax_id', '$tin_number', '$salary_scale', '$payment_frequency'
-        )";
-        
-        if (!mysqli_query($conn, $sql)) {
-            throw new Exception("Error inserting bank details: " . mysqli_error($conn));
-        }
-        
-        // 6. Insert documents
-        if (isset($_POST['document_type']) && is_array($_POST['document_type'])) {
-            for ($i = 0; $i < count($_POST['document_type']); $i++) {
-                $document_type = mysqli_real_escape_string($conn, $_POST['document_type'][$i]);
-                $document_number = mysqli_real_escape_string($conn, $_POST['document_number'][$i]);
-                $expiry_date = !empty($_POST['expiry_date'][$i]) ? mysqli_real_escape_string($conn, $_POST['expiry_date'][$i]) : null;
-                $document_description = isset($_POST['document_description'][$i]) ? mysqli_real_escape_string($conn, $_POST['document_description'][$i]) : null;
-                
-                // Handle document file upload
-                $document_path = '';
-                if (isset($_FILES['document_path']['name'][$i]) && $_FILES['document_path']['error'][$i] == UPLOAD_ERR_OK) {
-                    $doc_name = basename($_FILES['document_path']['name'][$i]);
-                    $doc_tmp = $_FILES(['document_path']['tmp_name'][$i]);
-                    $doc_ext = strtolower(pathinfo($doc_name, PATHINFO_EXTENSION));
-                    $allowed_extensions = array('pdf', 'jpg', 'jpeg', 'png');
-                    
-                    if (in_array($doc_ext, $allowed_extensions)) {
-                        $new_doc_name = uniqid('doc_', true) . '.' . $doc_ext;
-                        $upload_dir = 'uploads/documents/';
-                        if (!file_exists($upload_dir)) {
-                            mkdir($upload_dir, 0777, true);
-                        }
-                        $document_path = $upload_dir . $new_doc_name;
-                        
-                        if (!move_uploaded_file($doc_tmp, $document_path)) {
-                            throw new Exception("Failed to upload document file");
-                        }
-                    } else {
-                        throw new Exception("Invalid document format. Only PDF, JPG, JPEG, PNG are allowed.");
-                    }
-                }
-                
-                $sql = "INSERT INTO staff_documents (
-                    staff_id, document_type, document_path, document_number, expiry_date, document_description
-                ) VALUES (
-                    $staff_id, '$document_type', '$document_path', '$document_number', " . 
-                    ($expiry_date ? "'$expiry_date'" : "NULL") . ", " . 
-                    ($document_description ? "'$document_description'" : "NULL") . "
-                )";
-                
-                if (!mysqli_query($conn, $sql)) {
-                    throw new Exception("Error inserting document record: " . mysqli_error($conn));
-                }
-            }
-        }
-        
-        // 7. Insert consents
-        $terms_consent = isset($_POST['terms_consent']) ? 1 : 0;
-        $data_consent = isset($_POST['data_consent']) ? 1 : 0;
-        $update_consent = isset($_POST['update_consent']) ? 1 : 0;
-        $digital_signature = mysqli_real_escape_string($conn, $_POST['digital_signature']);
-        $digital_date = mysqli_real_escape_string($conn, $_POST['digital_date']);
-        
-        $sql = "INSERT INTO staff_consents (
-            staff_id, terms_consent, data_consent, update_consent, digital_signature, signature_date
-        ) VALUES (
-            $staff_id, $terms_consent, $data_consent, $update_consent, '$digital_signature', '$digital_date'
-        )";
-        
-        if (!mysqli_query($conn, $sql)) {
-            throw new Exception("Error inserting consent record: " . mysqli_error($conn));
-        }
-        
-        // Commit transaction
-        mysqli_commit($conn);
-        $success = "Non-teaching staff registration completed successfully!";
-        
-    } catch (Exception $e) {
-        // Rollback transaction on error
-        mysqli_rollback($conn);
-        $error = "Error: " . $e->getMessage();
-    }
-}
-
-// Fetch departments for dropdown
-$departments = array();
-$sql = "SELECT department_id, department_name FROM departments";
+//fecth data from roles table
+$sql = "SELECT * FROM roles";
 $result = mysqli_query($conn, $sql);
 if ($result) {
-    while ($row = mysqli_fetch_assoc($result)) {
-        $departments[] = $row;
-    }
+    $roles = mysqli_fetch_all($result, MYSQLI_ASSOC);
+} else {
+    echo "Error: " . mysqli_error($conn);
 }
+
+//fetch data from departments table
+$sql = "SELECT * FROM departments";
+$result2 = mysqli_query($conn, $sql);
+if ($result2) {
+    $departments = mysqli_fetch_all($result2, MYSQLI_ASSOC);
+} else {
+    echo "Error: " . mysqli_error($conn);
+}
+
+
+// Initialize all variables in one line
+$staff_type = $username = $email = $role_name = $access_level = $password_hash = $confirmPassword = '';
+$full_name = $date_of_birth = $gender = $marital_status = $national_id = $profile_photo_path = '';
+$phone_number = $personal_email = $residential_address = $profile_photo_path = $department = '';
+$degree = $institution = $major = $graduation_year = $certification_path = '';
+$staff_number = $designation = $hire_date = $employment_type='';
+$bank_name = $account_number = $tax_id = $tin_number = $salary_scale = $payment_frequency = '';
+$document_path = $document_type = $document_number = $expiry_date = $document_description =$certification_path = '';
+$terms_consent = $data_consent = $update_consent = $digital_signature = $digital_date = '';
+$working_days =$working_hours=$schedule_notes=$work_area='';
+
+
+// Get and sanitize form values if submitted
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // users table
+    $staff_type ='non-teaching';
+    $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
+    $role_name = filter_input(INPUT_POST, 'role_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $access_level = filter_input(INPUT_POST, 'access_level', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $password = filter_input(INPUT_POST, 'password_hash', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $confirmPassword = filter_input(INPUT_POST, 'confirmPassword', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+
+    
+    //staff table
+    $fullname = filter_input(INPUT_POST, 'full_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $dob= filter_input(INPUT_POST, 'date_of_birth', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $gender = filter_input(INPUT_POST, 'gender', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $marital_status = filter_input(INPUT_POST, 'marital_status', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $national_id = filter_input(INPUT_POST, 'national_id', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $phone_number = filter_input(INPUT_POST, 'phone_number', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $personal_email = filter_input(INPUT_POST, 'personal_email', FILTER_SANITIZE_EMAIL);
+    $residential_address = filter_input(INPUT_POST, 'residential_address', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $department=filter_input(INPUT_POST, 'department', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $designation = filter_input(INPUT_POST, 'designation', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $hire_date = filter_input(INPUT_POST, 'hire_date', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $employment_type = filter_input(INPUT_POST, 'employment_type', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+
+
+    // Academic Qualifications
+    $degree = filter_input(INPUT_POST, 'degree', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $institution = filter_input(INPUT_POST, 'institution', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $major = filter_input(INPUT_POST, 'major', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $graduation_year = filter_input(INPUT_POST, 'graduation_year', FILTER_SANITIZE_NUMBER_INT);
+    $certification_path = filter_input(INPUT_POST, 'certification_path', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+
+    
+    // Payroll & Bank Details
+    $bank_name = filter_input(INPUT_POST, 'bank_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $account_number = filter_input(INPUT_POST, 'account_number', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $tax_id = filter_input(INPUT_POST, 'tax_id', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $tin_number = filter_input(INPUT_POST, 'tin_number', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $salary_scale = filter_input(INPUT_POST, 'salary_scale', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $payment_frequency = filter_input(INPUT_POST, 'payment_frequency', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    
+    // Document Uploads
+    $document_path = filter_input(INPUT_POST, 'document_path', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $document_type = filter_input(INPUT_POST, 'document_type', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $document_number = filter_input(INPUT_POST, 'document_number', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $expiry_date = filter_input(INPUT_POST, 'expiry_date', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $document_description = filter_input(INPUT_POST, 'document_description', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+
+
+    //working details
+    $working_days = filter_input(INPUT_POST, 'working_days', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $working_hours = filter_input(INPUT_POST, 'working_hours', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $schedule_notes = filter_input(INPUT_POST, 'schedule_notes', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $work_area = filter_input(INPUT_POST, 'work_area', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+
+    
+    // Consent & Declaration
+    $terms_consent = filter_input(INPUT_POST, 'terms_consent', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $data_consent = filter_input(INPUT_POST, 'data_consent', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $update_consent = filter_input(INPUT_POST, 'update_consent', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $digital_signature = filter_input(INPUT_POST, 'digital_signature', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $signature_date = filter_input(INPUT_POST, 'signature_date', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+ 
+
+     //first insert into users table, the username,email, role, access level and password id the password hash is the same as confirm password.
+    if($password==$confirmPassword){
+                $password_hash= sha1($password);
+                $sql="insert into users(username,email,password_hash,role_id,access_level) values('$username','$email','$password_hash','$role_name','$access_level')";
+                $userstable=mysqli_query($conn,$sql);
+
+            if( $userstable){
+                    $user_id = mysqli_insert_id($conn);
+
+                    //pick first letter from full name.
+                    $nameletter= substr($full_name, 0,1);
+                    //random variable
+                    $random= rand(0,1000);
+                    $staff_number=strtoupper('ST'.$random.$nameletter);
+            
+                    //handle documents submission.
+                    $photo_allowed_extensions = array('jpg', 'jpeg', 'png', 'pdf');
+                    $photo_name = $_FILES['profile_photo_path']['name'];
+                    $photo_size = $_FILES['profile_photo_path']['size']; 
+                    $photo_tmp = $_FILES['profile_photo_path']['tmp_name'];
+                    $photo_target_dir = "uploads/staff/${photo_name}";
+
+                    //file extension
+                    $photo_ext=explode('.', $photo_name);
+                    $photo_ext= strtolower(end($photo_ext));
+
+                    //check if file is an image
+                    if(in_array($photo_ext, $photo_allowed_extensions)){
+                        if($photo_size <= 5000000){
+                            //move file to target directory
+                            move_uploaded_file($photo_tmp, $photo_target_dir);
+                            //attache the file path to the database
+                            $profile_photo_path= mysqli_real_escape_string($conn, $photo_target_dir);
+                            // $certification_path= mysqli_real_escape_string($conn, $target_dir);
+                            // $document_path= mysqli_real_escape_string($conn, $target_dir);
+
+                           //insert into staff table
+                           $sql2="insert into staff(staff_type,user_id, staff_number, full_name, date_of_birth, gender, marital_status, national_id, profile_photo_path, phone_number, personal_email, residential_address, department_id,
+                           designation, hire_date,	employment_type) values('$staff_type','$user_id','$staff_number','$fullname','$dob','$gender','$marital_status','$national_id','$profile_photo_path','$phone_number','$personal_email','$residential_address','$department','$designation','$hire_date','$employment_type')";
+                           $stafftable=mysqli_query($conn,$sql2);
+
+                            if($stafftable){
+                            //get staff id
+                            $staff_id = mysqli_insert_id($conn);
+
+                            //insert into academic qualifications table
+
+                            //handle documents submission.
+                                $cert_allowed_extensions = array('pdf');
+            
+                                $cert_name = $_FILES['certification_path']['name'];
+                                $cert_size = $_FILES['certification_path']['size']; 
+                                $cert_tmp = $_FILES['certification_path']['tmp_name'];
+                                $cert_target_dir = "uploads/staff/${cert_name}";
+
+                                //file extension
+                                $cert_ext=explode('.', $cert_name);
+                                $cert_ext= strtolower(end($cert_ext));
+
+                                //check if file is a pdf
+                                if(in_array($cert_ext, $cert_allowed_extensions)){
+                                    if($cert_size <= 5000000){
+                                        //move file to target directory
+                                        move_uploaded_file($cert_tmp, $cert_target_dir);
+                                        //attache the file path to the database
+                                        $certification_path= mysqli_real_escape_string($conn, $cert_target_dir);
+                                        //insert into academic qualifications table
+                                        $sql3="insert into staff_qualifications(staff_id, degree, institution, major, graduation_year, certificate_path) values('$staff_id','$degree','$institution','$major','$graduation_year','$certification_path')";
+                                        $staff_qualifications=mysqli_query($conn,$sql3);
+                                    }else{
+                                        echo "<p style='color:red; font-weight:bold;'>File size too large </p>";
+                                    }
+                                }else{
+                                        echo "invalid file certification extension";
+                                }    
+                                                                  
+                                        //insert into non teaching staff table
+                                        $working_days = filter_input(INPUT_POST, 'working_days', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+                                        $working_hours= filter_input(INPUT_POST, 'working_hours', FILTER_SANITIZE_NUMBER_INT);
+                                        $schedule_notes= filter_input(INPUT_POST, 'schedule_notes', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+                                        $work_area= filter_input(INPUT_POST, 'work_area', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+                                        $sql4="insert into non_teaching_staff(staff_id, working_days, working_hours,schedule_notes, work_area) values('$staff_id','$working_days','$working_hours','$schedule_notes','$work_area')";
+                                        $non_teaching_staff=mysqli_query($conn,$sql4);
+ 
+                                        //insert into bank details table
+                                        $sql5="insert into bank_details(staff_id, bank_name, account_number, tax_id, tin_number, salary_scale, payment_frequency) values('$staff_id','$bank_name','$account_number','$tax_id','$tin_number','$salary_scale','$payment_frequency')";
+                                        $bank_details=mysqli_query($conn,$sql5);
+
+                                        //insert into documents table after accepting file
+                                            $allowed_extensions = array('pdf');
+                                 
+                                            $file_name = $_FILES['document_path']['name'];
+                                            $file_size = $_FILES['document_path']['size']; 
+                                            $file_tmp = $_FILES['document_path']['tmp_name'];
+                                            $target_dir = "uploads/staff/${file_name}";
+                                        
+                                            //file extension
+                                            $file_ext=explode('.', $file_name);
+                                            $file_ext= strtolower(end($file_ext));
+                                        
+                                            //check if file is a pdf
+                                            if(in_array($file_ext, $allowed_extensions)){
+                                                if($file_size <= 5000000){
+                                                    //move file to target directory
+                                                    move_uploaded_file($file_tmp, $target_dir);
+                                                    //attache the file path to the database
+                                                    $document_path= mysqli_real_escape_string($conn, $target_dir);
+
+                                                    //insert into documents table
+                                                    $sql6="insert into staff_documents(staff_id, document_path, document_type, document_number, expiry_date, document_description) values('$staff_id','$document_path','$document_type','$document_number','$expiry_date','$document_description')";
+                                                    $documents=mysqli_query($conn,$sql6);
+                                                  
+
+                                                }else{
+                                                    echo "<p style='color:red; font-weight:bold;'>File size too large </p>";
+                                                }
+                                            
+                                            }else{
+                                                        //echo styled paragraph.
+                                                        echo "<p style='color:red; font-weight:bold;'>File  type not allowed</p>";
+                                                }
+                                        
+                                                                      
+                                    //insert into consents table
+                                      $sql7="insert into staff_consents(staff_id, terms_consent, data_consent, update_consent, digital_signature, signature_date) values('$staff_id','$terms_consent','$data_consent','$update_consent','$digital_signature','$digital_date')";
+                                      $consents=mysqli_query($conn,$sql7);
+                                      if($consents){
+                                          //echo success paragraph
+                                          $success= "<p style='color:green; font-weight:bold;'>Registration successful</p>";
+                                      
+                                      }else{
+                                        echo "<p style='color:red; font-weight:bold;'>File size too large </p>";
+                                      }
+
+                            }else{
+                                echo "staff not entered into table";
+                            }
+
+                        }else{
+                            echo "large file size";
+                        }
+
+                    }else{
+                    echo "invalide photo extension";    
+                }
+
+            }else{
+                echo "user not inserted into user table";
+            }
+                
+        }else{
+            echo "passwords dont match";
+        }
+
+}else{
+        echo mysqli_error($conn);
+    }
+
 ?>
 
 <!DOCTYPE html>
@@ -301,6 +325,59 @@ if ($result) {
             <form id="staffRegistrationForm" action="" method="POST" enctype="multipart/form-data">
                 <!-- Staff Type Hidden Field -->
                 <input type="hidden" id="staff_type" name="staff_type" value="non-teaching">
+                                <!-- Account Setup Section -->
+                                <div class="form-section" id="accountSetupSection">
+                    <div class="section-header">
+                        <div class="section-icon">🔐</div>
+                        <div class="section-title">Account Setup</div>
+                    </div>
+
+                    <!-- users table insert -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="username" class="required">Username</label>
+                            <input type="text" id="username" name="username">
+                            <div class="help-text">Will be used for logging into the system</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="email" class="required">Email Address</label>
+                            <input type="email" id="email" name="email">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="userRole">Role</label>
+                            <select id="userRole" name="role_name">
+                                <option value="">Select a role</option>
+                                <?php foreach($roles as $r): ?>
+                                    <option value="<?= $r['role_id']; ?>"><?= htmlspecialchars($r['role_name']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="userStatus">Access Level</label>
+                            <select id="userStatus" required name="access_level">                                        
+                                <option value="standard">Standard</option>
+                                <option value="basic">Basic</option>
+                                <option value="advanced">Advanced</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="password" class="required">Password</label>
+                            <input type="password" id="password" name="password_hash">
+                            <div class="help-text">Must be at least 8 characters with numbers and special characters</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="confirmPassword" class="required">Confirm Password</label>
+                            <input type="password" id="confirmPassword" name="confirmPassword">
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Personal Details Section -->
                 <div class="form-section">
@@ -434,7 +511,7 @@ if ($result) {
                                         <div class="upload-icon">📄</div>
                                         <div>Click to upload certificate</div>
                                         <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
-                                        <input type="file" id="certificate1" name="certification_path" accept=".pdf,.jpg,.jpeg,.png" style="" required>
+                                        <input type="file" id="certificate1" name="certification_path" required>
                                     </div>
                                 </div>
                             </div>
@@ -714,8 +791,9 @@ if ($result) {
             </form>
         </div>
     </div>
-        <script src="staffreg.jks"></script>
 
+
+    <script src="staffreg.jks"></script>
 
     </script>
 </body>

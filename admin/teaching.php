@@ -38,7 +38,7 @@ $staff_type = $username = $email = $role_name = $access_level = $password_hash =
 $full_name = $date_of_birth = $gender = $marital_status = $national_id = $profile_photo_path = '';
 $phone_number = $personal_email = $residential_address = $profile_photo_path = $department = '';
 $degree = $institution = $major = $graduation_year = $certification_path = '';
-$staff_number = $designation = $hire_date = $employment_type = $supervisor = '';
+$staff_number = $designation = $hire_date = $employment_type='';
 $bank_name = $account_number = $tax_id = $tin_number = $salary_scale = $payment_frequency = '';
 $document_path = $document_type = $document_number = $expiry_date = $document_description =$certification_path = '';
 $terms_consent = $data_consent = $update_consent = $digital_signature = $digital_date = '';
@@ -46,7 +46,7 @@ $terms_consent = $data_consent = $update_consent = $digital_signature = $digital
 // Get and sanitize form values if submitted
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // users table
-    $staff_type ='teaching staff';
+    $staff_type ='teaching';
     $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
     $role_name = filter_input(INPUT_POST, 'role_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
@@ -149,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                             //handle documents submission.
                                 $cert_allowed_extensions = array('pdf');
-                            
+            
                                 $cert_name = $_FILES['certification_path']['name'];
                                 $cert_size = $_FILES['certification_path']['size']; 
                                 $cert_tmp = $_FILES['certification_path']['tmp_name'];
@@ -306,7 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <div class="section-title">Account Setup</div>
                     </div>
 
-            <!-- users table insert -->
+                    <!-- users table insert -->
                     <div class="form-row">
                         <div class="form-group">
                             <label for="username" class="required">Username</label>
