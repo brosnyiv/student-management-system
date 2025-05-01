@@ -14,10 +14,7 @@ if (empty($_SESSION['user_id'])) {
     exit();
 }
 
-
 ?>
-
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -28,7 +25,6 @@ if (empty($_SESSION['user_id'])) {
     <link rel="stylesheet" href="dash.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
@@ -36,8 +32,7 @@ if (empty($_SESSION['user_id'])) {
             margin-left: 10%;
             margin-right: 10%;
             margin-top: 2%;
-    margin-bottom: 2%;
-           
+            margin-bottom: 2%;
             padding: 20px;
         }
         .nav-link {
@@ -355,180 +350,199 @@ if (empty($_SESSION['user_id'])) {
             padding-top: 10px;
             margin-top: 10px;
         }
+        
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-weight: 500;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
-   
+    <div class="form-container">
+        <div class="section-navigation">
+            <a href="dash.php" class="nav-link"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+            <span class="nav-separator">/</span>
+            <span class="current-page">Add New Event</span>
+        </div>
+        <div class="form-title">
+            <i class="fas fa-calendar-plus"></i> Create New Event
+        </div>
+        
+        <div id="alert-container" class="hidden"></div>
 
-    
-
-       
-
-        <div class="form-container">
-
-            <div class="section-navigation">
-                <a href="dash.php" class="nav-link"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
-                <span class="nav-separator">/</span>
-                <span class="current-page">Add New Event</span>
+        <form id="addEventForm" method="POST" action="process_event.php">
+            <div class="form-group">
+                <label for="eventTitle" class="required-field">Event Title</label>
+                <input type="text" id="eventTitle" name="eventTitle" placeholder="Enter event title" required>
             </div>
-            <div class="form-title">
-                <i class="fas fa-calendar-plus"></i> Create New Event
+
+            <div class="form-row">
+                <div class="form-column">
+                    <div class="form-group">
+                        <label for="eventDate" class="required-field">Date</label>
+                        <input type="date" id="eventDate" name="eventDate" required>
+                    </div>
+                </div>
+                <div class="form-column">
+                    <div class="form-group">
+                        <label for="eventCategory">Category</label>
+                        <select id="eventCategory" name="eventCategory">
+                            <option value="">Select a category</option>
+                            <option value="workshop">Workshop</option>
+                            <option value="seminar">Seminar</option>
+                            <option value="masterclass">Master Class</option>
+                            <option value="lecture">Lecture</option>
+                            <option value="meeting">Meeting</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
-            <form id="addEventForm">
-                <div class="form-group">
-                    <label for="eventTitle" class="required-field">Event Title</label>
-                    <input type="text" id="eventTitle" name="eventTitle" placeholder="Enter event title" required>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-column">
-                        <div class="form-group">
-                            <label for="eventDate" class="required-field">Date</label>
-                            <input type="date" id="eventDate" name="eventDate" required>
-                        </div>
-                    </div>
-                    <div class="form-column">
-                        <div class="form-group">
-                            <label for="eventCategory">Category</label>
-                            <select id="eventCategory" name="eventCategory">
-                                <option value="">Select a category</option>
-                                <option value="workshop">Workshop</option>
-                                <option value="seminar">Seminar</option>
-                                <option value="masterclass">Master Class</option>
-                                <option value="lecture">Lecture</option>
-                                <option value="meeting">Meeting</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
+            <div class="form-row">
+                <div class="form-column">
+                    <div class="form-group">
+                        <label for="startTime" class="required-field">Start Time</label>
+                        <input type="time" id="startTime" name="startTime" required>
                     </div>
                 </div>
-
-                <div class="form-row">
-                    <div class="form-column">
-                        <div class="form-group">
-                            <label for="startTime" class="required-field">Start Time</label>
-                            <input type="time" id="startTime" name="startTime" required>
-                        </div>
-                    </div>
-                    <div class="form-column">
-                        <div class="form-group">
-                            <label for="endTime" class="required-field">End Time</label>
-                            <input type="time" id="endTime" name="endTime" required>
-                        </div>
+                <div class="form-column">
+                    <div class="form-group">
+                        <label for="endTime" class="required-field">End Time</label>
+                        <input type="time" id="endTime" name="endTime" required>
                     </div>
                 </div>
+            </div>
 
-                <div class="form-row">
-                    <div class="form-column">
-                        <div class="form-group">
-                            <label for="venue" class="required-field">Venue</label>
-                            <input type="text" id="venue" name="venue" placeholder="Enter venue" required>
-                        </div>
-                    </div>
-                    <div class="form-column">
-                        <div class="form-group">
-                            <label for="instructor" class="required-field">Instructor/Speaker</label>
-                            <input type="text" id="instructor" name="instructor" placeholder="Enter instructor name" required>
-                        </div>
+            <div class="form-row">
+                <div class="form-column">
+                    <div class="form-group">
+                        <label for="venue" class="required-field">Venue</label>
+                        <input type="text" id="venue" name="venue" placeholder="Enter venue" required>
                     </div>
                 </div>
-
-                <div class="form-group">
-                    <label for="description">Event Description</label>
-                    <textarea id="description" name="description" placeholder="Enter event details, objectives, and any special instructions"></textarea>
+                <div class="form-column">
+                    <div class="form-group">
+                        <label for="instructor" class="required-field">Instructor/Speaker</label>
+                        <input type="text" id="instructor" name="instructor" placeholder="Enter instructor name" required>
+                    </div>
                 </div>
+            </div>
 
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="recurrence" name="recurrence">
-                        <span>This is a recurring event</span>
-                    </label>
-                    
-                    <div class="recurrence-options">
-                        <div class="form-row">
-                            <div class="form-column">
-                                <div class="form-group">
-                                    <label for="recurrenceType">Repeat</label>
-                                    <select id="recurrenceType" name="recurrenceType">
-                                        <option value="daily">Daily</option>
-                                        <option value="weekly">Weekly</option>
-                                        <option value="monthly">Monthly</option>
-                                    </select>
-                                </div>
+            <div class="form-group">
+                <label for="description">Event Description</label>
+                <textarea id="description" name="description" placeholder="Enter event details, objectives, and any special instructions"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="recurrence" name="recurrence">
+                    <span>This is a recurring event</span>
+                </label>
+                
+                <div class="recurrence-options">
+                    <div class="form-row">
+                        <div class="form-column">
+                            <div class="form-group">
+                                <label for="recurrenceType">Repeat</label>
+                                <select id="recurrenceType" name="recurrenceType">
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
                             </div>
-                            <div class="form-column">
-                                <div class="form-group">
-                                    <label for="recurrenceEnd">End Date</label>
-                                    <input type="date" id="recurrenceEnd" name="recurrenceEnd">
-                                </div>
+                        </div>
+                        <div class="form-column">
+                            <div class="form-group">
+                                <label for="recurrenceEnd">End Date</label>
+                                <input type="date" id="recurrenceEnd" name="recurrenceEnd">
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <div class="form-group">
-                    <label>Participants</label>
-                    <div class="participant-list">
-                        <div class="participant-item">
-                            <span>All Data Science Students</span>
-                            <button type="button" class="remove-participant"><i class="fas fa-times"></i></button>
-                        </div>
-                        <div class="participant-item">
-                            <span>Prof. Anderson</span>
-                            <button type="button" class="remove-participant"><i class="fas fa-times"></i></button>
-                        </div>
-                    </div>
-                    <div class="add-participant-row">
-                        <input type="text" id="newParticipant" placeholder="Type participant name or group">
-                        <button type="button" id="addParticipant"><i class="fas fa-plus"></i> Add</button>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-column">
-                        <div class="form-group">
-                            <label for="resources">Required Resources</label>
-                            <input type="text" id="resources" name="resources" placeholder="Enter required resources">
-                        </div>
-                    </div>
-                    <div class="form-column">
-                        <div class="form-group">
-                            <label for="capacity">Maximum Capacity</label>
-                            <input type="text" id="capacity" name="capacity" placeholder="Enter maximum number of participants">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-buttons">
-                    <button type="button" class="btn btn-secondary" onclick="window.location.href='dash.php'">Cancel</button>
-                    <button type="button" class="btn btn-secondary" id="previewButton">Preview</button>
-                    <button type="submit" class="btn btn-primary">Create Event</button>
-                </div>
-            </form>
-        </div>
-
-        <div class="preview-section" id="previewSection" style="display: none;">
-            <div class="preview-header">
-                <i class="fas fa-eye"></i> Event Preview
             </div>
-            <div class="event-preview">
-                <div class="event-preview-title" id="previewTitle">Digital Technology Workshop</div>
-                <div class="event-preview-details">
-                    <div class="event-preview-detail"><i class="fas fa-calendar"></i> <span id="previewDate">April 18, 2025</span></div>
-                    <div class="event-preview-detail"><i class="fas fa-clock"></i> <span id="previewTime">8:30am - 10:30am</span></div>
-                    <div class="event-preview-detail"><i class="fas fa-map-marker-alt"></i> <span id="previewVenue">Room B12</span></div>
-                    <div class="event-preview-detail"><i class="fas fa-user"></i> <span id="previewInstructor">Mr. Murage Charles</span></div>
+
+            <div class="form-group">
+                <label>Participants</label>
+                <div class="participant-list" id="participantList">
+                    <div class="participant-item">
+                        <span>All Data Science Students</span>
+                        <button type="button" class="remove-participant"><i class="fas fa-times"></i></button>
+                        <input type="hidden" name="participants[]" value="All Data Science Students">
+                    </div>
+                    <div class="participant-item">
+                        <span>Prof. Anderson</span>
+                        <button type="button" class="remove-participant"><i class="fas fa-times"></i></button>
+                        <input type="hidden" name="participants[]" value="Prof. Anderson">
+                    </div>
                 </div>
-                <div class="event-description" id="previewDescription">
-                    This workshop will cover the latest trends in digital technology with hands-on practical sessions. Students will learn about emerging technologies and their applications in various industries.
+                <div class="add-participant-row">
+                    <input type="text" id="newParticipant" placeholder="Type participant name or group">
+                    <button type="button" id="addParticipant"><i class="fas fa-plus"></i> Add</button>
                 </div>
             </div>
-        </div>
 
-       
+            <div class="form-row">
+                <div class="form-column">
+                    <div class="form-group">
+                        <label for="resources">Required Resources</label>
+                        <input type="text" id="resources" name="resources" placeholder="Enter required resources">
+                    </div>
+                </div>
+                <div class="form-column">
+                    <div class="form-group">
+                        <label for="capacity">Maximum Capacity</label>
+                        <input type="text" id="capacity" name="capacity" placeholder="Enter maximum number of participants">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-buttons">
+                <button type="button" class="btn btn-secondary" onclick="window.location.href='dash.php'">Cancel</button>
+                <button type="button" class="btn btn-secondary" id="previewButton">Preview</button>
+                <button type="submit" class="btn btn-primary">Create Event</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="preview-section" id="previewSection" style="display: none;">
+        <div class="preview-header">
+            <i class="fas fa-eye"></i> Event Preview
+        </div>
+        <div class="event-preview">
+            <div class="event-preview-title" id="previewTitle">Digital Technology Workshop</div>
+            <div class="event-preview-details">
+                <div class="event-preview-detail"><i class="fas fa-calendar"></i> <span id="previewDate">April 18, 2025</span></div>
+                <div class="event-preview-detail"><i class="fas fa-clock"></i> <span id="previewTime">8:30am - 10:30am</span></div>
+                <div class="event-preview-detail"><i class="fas fa-map-marker-alt"></i> <span id="previewVenue">Room B12</span></div>
+                <div class="event-preview-detail"><i class="fas fa-user"></i> <span id="previewInstructor">Mr. Murage Charles</span></div>
+            </div>
+            <div class="event-description" id="previewDescription">
+                This workshop will cover the latest trends in digital technology with hands-on practical sessions. Students will learn about emerging technologies and their applications in various industries.
+            </div>
+        </div>
+    </div>
+
     <script>
-      
+        document.addEventListener('DOMContentLoaded', function() {
             // Recurrence checkbox toggle
             const recurrenceCheckbox = document.getElementById('recurrence');
             recurrenceCheckbox.addEventListener('change', function() {
@@ -538,7 +552,7 @@ if (empty($_SESSION['user_id'])) {
                 } else {
                     recurrenceOptions.style.display = 'none';
                 }
-            // Removed the extra closing brace and parenthesis
+            });
             
             // Add participant functionality
             const addButton = document.getElementById('addParticipant');
@@ -553,6 +567,7 @@ if (empty($_SESSION['user_id'])) {
                     newParticipant.innerHTML = `
                         <span>${participantName}</span>
                         <button type="button" class="remove-participant"><i class="fas fa-times"></i></button>
+                        <input type="hidden" name="participants[]" value="${participantName}">
                     `;
                     participantList.appendChild(newParticipant);
                     
@@ -609,16 +624,50 @@ if (empty($_SESSION['user_id'])) {
                 previewSection.scrollIntoView({ behavior: 'smooth' });
             });
             
-            // Form submission
+            // Form submission with AJAX
             const form = document.getElementById('addEventForm');
             form.addEventListener('submit', function(event) {
                 event.preventDefault();
                 
-                // Here you would normally send the data to the server
-                alert('Event created successfully!');
+                // Create form data object
+                const formData = new FormData(form);
                 
-                // Redirect to dashboard
-                window.location.href = 'dash.php';
+                // Send AJAX request
+                fetch('process_event.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const alertContainer = document.getElementById('alert-container');
+                    alertContainer.classList.remove('hidden');
+                    
+                    if (data.status === 'success') {
+                        alertContainer.className = 'alert alert-success';
+                        alertContainer.textContent = data.message;
+                        
+                        // Redirect after successful submission (after 2 seconds)
+                        setTimeout(function() {
+                            window.location.href = 'dash.php';
+                        }, 2000);
+                    } else {
+                        alertContainer.className = 'alert alert-danger';
+                        alertContainer.textContent = data.message;
+                    }
+                    
+                    // Scroll to top to see the alert
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    const alertContainer = document.getElementById('alert-container');
+                    alertContainer.classList.remove('hidden');
+                    alertContainer.className = 'alert alert-danger';
+                    alertContainer.textContent = 'An error occurred. Please try again.';
+                    
+                    // Scroll to top to see the alert
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
             });
         });
         
