@@ -279,7 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="address">123 Education Avenue, Learning City, ED 12345</div>
             </div>
             <div class="school-logo">
-                <img src="/api/placeholder/120/60" alt="School Logo"/>
+                <img src="logo.png" alt="School Logo"/>
             </div>
         </div>
     </header>

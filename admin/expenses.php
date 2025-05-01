@@ -2,10 +2,6 @@
 session_start(); // Start the session
 ob_start();
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
 include 'dbconnect.php'; // Include the database connection file
 
 // Check if user is not logged in
@@ -14,6 +10,226 @@ if (empty($_SESSION['user_id'])) {
     exit();
 }
 
+// Function to safely escape and format inputs
+function clean_input($data) {
+    global $conn;
+    $data = trim($data);
+    $data = stripslashes($data);
+    $data = htmlspecialchars($data);
+    return mysqli_real_escape_string($conn, $data);
+}
+
+// Handle form submission for adding expense
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_expense'])) {
+    $date = clean_input($_POST['date']);
+    $amount = clean_input($_POST['expense_amount']);
+    $category_id = clean_input($_POST['expense_category']);
+    $status = clean_input($_POST['expense_status']);
+    $vendor = clean_input($_POST['expense_vendor']);
+    $department_id = clean_input($_POST['expense_department']);
+    $description = clean_input($_POST['expense_description']);
+    $staff_id = $_SESSION['user_id']; // Current logged-in user
+    
+    // Insert into expenses table
+    $insert_query = "INSERT INTO expenses (staff_id, category_id, department_id, da, amount, vendor, description, status, created_at) 
+                    VALUES ('$staff_id', '$category_id', '$department_id', '$da', '$amount', '$vendor', '$description', '$status', NOW())";
+    
+    if(mysqli_query($conn, $insert_query)) {
+        $success_message = "Expense added successfully!";
+    } else {
+        $error_message = "Error: " . mysqli_error($conn);
+    }
+}
+
+// Handle expense deletion
+if (isset($_GET['delete_id']) && !empty($_GET['delete_id'])) {
+    $delete_id = clean_input($_GET['delete_id']);
+    
+    // Delete the expense record
+    $delete_query = "DELETE FROM expenses WHERE expense_id = '$delete_id' AND staff_id = '" . $_SESSION['user_id'] . "'";
+    
+    if(mysqli_query($conn, $delete_query)) {
+        $success_message = "Expense deleted successfully!";
+    } else {
+        $error_message = "Error: " . mysqli_error($conn);
+    }
+}
+
+// Handle expense edit form submission
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['edit_expense'])) {
+    $expense_id = clean_input($_POST['expense_id']);
+    $date = clean_input($_POST['edit_date']);
+    $amount = clean_input($_POST['edit_expense_amount']);
+    $category_id = clean_input($_POST['edit_expense_category']);
+    $status = clean_input($_POST['edit_expense_status']);
+    $vendor = clean_input($_POST['edit_expense_vendor']);
+    $description = clean_input($_POST['edit_expense_description']);
+    $department_id = isset($_POST['edit_expense_department']) ? clean_input($_POST['edit_expense_department']) : null;
+    
+    // Update expense record
+    $update_query = "UPDATE expenses SET 
+                    date = '$date', 
+                    amount = '$amount', 
+                    category_id = '$category_id', 
+                    department_id = '$department_id',
+                    status = '$status', 
+                    vendor = '$vendor', 
+                    description = '$description',
+                    updated_at = NOW() 
+                    WHERE expense_id = '$expense_id' AND staff_id = '" . $_SESSION['user_id'] . "'";
+    
+    if(mysqli_query($conn, $update_query)) {
+        $success_message = "Expense updated successfully!";
+    } else {
+        $error_message = "Error: " . mysqli_error($conn);
+    }
+}
+
+// Fetch categories for dropdown
+// First check what column exists for category name
+$check_query = "SHOW COLUMNS FROM expense_categories";
+$check_result = mysqli_query($conn, $check_query);
+$name_column = 'name'; // Default fallback
+
+while ($column = mysqli_fetch_assoc($check_result)) {
+    if (strpos(strtolower($column['Field']), 'name') !== false) {
+        $name_column = $column['Field'];
+        break;
+    }
+}
+
+$categories_query = "SELECT * FROM expense_categories ORDER BY $name_column";
+$categories_result = mysqli_query($conn, $categories_query);
+$categories = [];
+while ($category = mysqli_fetch_assoc($categories_result)) {
+    $categories[] = $category;
+}
+
+// Fetch departments for dropdown
+// First check what column exists for department name
+$check_dept_query = "SHOW COLUMNS FROM departments";
+$check_dept_result = mysqli_query($conn, $check_dept_query);
+$department_name_column = 'name'; // Default fallback
+
+while ($column = mysqli_fetch_assoc($check_dept_result)) {
+    if (strpos(strtolower($column['Field']), 'name') !== false) {
+        $department_name_column = $column['Field'];
+        break;
+    }
+}
+
+$departments_query = "SELECT * FROM departments ORDER BY $department_name_column";
+$departments_result = mysqli_query($conn, $departments_query);
+$departments = [];
+while ($department = mysqli_fetch_assoc($departments_result)) {
+    $departments[] = $department;
+}
+
+// Setup pagination
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$records_per_page = 10;
+$offset = ($page - 1) * $records_per_page;
+
+// Build query with filters
+$where_conditions = ["staff_id = '" . $_SESSION['user_id'] . "'"];
+
+if (isset($_GET['filter_category']) && !empty($_GET['filter_category'])) {
+    $filter_category = clean_input($_GET['filter_category']);
+    $where_conditions[] = "category_id = '$filter_category'";
+}
+
+if (isset($_GET['filter_status']) && !empty($_GET['filter_status'])) {
+    $filter_status = clean_input($_GET['filter_status']);
+    $where_conditions[] = "status = '$filter_status'";
+}
+
+if (isset($_GET['filter_start_date']) && !empty($_GET['filter_start_date'])) {
+    $filter_start_date = clean_input($_GET['filter_start_date']);
+    $where_conditions[] = "date >= '$filter_start_date'";
+}
+
+if (isset($_GET['filter_end_date']) && !empty($_GET['filter_end_date'])) {
+    $filter_end_date = clean_input($_GET['filter_end_date']);
+    $where_conditions[] = "date <= '$filter_end_date'";
+}
+
+$where_clause = implode(" AND ", $where_conditions);
+
+// Count total records for pagination
+$count_query = "SELECT COUNT(*) as total FROM expenses WHERE $where_clause";
+$count_result = mysqli_query($conn, $count_query);
+$total_records = mysqli_fetch_assoc($count_result)['total'];
+$total_pages = ceil($total_records / $records_per_page);
+
+// Find the correct column names for category and department tables
+$name_field = "name"; // Default
+$department_name_field = "name"; // Default
+
+// Check category table structure
+$cat_cols_query = "SHOW COLUMNS FROM expense_categories";
+$cat_cols_result = mysqli_query($conn, $cat_cols_query);
+while ($col = mysqli_fetch_assoc($cat_cols_result)) {
+    if (strpos(strtolower($col['Field']), 'name') !== false) {
+        $name_field = $col['Field'];
+        break;
+    }
+}
+
+// Check department table structure
+$dept_cols_query = "SHOW COLUMNS FROM departments";
+$dept_cols_result = mysqli_query($conn, $dept_cols_query);
+while ($col = mysqli_fetch_assoc($dept_cols_result)) {
+    if (strpos(strtolower($col['Field']), 'name') !== false) {
+        $department_name_field = $col['Field'];
+        break;
+    }
+}
+
+// Fetch expenses with joined category and department names
+$expenses_query = "SELECT e.*, c.$name_field as name, d.$department_name_field as department_name 
+                  FROM expenses e
+                  LEFT JOIN expense_categories c ON e.category_id = c.category_id
+                  LEFT JOIN departments d ON e.department_id = d.department_id
+                  WHERE $where_clause
+                  ORDER BY e.date DESC
+                  LIMIT $offset, $records_per_page";
+$expenses_result = mysqli_query($conn, $expenses_query);
+
+// 3. Query expense categories
+$query = "SELECT * FROM expense_categories";
+$result = mysqli_query($conn, $query);
+
+// 4. Set $top_category (e.g., first category)
+if (mysqli_num_rows($result) > 0) {
+    $row = mysqli_fetch_assoc($result);
+    $top_category = $row['name']; // Use 'name' or relevant column
+} else {
+    $top_category = "Uncategorized"; // Fallback
+}
+
+// Now safely use $top_category
+echo "Selected Category: " . htmlspecialchars($top_category);
+
+// Calculate summary data
+$summary_query = "SELECT 
+                    SUM(amount) as total_expenses,
+                    (SELECT SUM(amount) FROM expenses WHERE MONTH(date) = MONTH(CURRENT_DATE()) AND YEAR(date) = YEAR(CURRENT_DATE()) AND staff_id = '" . $_SESSION['user_id'] . "') as month_expenses,
+                    (SELECT c.name FROM expenses e
+                     JOIN expense_categories c ON e.category_id = c.category_id
+                     WHERE e.staff_id = '" . $_SESSION['user_id'] . "'
+                     GROUP BY e.category_id
+                     ORDER BY SUM(e.amount) DESC
+                     LIMIT 1) as top_category
+                  FROM expenses 
+                  WHERE staff_id = '" . $_SESSION['user_id'] . "'";
+$summary_result = mysqli_query($conn, $summary_query);
+$summary = mysqli_fetch_assoc($summary_result);
+
+// Set default values if null
+$summary = mysqli_fetch_assoc($summary_result);
+$total_expenses = $summary['total_expenses'] ? $summary['total_expenses'] : 0;
+$month_expenses = $summary['month_expenses'] ? $summary['month_expenses'] : 0;
+// top_category is already set above
 
 ?>
 
@@ -24,6 +240,8 @@ if (empty($_SESSION['user_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monaco Institute - Expense Tracker</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Keep your existing CSS here -->
+
     <style>
         :root {
             --primary-color: #8B1818;
@@ -458,6 +676,7 @@ if (empty($_SESSION['user_id'])) {
             }
         }
     </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -466,55 +685,60 @@ if (empty($_SESSION['user_id'])) {
         </div>
         
         <div class="form-body">
+            <?php if(isset($success_message)): ?>
+                <div class="alert alert-success"><?php echo $success_message; ?></div>
+            <?php endif; ?>
+            
+            <?php if(isset($error_message)): ?>
+                <div class="alert alert-danger"><?php echo $error_message; ?></div>
+            <?php endif; ?>
+            
             <!-- Dashboard Summary -->
             <div class="expense-dashboard">
                 <div class="dashboard-summary">
                     <div class="summary-card total">
                         <div class="card-title">Total Expenses</div>
-                        <div class="card-value">$7,850.00</div>
+                        <div class="card-value">UGX <?php echo number_format($total_expenses, 0); ?></div>
                     </div>
                     <div class="summary-card month">
                         <div class="card-title">This Month</div>
-                        <div class="card-value">$2,350.00</div>
+                        <div class="card-value">UGX <?php echo number_format($month_expenses, 0); ?></div>
                     </div>
                     <div class="summary-card category">
                         <div class="card-title">Top Category</div>
-                        <div class="card-value">Supplies</div>
+                        <div class="card-value"><?php echo $top_category; ?></div>
                     </div>
                 </div>
             </div>
             
             <!-- New Expense Form -->
-            <form id="expenseForm">
+            <form id="expenseForm" method="POST" action="">
                 <h3>Add New Expense</h3>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="expenseDate" class="required-field">Date</label>
-                        <input type="date" id="expenseDate" required>
+                        <label for="da" class="required-field">Date</label>
+                        <input type="date" id="da" name="da" required value="<?php echo date('Y-m-d'); ?>">
                     </div>
                     <div class="form-group">
-                        <label for="expenseAmount" class="required-field">Amount ($)</label>
-                        <input type="number" id="expenseAmount" min="0" step="0.01" placeholder="Enter amount" required>
+                        <label for="expense_amount" class="required-field">Amount (UGX)</label>
+                        <input type="number" id="expense_amount" name="expense_amount" min="0" step="1" placeholder="Enter amount" required>
                     </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="expenseCategory" class="required-field">Category</label>
-                        <select id="expenseCategory" required>
+                        <label for="expense_category" class="required-field">Category</label>
+                        <select id="expense_category" name="expense_category" required>
                             <option value="">Select category</option>
-                            <option value="utilities">Utilities</option>
-                            <option value="supplies">Office Supplies</option>
-                            <option value="travel">Travel & Transportation</option>
-                            <option value="food">Food & Catering</option>
-                            <option value="equipment">Equipment</option>
-                            <option value="other">Other</option>
+                            <?php foreach($categories as $category): ?>
+                                <option value="<?php echo $category['category_id']; ?>"><?php echo $category['name']; ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="expenseStatus">Status</label>
-                        <select id="expenseStatus">
+                        <label for="expense_status">Status</label>
+                        <select id="expense_status" name="expense_status">
                             <option value="pending">Pending</option>
                             <option value="approved">Approved</option>
                             <option value="rejected">Rejected</option>
@@ -524,30 +748,28 @@ if (empty($_SESSION['user_id'])) {
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="expenseVendor" class="required-field">Vendor/Payee</label>
-                        <input type="text" id="expenseVendor" placeholder="Enter vendor name" required>
+                        <label for="expense_vendor" class="required-field">Vendor/Payee</label>
+                        <input type="text" id="expense_vendor" name="expense_vendor" placeholder="Enter vendor name" required>
                     </div>
                     <div class="form-group">
-                        <label for="expenseDepartment">Department</label>
-                        <select id="expenseDepartment">
+                        <label for="expense_department">Department</label>
+                        <select id="expense_department" name="expense_department">
                             <option value="">Select department</option>
-                            <option value="academic">Academic Affairs</option>
-                            <option value="admin">Administration</option>
-                            <option value="facilities">Facilities</option>
-                            <option value="it">IT Services</option>
-                            <option value="student">Student Services</option>
+                            <?php foreach($departments as $department): ?>
+                                <option value="<?php echo $department['department_id']; ?>"><?php echo $department['department_name']; ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="expenseDescription">Description</label>
-                    <textarea id="expenseDescription" rows="2" placeholder="Describe the expense"></textarea>
+                    <label for="expense_description">Description</label>
+                    <textarea id="expense_description" name="expense_description" rows="2" placeholder="Describe the expense"></textarea>
                 </div>
                 
                 <div class="form-actions">
                     <button type="reset" class="btn btn-secondary">Clear Form</button>
-                    <button type="submit" class="btn btn-primary">Add Expense</button>
+                    <button type="submit" name="add_expense" class="btn btn-primary">Add Expense</button>
                 </div>
             </form>
             
@@ -555,37 +777,39 @@ if (empty($_SESSION['user_id'])) {
             <div class="expense-list">
                 <h3>Recent Expenses</h3>
                 
-                <div class="filters">
-                    <div class="form-group">
-                        <label for="filterCategory">Filter by Category</label>
-                        <select id="filterCategory">
-                            <option value="">All Categories</option>
-                            <option value="utilities">Utilities</option>
-                            <option value="supplies">Office Supplies</option>
-                            <option value="travel">Travel & Transportation</option>
-                            <option value="food">Food & Catering</option>
-                            <option value="equipment">Equipment</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="filterStatus">Filter by Status</label>
-                        <select id="filterStatus">
-                            <option value="">All Statuses</option>
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Date Range</label>
-                        <div class="date-filter">
-                            <input type="date" id="filterStartDate">
-                            <div class="date-label">to</div>
-                            <input type="date" id="filterEndDate">
+                <form method="GET" action="">
+                    <div class="filters">
+                        <div class="form-group">
+                            <label for="filter_category">Filter by Category</label>
+                            <select id="filter_category" name="filter_category" onchange="this.form.submit()">
+                                <option value="">All Categories</option>
+                                <?php foreach($categories as $category): ?>
+                                    <option value="<?php echo $category['category_id']; ?>" <?php echo (isset($_GET['filter_category']) && $_GET['filter_category'] == $category['category_id']) ? 'selected' : ''; ?>>
+                                        <?php echo $category['name']; ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="filter_status">Filter by Status</label>
+                            <select id="filter_status" name="filter_status" onchange="this.form.submit()">
+                                <option value="">All Statuses</option>
+                                <option value="pending" <?php echo (isset($_GET['filter_status']) && $_GET['filter_status'] == 'pending') ? 'selected' : ''; ?>>Pending</option>
+                                <option value="approved" <?php echo (isset($_GET['filter_status']) && $_GET['filter_status'] == 'approved') ? 'selected' : ''; ?>>Approved</option>
+                                <option value="rejected" <?php echo (isset($_GET['filter_status']) && $_GET['filter_status'] == 'rejected') ? 'selected' : ''; ?>>Rejected</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Date Range</label>
+                            <div class="date-filter">
+                                <input type="date" id="filter_start_date" name="filter_start_date" value="<?php echo isset($_GET['filter_start_date']) ? $_GET['filter_start_date'] : ''; ?>">
+                                <div class="date-label">to</div>
+                                <input type="date" id="filter_end_date" name="filter_end_date" value="<?php echo isset($_GET['filter_end_date']) ? $_GET['filter_end_date'] : ''; ?>">
+                                <button type="submit" class="btn btn-sm btn-primary" style="margin-left: 10px;">Apply</button>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </form>
                 
                 <table class="expense-table">
                     <thead>
@@ -600,126 +824,131 @@ if (empty($_SESSION['user_id'])) {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td>Apr 15, 2025</td>
-                            <td>Monaco Office Supplies</td>
-                            <td><span class="category-badge supplies">Supplies</span></td>
-                            <td>Printer paper and toner cartridges</td>
-                            <td><span class="status-indicator status-approved"></span> Approved</td>
-                            <td class="amount">$245.75</td>
-                            <td class="actions">
-                                <div class="expense-actions">
-                                    <button class="action-btn edit" title="Edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Apr 12, 2025</td>
-                            <td>City Electric Co.</td>
-                            <td><span class="category-badge utilities">Utilities</span></td>
-                            <td>Monthly electricity bill</td>
-                            <td><span class="status-indicator status-approved"></span> Approved</td>
-                            <td class="amount">$1,350.00</td>
-                            <td class="actions">
-                                <div class="expense-actions">
-                                    <button class="action-btn edit" title="Edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Apr 10, 2025</td>
-                            <td>Global Tech Solutions</td>
-                            <td><span class="category-badge equipment">Equipment</span></td>
-                            <td>New projector for Room 301</td>
-                            <td><span class="status-indicator status-pending"></span> Pending</td>
-                            <td class="amount">$780.50</td>
-                            <td class="actions">
-                                <div class="expense-actions">
-                                    <button class="action-btn edit" title="Edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Apr 07, 2025</td>
-                            <td>Monaco Catering</td>
-                            <td><span class="category-badge food">Food</span></td>
-                            <td>Faculty meeting refreshments</td>
-                            <td><span class="status-indicator status-approved"></span> Approved</td>
-                            <td class="amount">$325.00</td>
-                            <td class="actions">
-                                <div class="expense-actions">
-                                    <button class="action-btn edit" title="Edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Apr 03, 2025</td>
-                            <td>City Taxi Services</td>
-                            <td><span class="category-badge travel">Travel</span></td>
-                            <td>Transportation for guest speaker</td>
-                            <td><span class="status-indicator status-rejected"></span> Rejected</td>
-                            <td class="amount">$85.25</td>
-                            <td class="actions">
-                                <div class="expense-actions">
-                                    <button class="action-btn edit" title="Edit"><i class="fas fa-edit"></i></button>
-                                    <button class="action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
-                                </div>
-                            </td>
-                        </tr>
+                        <?php if(mysqli_num_rows($expenses_result) > 0): ?>
+                            <?php while($expense = mysqli_fetch_assoc($expenses_result)): ?>
+                                <tr data-id="<?php echo $expense['expense_id']; ?>">
+                                    <td><?php echo date('M d, Y', strtotime($expense['date'])); ?></td>
+                                    <td><?php echo htmlspecialchars($expense['vendor']); ?></td>
+                                    <td>
+                                        <span class="category-badge">
+                                            <?php 
+                                            // Determine which field to use for category name from joined results
+                                            $category_display = "";
+                                            foreach ($expense as $key => $value) {
+                                                if (strpos(strtolower($key), 'category') !== false && strpos(strtolower($key), 'name') !== false) {
+                                                    $category_display = $value;
+                                                    break;
+                                                }
+                                            }
+                                            if (empty($category_display) && isset($expense['category_id'])) {
+                                                // Get category name from ID
+                                                $cat_query = "SELECT * FROM expense_categories WHERE category_id = '".$expense['category_id']."'";
+                                                $cat_result = mysqli_query($conn, $cat_query);
+                                                if ($cat_data = mysqli_fetch_assoc($cat_result)) {
+                                                    foreach ($cat_data as $key => $value) {
+                                                        if (strpos(strtolower($key), 'name') !== false) {
+                                                            $category_display = $value;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            echo htmlspecialchars($category_display ?: "Unknown Category");
+                                            ?>
+                                        </span>
+                                    </td>
+                                    <td><?php echo htmlspecialchars($expense['description']); ?></td>
+                                    <td>
+                                        <span class="status-indicator status-<?php echo $expense['status']; ?>"></span>
+                                        <?php echo ucfirst($expense['status']); ?>
+                                    </td>
+                                    <td class="amount">UGX <?php echo number_format($expense['amount'], 0); ?></td>
+                                    <td class="actions">
+                                        <div class="expense-actions">
+                                            <button type="button" class="action-btn edit" title="Edit" onclick="openEditModal(<?php 
+                                            echo json_encode([
+                                                'id' => $expense['expense_id'],
+                                                'date' => $expense['date'],
+                                                'amount' => $expense['amount'],
+                                                'category_id' => $expense['category_id'],
+                                                'department_id' => $expense['department_id'],
+                                                'status' => $expense['status'],
+                                                'vendor' => htmlspecialchars_decode($expense['vendor']),
+                                                'description' => htmlspecialchars_decode($expense['description'])
+                                            ]);
+                                            ?>)">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <a href="?delete_id=<?php echo $expense['expense_id']; ?>" class="action-btn delete" title="Delete" onclick="return confirm('Are you sure you want to delete this expense?');">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="7" style="text-align: center;">No expenses found</td>
+                            </tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
                 
+                <!-- Pagination -->
+                <?php if($total_pages > 1): ?>
                 <div class="pagination">
-                    <button class="pagination-btn"><i class="fas fa-chevron-left"></i></button>
-                    <button class="pagination-btn active">1</button>
-                    <button class="pagination-btn">2</button>
-                    <button class="pagination-btn">3</button>
-                    <button class="pagination-btn"><i class="fas fa-chevron-right"></i></button>
+                    <?php if($page > 1): ?>
+                        <a href="?page=<?php echo ($page-1); ?><?php echo isset($_GET['filter_category']) ? '&filter_category='.$_GET['filter_category'] : ''; ?><?php echo isset($_GET['filter_status']) ? '&filter_status='.$_GET['filter_status'] : ''; ?><?php echo isset($_GET['filter_start_date']) ? '&filter_start_date='.$_GET['filter_start_date'] : ''; ?><?php echo isset($_GET['filter_end_date']) ? '&filter_end_date='.$_GET['filter_end_date'] : ''; ?>" class="page-link">&laquo; Previous</a>
+                    <?php endif; ?>
+                    
+                    <?php for($i = 1; $i <= $total_pages; $i++): ?>
+                        <a href="?page=<?php echo $i; ?><?php echo isset($_GET['filter_category']) ? '&filter_category='.$_GET['filter_category'] : ''; ?><?php echo isset($_GET['filter_status']) ? '&filter_status='.$_GET['filter_status'] : ''; ?><?php echo isset($_GET['filter_start_date']) ? '&filter_start_date='.$_GET['filter_start_date'] : ''; ?><?php echo isset($_GET['filter_end_date']) ? '&filter_end_date='.$_GET['filter_end_date'] : ''; ?>" class="page-link <?php echo ($page == $i) ? 'active' : ''; ?>"><?php echo $i; ?></a>
+                    <?php endfor; ?>
+                    
+                    <?php if($page < $total_pages): ?>
+                        <a href="?page=<?php echo ($page+1); ?><?php echo isset($_GET['filter_category']) ? '&filter_category='.$_GET['filter_category'] : ''; ?><?php echo isset($_GET['filter_status']) ? '&filter_status='.$_GET['filter_status'] : ''; ?><?php echo isset($_GET['filter_start_date']) ? '&filter_start_date='.$_GET['filter_start_date'] : ''; ?><?php echo isset($_GET['filter_end_date']) ? '&filter_end_date='.$_GET['filter_end_date'] : ''; ?>" class="page-link">Next &raquo;</a>
+                    <?php endif; ?>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
-    
+
     <!-- Edit Expense Modal -->
     <div id="editModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">Edit Expense</h3>
-                <button class="modal-close">&times;</button>
+                <button type="button" class="modal-close">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="editExpenseForm">
+                <form id="editExpenseForm" method="POST" action="">
+                    <input type="hidden" id="edit_expense_id" name="expense_id">
+                    
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="editExpenseDate" class="required-field">Date</label>
-                            <input type="date" id="editExpenseDate" required>
+                            <label for="edit_da" class="required-field">Date</label>
+                            <input type="date" id="edit_da" name="edit_da" required>
                         </div>
                         <div class="form-group">
-                            <label for="editExpenseAmount" class="required-field">Amount ($)</label>
-                            <input type="number" id="editExpenseAmount" min="0" step="0.01" placeholder="Enter amount" required>
+                            <label for="edit_expense_amount" class="required-field">Amount (UGX)</label>
+                            <input type="number" id="edit_expense_amount" name="edit_expense_amount" min="0" step="1" placeholder="Enter amount" required>
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="editExpenseCategory" class="required-field">Category</label>
-                            <select id="editExpenseCategory" required>
+                            <label for="edit_expense_category" class="required-field">Category</label>
+                            <select id="edit_expense_category" name="edit_expense_category" required>
                                 <option value="">Select category</option>
-                                <option value="utilities">Utilities</option>
-                                <option value="supplies">Office Supplies</option>
-                                <option value="travel">Travel & Transportation</option>
-                                <option value="food">Food & Catering</option>
-                                <option value="equipment">Equipment</option>
-                                <option value="other">Other</option>
+                                <?php foreach($categories as $category): ?>
+                                    <option value="<?php echo $category['category_id']; ?>"><?php echo $category['name']; ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="editExpenseStatus">Status</label>
-                            <select id="editExpenseStatus">
+                            <label for="edit_expense_status">Status</label>
+                            <select id="edit_expense_status" name="edit_expense_status">
                                 <option value="pending">Pending</option>
                                 <option value="approved">Approved</option>
                                 <option value="rejected">Rejected</option>
@@ -727,108 +956,78 @@ if (empty($_SESSION['user_id'])) {
                         </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="editExpenseVendor" class="required-field">Vendor/Payee</label>
-                        <input type="text" id="editExpenseVendor" placeholder="Enter vendor name" required>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit_expense_vendor" class="required-field">Vendor/Payee</label>
+                            <input type="text" id="edit_expense_vendor" name="edit_expense_vendor" placeholder="Enter vendor name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_expense_department">Department</label>
+                            <select id="edit_expense_department" name="edit_expense_department">
+                                <option value="">Select department</option>
+                                <?php foreach($departments as $department): ?>
+                                    <option value="<?php echo $department['department_id']; ?>"><?php echo $department['department_name']; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                     </div>
                     
                     <div class="form-group">
-                        <label for="editExpenseDescription">Description</label>
-                        <textarea id="editExpenseDescription" rows="2" placeholder="Describe the expense"></textarea>
+                        <label for="edit_expense_description">Description</label>
+                        <textarea id="edit_expense_description" name="edit_expense_description" rows="2" placeholder="Describe the expense"></textarea>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+                        <button type="submit" name="edit_expense" class="btn btn-primary">Save Changes</button>
                     </div>
                 </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary modal-close">Cancel</button>
-                <button class="btn btn-primary" id="saveEditBtn">Save Changes</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div id="deleteModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Confirm Delete</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to delete this expense record? This action cannot be undone.</p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary modal-close">Cancel</button>
-                <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Set default date to today
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('expenseDate').value = today;
-        
         // Modal functionality
-        const modals = document.querySelectorAll('.modal');
-        const modalCloseBtns = document.querySelectorAll('.modal-close');
-        const editBtns = document.querySelectorAll('.action-btn.edit');
-        const deleteBtns = document.querySelectorAll('.action-btn.delete');
+        const modal = document.getElementById('editModal');
+        const modalClose = document.querySelectorAll('.modal-close');
         
-        // Open edit modal
-        editBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                // In a real application, you would populate the form with the expense data
-                document.getElementById('editModal').classList.add('show');
+        // Close modal when clicking on close button or outside the modal
+        modalClose.forEach(element => {
+            element.addEventListener('click', function() {
+                modal.style.display = 'none';
             });
         });
         
-        // Open delete modal
-        deleteBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.getElementById('deleteModal').classList.add('show');
-            });
-        });
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        };
         
-        // Close modals
-        modalCloseBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                modals.forEach(modal => {
-                    modal.classList.remove('show');
-                });
-            });
-        });
-        
-        // Close modal when clicking outside the content
-        modals.forEach(modal => {
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) {
-                    modal.classList.remove('show');
-                }
-            });
-        });
-        
-        // Form submission
-        document.getElementById('expenseForm').addEventListener('submit', function(e) {
-            e.preventDefault();
+        // Function to open edit modal with expense data
+        function openEditModal(expenseData) {
+            // Parse the JSON if it's a string
+            if (typeof expenseData === 'string') {
+                expenseData = JSON.parse(expenseData);
+            }
             
-            // Here you would collect form data and add it to your expense list
-            alert('Expense added successfully!');
-            this.reset();
-            document.getElementById('expenseDate').value = today;
-        });
-        
-        // Save edited expense
-        document.getElementById('saveEditBtn').addEventListener('click', function() {
-            // Here you would update the expense data
-            document.getElementById('editModal').classList.remove('show');
-            alert('Expense updated successfully!');
-        });
-        
-        // Confirm delete
-        document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
-            // Here you would delete the expense record
-            document.getElementById('deleteModal').classList.remove('show');
-            alert('Expense deleted successfully!');
-        });
+            // Populate form fields with expense data
+            document.getElementById('edit_expense_id').value = expenseData.id;
+            document.getElementById('edit_da').value = expenseData.date;
+            document.getElementById('edit_expense_amount').value = expenseData.amount;
+            document.getElementById('edit_expense_category').value = expenseData.category_id;
+            document.getElementById('edit_expense_status').value = expenseData.status;
+            document.getElementById('edit_expense_vendor').value = expenseData.vendor;
+            document.getElementById('edit_expense_description').value = expenseData.description;
+            
+            // Set department if available
+            if (expenseData.department_id) {
+                document.getElementById('edit_expense_department').value = expenseData.department_id;
+            }
+            
+            // Display the modal
+            modal.style.display = 'block';
+        }
     </script>
 </body>
 </html>
