@@ -923,7 +923,7 @@ select.filter-input {
         </div>
         <div class="filter-group">
             <label for="searchFilter">Search</label>
-            <input type="text" id="searchFilter" name="search" placeholder="Search student..." class="search-box" value="<?php echo $searchQuery; ?>" aria-label="Search students">
+            <input type="text" id="searchFilter" name="search" placeholder="Search student..." class="search-box" value="" aria-label="Search students">
         </div>
         <button type="submit" class="action-button">
             <i class="fas fa-filter"></i> Apply Filters

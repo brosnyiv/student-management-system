@@ -178,12 +178,11 @@ if ($result) {
 
 // Get course units for dropdowns
 $courseUnits = [];
-$result = $conn->query("SELECT unit_id, name FROM course_units ORDER BY name");
+$result = $conn->query("SELECT unit_id, unit_name FROM course_units ORDER BY unit_name");
 if ($result) {
     while ($row = $result->fetch_assoc()) {
-        $courseUnits[$row['id']] = $row['name'];
-    }
-}
+        $courseUnits[$row['unit_id']] = $row['unit_name'];
+    }}
 ?>
 <!DOCTYPE html>
 <html lang="en">
