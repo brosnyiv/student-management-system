@@ -1,3 +1,254 @@
+<?php
+session_start();
+include 'dbconnect.php';
+
+// Check if user is not logged in
+if (empty($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
+
+// Initialize variables
+$error = '';
+$success = '';
+
+// Process form submission
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    try {
+        // Begin transaction
+        mysqli_begin_transaction($conn);
+        
+        // 1. Get user_id from session (assuming the user is already logged in)
+        $user_id = $_SESSION['user_id'];
+        
+        // 2. Insert into staff table
+        $full_name = mysqli_real_escape_string($conn, $_POST['full_name']);
+        $date_of_birth = mysqli_real_escape_string($conn, $_POST['date_of_birth']);
+        $gender = mysqli_real_escape_string($conn, $_POST['gender']);
+        $marital_status = mysqli_real_escape_string($conn, $_POST['marital_status']);
+        $national_id = mysqli_real_escape_string($conn, $_POST['national_id']);
+        $phone_number = mysqli_real_escape_string($conn, $_POST['phone_number']);
+        $personal_email = mysqli_real_escape_string($conn, $_POST['personal_email']);
+        $residential_address = mysqli_real_escape_string($conn, $_POST['residential_address']);
+        $department_id = intval($_POST['department']);
+        $designation = mysqli_real_escape_string($conn, $_POST['designation']);
+        $hire_date = mysqli_real_escape_string($conn, $_POST['hire_date']);
+        $employment_type = mysqli_real_escape_string($conn, $_POST['employment_type']);
+        $supervisor = isset($_POST['supervisor']) ? mysqli_real_escape_string($conn, $_POST['supervisor']) : null;
+        
+        // Handle profile photo upload
+        $profile_photo_path = '';
+        if (isset($_FILES['profile_photo_path']) && $_FILES['profile_photo_path']['error'] == UPLOAD_ERR_OK) {
+            $photo_name = basename($_FILES['profile_photo_path']['name']);
+            $photo_tmp = $_FILES['profile_photo_path']['tmp_name'];
+            $photo_ext = strtolower(pathinfo($photo_name, PATHINFO_EXTENSION));
+            $allowed_extensions = array('jpg', 'jpeg', 'png', 'gif');
+            
+            if (in_array($photo_ext, $allowed_extensions)) {
+                $new_photo_name = uniqid('profile_', true) . '.' . $photo_ext;
+                $upload_dir = 'uploads/staff/';
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+                $profile_photo_path = $upload_dir . $new_photo_name;
+                
+                if (!move_uploaded_file($photo_tmp, $profile_photo_path)) {
+                    throw new Exception("Failed to upload profile photo");
+                }
+            } else {
+                throw new Exception("Invalid profile photo format. Only JPG, JPEG, PNG, GIF are allowed.");
+            }
+        }
+        
+        // Generate staff number
+        $nameletter = strtoupper(substr($full_name, 0, 1));
+        $random = rand(0, 1000);
+        $staff_number = 'ST' . $random . $nameletter;
+        
+        // Insert into staff table
+        $sql = "INSERT INTO staff (
+            user_id, staff_type, staff_number, full_name, date_of_birth, gender, 
+            marital_status, national_id, profile_photo_path, phone_number, 
+            personal_email, residential_address, department_id, designation, 
+            hire_date, employment_type, supervisor
+        ) VALUES (
+            '$user_id', 'non-teaching', '$staff_number', '$full_name', '$date_of_birth', '$gender', 
+            '$marital_status', '$national_id', '$profile_photo_path', '$phone_number', 
+            '$personal_email', '$residential_address', $department_id, '$designation', 
+            '$hire_date', '$employment_type', " . ($supervisor ? "'$supervisor'" : "NULL") . "
+        )";
+        
+        if (!mysqli_query($conn, $sql)) {
+            throw new Exception("Error inserting staff record: " . mysqli_error($conn));
+        }
+        
+        $staff_id = mysqli_insert_id($conn);
+        
+        // 3. Insert into non_teaching_staff table
+        $working_days = mysqli_real_escape_string($conn, $_POST['working_days']);
+        $working_hours = mysqli_real_escape_string($conn, $_POST['working_hours']);
+        $schedule_notes = isset($_POST['schedule_notes']) ? mysqli_real_escape_string($conn, $_POST['schedule_notes']) : null;
+        $work_area = isset($_POST['work_area']) ? mysqli_real_escape_string($conn, $_POST['work_area']) : null;
+        
+        $sql = "INSERT INTO non_teaching_staff (
+            staff_id, working_days, working_hours, schedule_notes, work_area
+        ) VALUES (
+            $staff_id, '$working_days', '$working_hours', " . 
+            ($schedule_notes ? "'$schedule_notes'" : "NULL") . ", " . 
+            ($work_area ? "'$work_area'" : "NULL") . "
+        )";
+        
+        if (!mysqli_query($conn, $sql)) {
+            throw new Exception("Error inserting non-teaching staff record: " . mysqli_error($conn));
+        }
+        
+        // 4. Insert academic qualifications
+        if (isset($_POST['degree']) && is_array($_POST['degree'])) {
+            for ($i = 0; $i < count($_POST['degree']); $i++) {
+                $degree = mysqli_real_escape_string($conn, $_POST['degree'][$i]);
+                $institution = mysqli_real_escape_string($conn, $_POST['institution'][$i]);
+                $major = mysqli_real_escape_string($conn, $_POST['major'][$i]);
+                $graduation_year = intval($_POST['graduation_year'][$i]);
+                
+                // Handle certificate file upload
+                $certificate_path = '';
+                if (isset($_FILES['certification_path']['name'][$i]) && $_FILES['certification_path']['error'][$i] == UPLOAD_ERR_OK) {
+                    $cert_name = basename($_FILES['certification_path']['name'][$i]);
+                    $cert_tmp = $_FILES['certification_path']['tmp_name'][$i];
+                    $cert_ext = strtolower(pathinfo($cert_name, PATHINFO_EXTENSION));
+                    $allowed_extensions = array('pdf', 'jpg', 'jpeg', 'png');
+                    
+                    if (in_array($cert_ext, $allowed_extensions)) {
+                        $new_cert_name = uniqid('cert_', true) . '.' . $cert_ext;
+                        $upload_dir = 'uploads/qualifications/';
+                        if (!file_exists($upload_dir)) {
+                            mkdir($upload_dir, 0777, true);
+                        }
+                        $certificate_path = $upload_dir . $new_cert_name;
+                        
+                        if (!move_uploaded_file($cert_tmp, $certificate_path)) {
+                            throw new Exception("Failed to upload certificate file");
+                        }
+                    } else {
+                        throw new Exception("Invalid certificate format. Only PDF, JPG, JPEG, PNG are allowed.");
+                    }
+                }
+                
+                $sql = "INSERT INTO staff_qualifications (
+                    staff_id, degree, institution, major, graduation_year, certificate_path
+                ) VALUES (
+                    $staff_id, '$degree', '$institution', '$major', $graduation_year, '$certificate_path'
+                )";
+                
+                if (!mysqli_query($conn, $sql)) {
+                    throw new Exception("Error inserting qualification record: " . mysqli_error($conn));
+                }
+            }
+        }
+        
+        // 5. Insert bank details
+        $bank_name = mysqli_real_escape_string($conn, $_POST['bank_name']);
+        $account_number = mysqli_real_escape_string($conn, $_POST['account_number']);
+        $tax_id = mysqli_real_escape_string($conn, $_POST['tax_id']);
+        $tin_number = mysqli_real_escape_string($conn, $_POST['tin_number']);
+        $salary_scale = mysqli_real_escape_string($conn, $_POST['salary_scale']);
+        $payment_frequency = mysqli_real_escape_string($conn, $_POST['payment_frequency']);
+        
+        $sql = "INSERT INTO bank_details (
+            staff_id, bank_name, account_number, tax_id, tin_number, salary_scale, payment_frequency
+        ) VALUES (
+            $staff_id, '$bank_name', '$account_number', '$tax_id', '$tin_number', '$salary_scale', '$payment_frequency'
+        )";
+        
+        if (!mysqli_query($conn, $sql)) {
+            throw new Exception("Error inserting bank details: " . mysqli_error($conn));
+        }
+        
+        // 6. Insert documents
+        if (isset($_POST['document_type']) && is_array($_POST['document_type'])) {
+            for ($i = 0; $i < count($_POST['document_type']); $i++) {
+                $document_type = mysqli_real_escape_string($conn, $_POST['document_type'][$i]);
+                $document_number = mysqli_real_escape_string($conn, $_POST['document_number'][$i]);
+                $expiry_date = !empty($_POST['expiry_date'][$i]) ? mysqli_real_escape_string($conn, $_POST['expiry_date'][$i]) : null;
+                $document_description = isset($_POST['document_description'][$i]) ? mysqli_real_escape_string($conn, $_POST['document_description'][$i]) : null;
+                
+                // Handle document file upload
+                $document_path = '';
+                if (isset($_FILES['document_path']['name'][$i]) && $_FILES['document_path']['error'][$i] == UPLOAD_ERR_OK) {
+                    $doc_name = basename($_FILES['document_path']['name'][$i]);
+                    $doc_tmp = $_FILES(['document_path']['tmp_name'][$i]);
+                    $doc_ext = strtolower(pathinfo($doc_name, PATHINFO_EXTENSION));
+                    $allowed_extensions = array('pdf', 'jpg', 'jpeg', 'png');
+                    
+                    if (in_array($doc_ext, $allowed_extensions)) {
+                        $new_doc_name = uniqid('doc_', true) . '.' . $doc_ext;
+                        $upload_dir = 'uploads/documents/';
+                        if (!file_exists($upload_dir)) {
+                            mkdir($upload_dir, 0777, true);
+                        }
+                        $document_path = $upload_dir . $new_doc_name;
+                        
+                        if (!move_uploaded_file($doc_tmp, $document_path)) {
+                            throw new Exception("Failed to upload document file");
+                        }
+                    } else {
+                        throw new Exception("Invalid document format. Only PDF, JPG, JPEG, PNG are allowed.");
+                    }
+                }
+                
+                $sql = "INSERT INTO staff_documents (
+                    staff_id, document_type, document_path, document_number, expiry_date, document_description
+                ) VALUES (
+                    $staff_id, '$document_type', '$document_path', '$document_number', " . 
+                    ($expiry_date ? "'$expiry_date'" : "NULL") . ", " . 
+                    ($document_description ? "'$document_description'" : "NULL") . "
+                )";
+                
+                if (!mysqli_query($conn, $sql)) {
+                    throw new Exception("Error inserting document record: " . mysqli_error($conn));
+                }
+            }
+        }
+        
+        // 7. Insert consents
+        $terms_consent = isset($_POST['terms_consent']) ? 1 : 0;
+        $data_consent = isset($_POST['data_consent']) ? 1 : 0;
+        $update_consent = isset($_POST['update_consent']) ? 1 : 0;
+        $digital_signature = mysqli_real_escape_string($conn, $_POST['digital_signature']);
+        $digital_date = mysqli_real_escape_string($conn, $_POST['digital_date']);
+        
+        $sql = "INSERT INTO staff_consents (
+            staff_id, terms_consent, data_consent, update_consent, digital_signature, signature_date
+        ) VALUES (
+            $staff_id, $terms_consent, $data_consent, $update_consent, '$digital_signature', '$digital_date'
+        )";
+        
+        if (!mysqli_query($conn, $sql)) {
+            throw new Exception("Error inserting consent record: " . mysqli_error($conn));
+        }
+        
+        // Commit transaction
+        mysqli_commit($conn);
+        $success = "Non-teaching staff registration completed successfully!";
+        
+    } catch (Exception $e) {
+        // Rollback transaction on error
+        mysqli_rollback($conn);
+        $error = "Error: " . $e->getMessage();
+    }
+}
+
+// Fetch departments for dropdown
+$departments = array();
+$sql = "SELECT department_id, department_name FROM departments";
+$result = mysqli_query($conn, $sql);
+if ($result) {
+    while ($row = mysqli_fetch_assoc($result)) {
+        $departments[] = $row;
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,6 +256,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Non-Teaching Staff Registration Portal</title>
     <link rel="stylesheet" href="staffreg.css">
+    <style>
+        .error { color: red; font-weight: bold; }
+        .success { color: green; font-weight: bold; }
+        .form-group { margin-bottom: 15px; }
+        .required:after { content: " *"; color: red; }
+        .image-upload { border: 2px dashed #ccc; padding: 20px; text-align: center; cursor: pointer; }
+        .qualification-row, .document-row { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; position: relative; }
+        .remove-row { position: absolute; top: 5px; right: 5px; background: red; color: white; border: none; border-radius: 50%; cursor: pointer; }
+    </style>
 </head>
 <body>
     <header>
@@ -23,6 +283,14 @@
         <div class="form-container">
             <h1 id="formTitle">Non-Teaching Staff Registration Form</h1>
             
+            <?php if ($error): ?>
+                <div class="error"><?php echo $error; ?></div>
+            <?php endif; ?>
+            
+            <?php if ($success): ?>
+                <div class="success"><?php echo $success; ?></div>
+            <?php endif; ?>
+            
             <div class="form-steps">
                 <div class="step active">1</div>
                 <div class="step">2</div>
@@ -30,7 +298,7 @@
                 <div class="step">4</div>
             </div>
             
-            <form id="staffRegistrationForm" action="" method="POST">
+            <form id="staffRegistrationForm" action="" method="POST" enctype="multipart/form-data">
                 <!-- Staff Type Hidden Field -->
                 <input type="hidden" id="staff_type" name="staff_type" value="non-teaching">
                 
@@ -86,11 +354,11 @@
                         
                         <div class="form-group">
                             <label for="photo_path" class="required">Profile Photo</label>
-                            <div class="image-upload" id="profilePhotoUpload">
+                            <div class="image-upload"> <!-- id="profilePhotoUpload" -->
                                 <div class="upload-icon">📷</div>
                                 <div>Click to upload photo</div>
                                 <div class="help-text">JPEG or PNG, max 2MB</div>
-                                <input type="file" id="photo_path" name="profile_photo_path" accept="image/*" style="display: none;" required>
+                                <input type="file" id="photo_path" name="profile_photo_path" style="" required>
                             </div>
                         </div>
                     </div>
@@ -106,7 +374,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="phone" class="required">Phone Number</label>
-                            <input type="tel" id="phone" name="phone_number" required>
+                            <input type="text" id="phone" name="phone_number" required>
                         </div>
                         
                         <div class="form-group">
@@ -122,7 +390,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Academic Qualifications Section -->
                 <div class="form-section">
                     <div class="section-header">
@@ -137,27 +405,28 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="degree1" class="required">Degree/Qualification</label>
-                                    <input type="text" id="degree1" name="degree">
+                                    <input type="text" id="degree1" name="degree[]" required>
                                 </div>
                                 
                                 <div class="form-group">
                                     <label for="institution1" class="required">Institution</label>
-                                    <input type="text" id="institution1" name="institution" >
+                                    <input type="text" id="institution1" name="institution[]" required>
                                 </div>
                             </div>
                             
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="major1" class="required">Major/Area of Specialization</label>
-                                    <input type="text" id="major1" name="major" >
+                                    <input type="text" id="major1" name="major[]" required>
                                 </div>
                                 
                                 <div class="form-group">
                                     <label for="year1" class="required">Year of Graduation</label>
-                                    <input type="number" id="year1" name="graduation_year" min="1950" max="2030">
+                                    <input type="number" id="year1" name="graduation_year[]" min="1950" max="2030" required>
                                 </div>
                             </div>
                             
+                          
                             <div class="form-row">
                                 <div class="form-group-full">
                                     <label for="certificate1" class="required">Upload Certificate</label>
@@ -165,7 +434,7 @@
                                         <div class="upload-icon">📄</div>
                                         <div>Click to upload certificate</div>
                                         <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
-                                        <input type="file" id="certificate1" name="certification_path" accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
+                                        <input type="file" id="certificate1" name="certification_path" accept=".pdf,.jpg,.jpeg,.png" style="" required>
                                     </div>
                                 </div>
                             </div>
@@ -176,7 +445,7 @@
                         <i>+</i> Add Another Qualification
                     </button>
                 </div>
-                
+
                 <!-- Employment Information Section -->
                 <div class="form-section">
                     <div class="section-header">
@@ -192,11 +461,11 @@
                         </div>
                         
                         <div class="form-group">
-                            <label for="userRole">Department</label>
-                            <select id="userRole" name="department" required>
+                            <label for="department" class="required">Department</label>
+                            <select id="department" name="department" required>
                                 <option value="">Select a department</option>
-                                <?php foreach($roles as $r): ?>
-                                    <option value="<?= $r['department_id']; ?>"><?= $r['department']; ?></option>
+                                <?php foreach ($departments as $dept): ?>
+                                    <option value="<?php echo $dept['department_id']; ?>"><?php echo $dept['department_name']; ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -207,7 +476,6 @@
                             <label for="designation" class="required">Designation</label>
                             <select id="designation" name="designation" required>
                                 <option value="">Select Designation</option>
-                                <!-- Non-Teaching Staff Options -->
                                 <option value="admin-assistant">Administrative Assistant</option>
                                 <option value="accountant">Accountant</option>
                                 <option value="librarian">Librarian</option>
@@ -244,12 +512,6 @@
                             <input type="text" id="supervisor" name="supervisor">
                         </div>
                     </div>
-                    
-                    <div id="employment-additional-fields"></div>
-                    
-                    <button type="button" class="add-row-btn" id="addEmploymentField">
-                        <i>+</i> Add New Field
-                    </button>
                 </div>
                 
                 <!-- Working Hours Section (Only for Non-Teaching Staff) -->
@@ -289,13 +551,11 @@
                     </div>
                 </div>
                 
-              
-                
                 <!-- Payroll & Bank Details Section -->
                 <div class="form-section">
                     <div class="section-header">
                         <div class="section-icon">💰</div>
-                        <div class="section-title">7. Payroll & Bank Details</div>
+                        <div class="section-title">6. Payroll & Bank Details</div>
                     </div>
                     
                     <div class="form-row">
@@ -330,7 +590,7 @@
                         
                         <div class="form-group">
                             <label for="frequency" class="required">Payment Frequency</label>
-                            <select id="frequency" name="payment_frequency">
+                            <select id="frequency" name="payment_frequency" required>
                                 <option value="">Select Frequency</option>
                                 <option value="monthly">Monthly</option>
                                 <option value="bi-weekly">Bi-weekly</option>
@@ -341,11 +601,11 @@
                     </div>
                 </div>
                 
-                <!-- Document Uploads Section -->
-                <div class="form-section">
+                  <!-- Document Uploads Section -->
+                  <div class="form-section">
                     <div class="section-header">
                         <div class="section-icon">📑</div>
-                        <div class="section-title">8. Document Uploads</div>
+                        <div class="section-title">7. Document Uploads</div>
                     </div>
                     
                     <div id="documents-container">
@@ -357,13 +617,13 @@
                                         <div class="upload-icon">📄</div>
                                         <div>Click to upload document</div>
                                         <div class="help-text">PDF, JPEG or PNG, max 5MB</div>
-                                        <input type="file" id="path" name="document_path" accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
+                                        <input type="file" id="path" name="document_path" accept=".pdf,.jpg,.jpeg,.png" style="" required>
                                     </div>
                                 </div>
                                 
                                 <div class="form-group">
                                     <label for="type" class="required">Document Type</label>
-                                    <select id="type" name="document_type">
+                                    <select id="type" name="document_type" required>
                                         <option value="id">National ID</option>
                                         <option value="passport">Passport</option>
                                         <option value="residencePermit">Residence Permit</option>
@@ -375,7 +635,7 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="number" class="required">Document Number</label>
-                                    <input type="text" id="number" name="document_number">
+                                    <input type="text" id="number" name="document_number" required>
                                 </div>
                                 
                                 <div class="form-group">
@@ -402,7 +662,7 @@
                 <div class="form-section">
                     <div class="section-header">
                         <div class="section-icon">✓</div>
-                        <div class="section-title">9. Consent & Declaration</div>
+                        <div class="section-title">8. Consent & Declaration</div>
                     </div>
                     
                     <div class="form-row">
@@ -413,8 +673,7 @@
                                     I hereby declare that the information provided in this form is true and correct to the best of my knowledge. I understand that providing false information may result in termination of employment.
                                 </label>
                             </div>
-                            
-                            <div class="checkbox-row">
+                             <div class="checkbox-row">
                                 <input type="checkbox" id="data" name="data_consent" required>
                                 <label for="data">
                                     I consent to the collection, processing, and storage of my personal data for employment and administrative purposes in accordance with the school's data privacy policy.
@@ -447,15 +706,16 @@
                 <div class="action-row">
                     <button type="button" class="btn btn-secondary" id="saveAsDraft">Save as Draft</button>
                     <div>
-                        <button type="button" class="btn btn-primary" id="prevStep" style="margin-right: 10px;">Previous</button>
+                        <button type="button" class="btn btn-primary" id="prevStep" style="display: none;">Previous</button>
                         <button type="button" class="btn btn-primary" id="nextStep">Next</button>
-                        <button type="submit" class="btn btn-success" id="submitForm" style="display: none;">Submit Registration</button>
+                        <input type="submit" class="btn btn-success" id="submitForm" value="Submit Registration">
                     </div>
                 </div>
             </form>
         </div>
     </div>
-    <script src="staffreg.js"></script>
+        <script src="staffreg.jks"></script>
+
 
     </script>
 </body>
