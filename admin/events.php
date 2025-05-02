@@ -1,19 +1,161 @@
 <?php
-session_start(); // Start the session
+// Turn off output buffering
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 ob_start();
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+session_start();
+include 'dbconnect.php';
 
-include 'dbconnect.php'; // Include the database connection file
-
-// Check if user is not logged in
+// Check if user is logged in
 if (empty($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
 }
 
+// Fetch staff members for the instructor dropdown
+$staff_query = "SELECT staff_id, full_name, designation 
+                FROM staff ";
+$staff_result = mysqli_query($conn, $staff_query);
+$staff_members = [];
+
+if ($staff_result) {
+    while ($row = mysqli_fetch_assoc($staff_result)) {
+        $staff_members[] = $row;
+    }
+}
+
+// Process form submission
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $response = [
+        'status' => 'error',
+        'message' => 'An error occurred while processing your request.'
+    ];
+    
+    // Validate required fields
+    if (empty($_POST['eventTitle']) || empty($_POST['eventDate']) || 
+        empty($_POST['startTime']) || empty($_POST['endTime']) || 
+        empty($_POST['venue']) || empty($_POST['instructor'])) {
+        
+        $error_message = 'Please fill in all required fields.';
+        
+        // Continue with the page load but show error
+    } else {
+        try {
+            // Sanitize input data
+            $title = mysqli_real_escape_string($conn, $_POST['eventTitle']);
+            $description = mysqli_real_escape_string($conn, isset($_POST['description']) ? $_POST['description'] : '');
+            $event_date = mysqli_real_escape_string($conn, $_POST['eventDate']);
+            $start_time = mysqli_real_escape_string($conn, $_POST['startTime']);
+            $end_time = mysqli_real_escape_string($conn, $_POST['endTime']);
+            $location = mysqli_real_escape_string($conn, $_POST['venue']);
+            $organizer_id = mysqli_real_escape_string($conn, $_POST['instructor']);
+            $event_type = !empty($_POST['eventCategory']) ? mysqli_real_escape_string($conn, $_POST['eventCategory']) : 'other';
+            $resources = mysqli_real_escape_string($conn, isset($_POST['resources']) ? $_POST['resources'] : '');
+            $max_participants = !empty($_POST['capacity']) ? intval($_POST['capacity']) : NULL;
+            
+            // Handle recurrence fields
+            $is_recurring = isset($_POST['recurrence']) ? 1 : 0;
+            $recurrence_pattern = NULL;
+            $recurrence_end_date = NULL;
+            
+            if ($is_recurring && !empty($_POST['recurrenceType'])) {
+                $recurrence_pattern = mysqli_real_escape_string($conn, $_POST['recurrenceType']);
+                
+                if (!empty($_POST['recurrenceEnd'])) {
+                    $recurrence_end_date = mysqli_real_escape_string($conn, $_POST['recurrenceEnd']);
+                }
+            }
+            
+            // Format datetime fields
+            $start_datetime = $event_date . ' ' . $start_time . ':00';
+            $end_datetime = $event_date . ' ' . $end_time . ':00';
+            
+            // Create a new event record
+            $insert_event_query = "INSERT INTO events (
+                title, 
+                description, 
+                start_datetime, 
+                end_datetime, 
+                location, 
+                organizer_id, 
+                event_type, 
+                is_recurring, 
+                recurrence_pattern, 
+                recurrence_end_date, 
+                max_participants, 
+                resources_needed,
+                created_at
+            ) VALUES (
+                '$title', 
+                '$description', 
+                '$start_datetime', 
+                '$end_datetime', 
+                '$location', 
+                '$organizer_id', 
+                '$event_type', 
+                $is_recurring, 
+                " . ($recurrence_pattern ? "'$recurrence_pattern'" : "NULL") . ", 
+                " . ($recurrence_end_date ? "'$recurrence_end_date'" : "NULL") . ", 
+                " . ($max_participants ? "$max_participants" : "NULL") . ", 
+                '$resources',
+                NOW()
+            )";
+            
+            if (mysqli_query($conn, $insert_event_query)) {
+                $event_id = mysqli_insert_id($conn);
+                
+                // Process participants
+                if (!empty($_POST['participants']) && is_array($_POST['participants'])) {
+                    foreach ($_POST['participants'] as $participant) {
+                        // Determine the type of participant and process accordingly
+                        $participant = mysqli_real_escape_string($conn, $participant);
+                        $participant_type = 'external';
+                        
+                        // Check if it's a staff member
+                        if (stripos($participant, 'prof.') !== false || stripos($participant, 'mr.') !== false || 
+                            stripos($participant, 'mrs.') !== false || stripos($participant, 'ms.') !== false || 
+                            stripos($participant, 'dr.') !== false) {
+                            
+                            $participant_type = 'staff';
+                        }
+                        // Check if it's a student group
+                        elseif (stripos($participant, 'all') !== false && (
+                                stripos($participant, 'student') !== false || 
+                                stripos($participant, 'class') !== false)) {
+                            
+                            $participant_type = 'group';
+                        }
+                        
+                        // Insert participant record
+                        $participant_query = "INSERT INTO event_participants (
+                            event_id, 
+                            participant_type, 
+                            external_name
+                        ) VALUES (
+                            $event_id, 
+                            '$participant_type', 
+                            '$participant'
+                        )";
+                        
+                        mysqli_query($conn, $participant_query);
+                    }
+                }
+                
+                // Set success message
+                $success_message = 'Event created successfully!';
+                header("Location: dash.php?event_added=1");
+                exit();
+                
+            } else {
+                // Error in SQL query
+                $error_message = 'Database error: ' . mysqli_error($conn);
+            }
+        } catch (Exception $e) {
+            $error_message = 'Exception occurred: ' . $e->getMessage();
+        }
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -24,6 +166,7 @@ if (empty($_SESSION['user_id'])) {
     <title>Monaco Institute - Add New Event</title>
     <link rel="stylesheet" href="dash.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Your existing CSS would go here -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -386,9 +529,19 @@ if (empty($_SESSION['user_id'])) {
             <i class="fas fa-calendar-plus"></i> Create New Event
         </div>
         
-        <div id="alert-container" class="hidden"></div>
+        <?php if (!empty($error_message)): ?>
+        <div class="alert alert-danger">
+            <?php echo $error_message; ?>
+        </div>
+        <?php endif; ?>
+        
+        <?php if (!empty($success_message)): ?>
+        <div class="alert alert-success">
+            <?php echo $success_message; ?>
+        </div>
+        <?php endif; ?>
 
-        <form id="addEventForm" method="POST" action="process_event.php">
+        <form id="addEventForm" method="POST" action="events.php">
             <div class="form-group">
                 <label for="eventTitle" class="required-field">Event Title</label>
                 <input type="text" id="eventTitle" name="eventTitle" placeholder="Enter event title" required>
@@ -442,7 +595,12 @@ if (empty($_SESSION['user_id'])) {
                 <div class="form-column">
                     <div class="form-group">
                         <label for="instructor" class="required-field">Instructor/Speaker</label>
-                        <input type="text" id="instructor" name="instructor" placeholder="Enter instructor name" required>
+                        <select id="instructor" name="instructor" required>
+                            <option value="">Select an instructor</option>
+                            <?php foreach ($staff_members as $staff): ?>
+                                <option value="<?php echo $staff['staff_id']; ?>"><?php echo $staff['full_name']; ?> (<?php echo $staff['designation']; ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -483,16 +641,7 @@ if (empty($_SESSION['user_id'])) {
             <div class="form-group">
                 <label>Participants</label>
                 <div class="participant-list" id="participantList">
-                    <div class="participant-item">
-                        <span>All Data Science Students</span>
-                        <button type="button" class="remove-participant"><i class="fas fa-times"></i></button>
-                        <input type="hidden" name="participants[]" value="All Data Science Students">
-                    </div>
-                    <div class="participant-item">
-                        <span>Prof. Anderson</span>
-                        <button type="button" class="remove-participant"><i class="fas fa-times"></i></button>
-                        <input type="hidden" name="participants[]" value="Prof. Anderson">
-                    </div>
+                    <!-- Participants will be added here dynamically -->
                 </div>
                 <div class="add-participant-row">
                     <input type="text" id="newParticipant" placeholder="Type participant name or group">
@@ -517,36 +666,19 @@ if (empty($_SESSION['user_id'])) {
 
             <div class="form-buttons">
                 <button type="button" class="btn btn-secondary" onclick="window.location.href='dash.php'">Cancel</button>
-                <button type="button" class="btn btn-secondary" id="previewButton">Preview</button>
                 <button type="submit" class="btn btn-primary">Create Event</button>
             </div>
         </form>
-    </div>
-
-    <div class="preview-section" id="previewSection" style="display: none;">
-        <div class="preview-header">
-            <i class="fas fa-eye"></i> Event Preview
-        </div>
-        <div class="event-preview">
-            <div class="event-preview-title" id="previewTitle">Digital Technology Workshop</div>
-            <div class="event-preview-details">
-                <div class="event-preview-detail"><i class="fas fa-calendar"></i> <span id="previewDate">April 18, 2025</span></div>
-                <div class="event-preview-detail"><i class="fas fa-clock"></i> <span id="previewTime">8:30am - 10:30am</span></div>
-                <div class="event-preview-detail"><i class="fas fa-map-marker-alt"></i> <span id="previewVenue">Room B12</span></div>
-                <div class="event-preview-detail"><i class="fas fa-user"></i> <span id="previewInstructor">Mr. Murage Charles</span></div>
-            </div>
-            <div class="event-description" id="previewDescription">
-                This workshop will cover the latest trends in digital technology with hands-on practical sessions. Students will learn about emerging technologies and their applications in various industries.
-            </div>
-        </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Recurrence checkbox toggle
             const recurrenceCheckbox = document.getElementById('recurrence');
+            const recurrenceOptions = document.querySelector('.recurrence-options');
+            recurrenceOptions.style.display = 'none';
+            
             recurrenceCheckbox.addEventListener('change', function() {
-                const recurrenceOptions = document.querySelector('.recurrence-options');
                 if (this.checked) {
                     recurrenceOptions.style.display = 'block';
                 } else {
@@ -561,7 +693,7 @@ if (empty($_SESSION['user_id'])) {
                 const participantName = participantInput.value.trim();
                 
                 if (participantName) {
-                    const participantList = document.querySelector('.participant-list');
+                    const participantList = document.getElementById('participantList');
                     const newParticipant = document.createElement('div');
                     newParticipant.className = 'participant-item';
                     newParticipant.innerHTML = `
@@ -581,114 +713,22 @@ if (empty($_SESSION['user_id'])) {
                 }
             });
             
-            // Add event listeners to existing remove buttons
-            const removeButtons = document.querySelectorAll('.remove-participant');
-            removeButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const participantItem = this.parentNode;
-                    participantItem.parentNode.removeChild(participantItem);
-                });
-            });
-            
-            // Preview functionality
-            const previewButton = document.getElementById('previewButton');
-            previewButton.addEventListener('click', function() {
-                const previewSection = document.getElementById('previewSection');
-                
-                // Update preview with form values
-                document.getElementById('previewTitle').textContent = document.getElementById('eventTitle').value || 'Event Title';
-                
-                // Format date
-                const dateValue = document.getElementById('eventDate').value;
-                if (dateValue) {
-                    const date = new Date(dateValue);
-                    document.getElementById('previewDate').textContent = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-                }
-                
-                // Format time
-                const startTime = document.getElementById('startTime').value;
-                const endTime = document.getElementById('endTime').value;
-                if (startTime && endTime) {
-                    const formattedStartTime = formatTime(startTime);
-                    const formattedEndTime = formatTime(endTime);
-                    document.getElementById('previewTime').textContent = `${formattedStartTime} - ${formattedEndTime}`;
-                }
-                
-                document.getElementById('previewVenue').textContent = document.getElementById('venue').value || 'Venue';
-                document.getElementById('previewInstructor').textContent = document.getElementById('instructor').value || 'Instructor';
-                document.getElementById('previewDescription').textContent = document.getElementById('description').value || 'No description provided.';
-                
-                previewSection.style.display = 'block';
-                
-                // Scroll to preview
-                previewSection.scrollIntoView({ behavior: 'smooth' });
-            });
-            
-            // Form submission with AJAX
+            // Form validation
             const form = document.getElementById('addEventForm');
             form.addEventListener('submit', function(event) {
-                event.preventDefault();
+                const eventTitle = document.getElementById('eventTitle').value.trim();
+                const eventDate = document.getElementById('eventDate').value;
+                const startTime = document.getElementById('startTime').value;
+                const endTime = document.getElementById('endTime').value;
+                const venue = document.getElementById('venue').value.trim();
+                const instructor = document.getElementById('instructor').value;
                 
-                // Create form data object
-                const formData = new FormData(form);
-                
-                // Send AJAX request
-                fetch('process_event.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    const alertContainer = document.getElementById('alert-container');
-                    alertContainer.classList.remove('hidden');
-                    
-                    if (data.status === 'success') {
-                        alertContainer.className = 'alert alert-success';
-                        alertContainer.textContent = data.message;
-                        
-                        // Redirect after successful submission (after 2 seconds)
-                        setTimeout(function() {
-                            window.location.href = 'dash.php';
-                        }, 2000);
-                    } else {
-                        alertContainer.className = 'alert alert-danger';
-                        alertContainer.textContent = data.message;
-                    }
-                    
-                    // Scroll to top to see the alert
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    const alertContainer = document.getElementById('alert-container');
-                    alertContainer.classList.remove('hidden');
-                    alertContainer.className = 'alert alert-danger';
-                    alertContainer.textContent = 'An error occurred. Please try again.';
-                    
-                    // Scroll to top to see the alert
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                });
+                if (!eventTitle || !eventDate || !startTime || !endTime || !venue || !instructor) {
+                    event.preventDefault();
+                    alert('Please fill in all required fields.');
+                }
             });
         });
-        
-        // Format time from 24h to 12h format
-        function formatTime(time24h) {
-            const [hours, minutes] = time24h.split(':');
-            let period = 'am';
-            let hour = parseInt(hours);
-            
-            if (hour >= 12) {
-                period = 'pm';
-                if (hour > 12) {
-                    hour -= 12;
-                }
-            }
-            if (hour === 0) {
-                hour = 12;
-            }
-            
-            return `${hour}:${minutes}${period}`;
-        }
     </script>
 </body>
 </html>

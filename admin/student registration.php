@@ -367,7 +367,7 @@ function handleFileUpload($field, $targetDir) {
                 <div class="autosave-text">Saving...</div>
             </div>
         
-            <form id="studentRegistration" action="submit_student.php" method="POST" >
+            <form id="studentRegistration" action="student registration.php" method="POST" >
             <div class="section active" data-section="1">
                     <div class="section-title">🔹 1. Personal Information</div>
                     
