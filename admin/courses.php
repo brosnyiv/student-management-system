@@ -13,6 +13,10 @@ if (empty($_SESSION['user_id'])) {
     exit();
 }
 
+// course_id 	course_name 	course_code 	level_id 	department_id 	duration
+// Duration in years 	max_capacity 	faculty_leader_id 	status 	description 	course_fee 	start_date 	created_at 	updated_at 	
+
+
 // Function to get course icon based on department
 function getCourseIcon($department) {
     switch(strtolower($department)) {

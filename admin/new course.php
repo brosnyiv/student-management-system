@@ -1,3 +1,88 @@
+<?php
+
+session_start(); // Start the session
+ob_start();
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+include 'dbconnect.php'; // Include the database connection file
+
+// Check if user is not logged in
+if (empty($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
+
+//select all from deapartments
+$sql = "SELECT * FROM departments";
+$result = mysqli_query($conn, $sql);
+
+$departments= mysqli_fetch_all($result, MYSQLI_ASSOC);
+
+//select all from levels
+$sql = "SELECT * FROM course_levels";
+$result2 = mysqli_query($conn, $sql);
+$levels= mysqli_fetch_all($result2, MYSQLI_ASSOC);
+
+
+// course_id 	course_name 	course_code 	level_id 	department_id 	duration
+// Duration in years 	max_capacity 	status 	description 	course_fee 	start_date 	created_at 	updated_at 	
+$course_name=$course_code=$level_id=$department_id=$duration=$max_capacity=$faculty_leader_id=$status=$description=$course_fee=$start_date="";
+
+//course units variables
+$unit_name=$unit_code=$semester_id=$instructor_id=$credits="";
+
+
+//handle form submisson
+if($_SERVER['REQUEST_METHOD'] == 'POST'){
+
+//sanitize inputs using sanitize full special chars
+$course_name=filter_input(INPUT_POST, 'courseName', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$course_code=filter_input(INPUT_POST, 'courseCode', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$level_id=filter_input(INPUT_POST, 'courseLevel', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$department_id=filter_input(INPUT_POST, 'courseDepartment', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$duration=filter_input(INPUT_POST, 'courseDuration', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$max_capacity=filter_input(INPUT_POST, 'courseCapacity', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$faculty_leader_id=filter_input(INPUT_POST, 'courseLeadInstructor', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$status=filter_input(INPUT_POST, 'courseStatus', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$description=filter_input(INPUT_POST, 'courseDescription', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$course_fee=filter_input(INPUT_POST, 'courseFee', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$start_date=filter_input(INPUT_POST, 'courseStartDate', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+
+//course units data
+$unit_name=filter_input(INPUT_POST, 'unit_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$unit_code=filter_input(INPUT_POST, 'unit_code', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$semester_id=filter_input(INPUT_POST, 'semester_id', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$instructor_id=filter_input(INPUT_POST, 'instructor_id', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$credits=filter_input(INPUT_POST, 'credits', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+
+//insert values into table
+$sql = "INSERT INTO courses (course_name, course_code, level_id, department_id, duration, max_capacity, status, description, course_fee, start_date) 
+VALUES ('$course_name', '$course_code', '$level_id', '$department_id', '$duration', '$max_capacity', '$status', '$description', '$course_fee', '$start_date')";
+
+$courses=mysqli_query($conn, $sql);
+if($courses){
+    $_SESSION['success_message'] = "Course created successfully!";
+
+}
+
+//insert data into course_units table
+$sql = "INSERT INTO course_units (unit_name, unit_code, semester_id, instructor_id, credits)
+        VALUES ('$unit_name', '$unit_code', '$semester_id', '$instructor_id','$credits')";
+
+    $course_units=mysqli_query($conn, $sql);
+    if($course_units){
+        $_SESSION['success_message'] = "Course units created successfully!";
+
+    }
+
+}
+
+?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -311,7 +396,7 @@
         }
         ?>
         
-        <form id="newCourseForm" action="submit_course.php" method="POST">
+        <form id="newCourseForm" action="new course.php" method="POST">
             <div class="form-section-title">Course Information</div>
             <div class="form-row">
                 <div class="form-group">
@@ -328,18 +413,17 @@
                     <label for="courseLevel">Level*</label>
                     <select id="courseLevel" name="courseLevel" required>
                         <option value="">Select level</option>
-                        <option value="certificate">Certificate</option>
-                        <option value="diploma">Diploma</option>
+                        <?php foreach($levels as $level): ?>
+                            <option value="<?php echo $level['level_id']; ?>"><?php echo $level['level_name']; ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="form-group">
                     <label for="courseDepartment">Department</label>
                     <select id="courseDepartment" name="courseDepartment" required>
-                        <option value="">Select department</option>
-                        <option value="it">Information Technology</option>
-                        <option value="business">Business</option>
-                        <option value="design">Design</option>
-                        <option value="marketing">Marketing</option>
+                    <?php foreach($departments as $department): ?>
+                        <option value="<?php echo $department['department_id']; ?>"><?php echo $department['department_name']; ?></option>
+                    <?php endforeach; ?>
                     </select>
                 </div>
             </div>
@@ -407,21 +491,22 @@
                     <div class="semester-tab" data-semester="semester2year2">Year 2, Semester 2</div>
                 </div>
 
+                <!--  	unit_id 	unit_name 	unit_code 	semester_id 	instructor_id 	credits 	created_at 	updated_at 	 -->
                 <!-- Year 1, Semester 1 -->
                 <div id="semester1year1" class="semester-content active">
                     <div class="unit-container" id="units-semester1year1">
                         <div class="unit-row">
                             <div class="unit-input">
                                 <label>Course Unit Name</label>
-                                <input type="text" placeholder="Enter unit name" required>
+                                <input type="text" placeholder="Enter unit name" required name="unit_name">
                             </div>
                             <div class="unit-input">
                                 <label>Course Unit Code</label>
-                                <input type="text" placeholder="Enter unit code" required>
+                                <input type="text" placeholder="Enter unit code" required name="unit_code">
                             </div>
                             <div class="instructor-select">
                                 <label>Instructor</label>
-                                <select required>
+                                <select required name="instructor_id">
                                     <option value="">Select instructor</option>
                                     <option value="1">Dr. John Smith</option>
                                     <option value="2">Sarah Johnson</option>
@@ -452,15 +537,15 @@
                         <div class="unit-row">
                             <div class="unit-input">
                                 <label>Unit Name</label>
-                                <input type="text" placeholder="Enter unit name" required>
+                                <input type="text" placeholder="Enter unit name" required name="unit_name">
                             </div>
                             <div class="unit-input">
                                 <label>Unit Code</label>
-                                <input type="text" placeholder="Enter unit code" required>
+                                <input type="text" placeholder="Enter unit code" required name="unit_code">
                             </div>
                             <div class="instructor-select">
                                 <label>Instructor</label>
-                                <select required>
+                                <select required name="instructor_id">
                                     <option value="">Select instructor</option>
                                     <option value="1">Dr. John Smith</option>
                                     <option value="2">Sarah Johnson</option>
@@ -473,7 +558,7 @@
                             </div>
                             <div class="unit-credits">
                                 <label>Credits</label>
-                                <input type="number" min="1" max="10" value="10" required>
+                                <input type="number" min="1" max="10" value="10" required name="credits">
                             </div>
                             <div class="unit-action">
                                 <button type="button" class="btn-remove-unit"><i class="fas fa-trash"></i></button>
@@ -491,15 +576,15 @@
                         <div class="unit-row">
                             <div class="unit-input">
                                 <label>Unit Name</label>
-                                <input type="text" placeholder="Enter unit name" required>
+                                <input type="text" placeholder="Enter unit name" required name="unit_name">
                             </div>
                             <div class="unit-input">
                                 <label>Unit Code</label>
-                                <input type="text" placeholder="Enter unit code" required>
+                                <input type="text" placeholder="Enter unit code" required name="unit_code">
                             </div>
                             <div class="instructor-select">
                                 <label>Instructor</label>
-                                <select required>
+                                <select required name="instructor_id">
                                     <option value="">Select instructor</option>
                                     <option value="1">Dr. John Smith</option>
                                     <option value="2">Sarah Johnson</option>
@@ -512,7 +597,7 @@
                             </div>
                             <div class="unit-credits">
                                 <label>Credits</label>
-                                <input type="number" min="1" max="10" value="10" required>
+                                <input type="number" min="1" max="10" value="10" required name="credits">
                             </div>
                             <div class="unit-action">
                                 <button type="button" class="btn-remove-unit"><i class="fas fa-trash"></i></button>
@@ -538,7 +623,7 @@
                             </div>
                             <div class="instructor-select">
                                 <label>Instructor*</label>
-                                <select required>
+                                <select required name="instructor_id">
                                     <option value="">Select instructor</option>
                                     <option value="1">Dr. John Smith</option>
                                     <option value="2">Sarah Johnson</option>
@@ -551,7 +636,7 @@
                             </div>
                             <div class="unit-credits">
                                 <label>Credits*</label>
-                                <input type="number" min="1" max="10" value="10" required>
+                                <input type="number" min="1" max="10" value="10" required name="credits">
                             </div>
                             <div class="unit-action">
                                 <button type="button" class="btn-remove-unit"><i class="fas fa-trash"></i></button>
