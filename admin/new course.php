@@ -26,6 +26,15 @@ $sql = "SELECT * FROM course_levels";
 $result2 = mysqli_query($conn, $sql);
 $levels= mysqli_fetch_all($result2, MYSQLI_ASSOC);
 
+// Query to fetch staff who are teaching
+$staff_query = "SELECT staff_id, full_name
+               FROM staff 
+               WHERE staff_type = 'teaching'  
+               ";
+               
+$staff_result = mysqli_query($conn, $staff_query);
+$teaching = mysqli_fetch_all($staff_result, MYSQLI_ASSOC);
+
 
 // course_id 	course_name 	course_code 	level_id 	department_id 	duration
 // Duration in years 	max_capacity 	status 	description 	course_fee 	start_date 	created_at 	updated_at 	
@@ -77,24 +86,6 @@ $sql = "INSERT INTO course_units (unit_name, unit_code, semester_id, instructor_
 
     }
 
-}
-
-// Query to fetch staff who are teaching
-$staff_query = "SELECT staff_id, full_name
-               FROM staff 
-               WHERE staff_type = 'staff_type'  
-               ";
-               
-$staff_result = mysqli_query($conn, $staff_query);
-
-// Check if query was successful
-if (!$staff_result) {
-    // Handle error
-    echo "Error fetching instructors: " . mysqli_error($conn);
-    $instructors = []; // Empty array if query fails
-} else {
-    // Fetch all instructors into an array
-    $instructors = mysqli_fetch_all($staff_result, MYSQLI_ASSOC);
 }
 
 ?>
