@@ -1,3 +1,193 @@
+
+
+<?php
+
+// Database connection
+include('dbconnect.php');
+
+// Process form data
+try {
+    // Basic validation
+    $requiredFields = [
+        'first_name', 'surname', 'date_of_birth', 'gender', 'email', 
+        'phone', 'address', 'city', 'state_province', 'zip_postal_code',
+        'country', 'nationality', 'emergency_contact_name', 'emergency_relationship',
+        'emergency_phone', 'program_level', 'department', 'major', 'year_level',
+        'expected_start_date', 'previous_institution', 'previous_gpa',
+        'terms_agreed', 'policy_agreed'
+    ];
+    
+    foreach ($requiredFields as $field) {
+        if (empty($_POST[$field])) {
+            throw new Exception("Missing required field: $field");
+        }
+    }
+    
+    // File upload handling
+    $profilePhotoPath = '';
+    if (isset($_FILES['profile_photo_path'])) {
+        $uploadDir = 'uploads/profile_photos/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        
+        $fileName = uniqid() . '_' . basename($_FILES['profile_photo_path']['name']);
+        $targetPath = $uploadDir . $fileName;
+        
+        if (move_uploaded_file($_FILES['profile_photo_path']['tmp_name'], $targetPath)) {
+            $profilePhotoPath = $targetPath;
+        } else {
+            throw new Exception('Failed to upload profile photo');
+        }
+    }
+    
+    // Generate student ID
+    $department = $_POST['department'];
+    $enrollmentYear = date('Y');
+    $studentId = generateStudentId($department, $enrollmentYear);
+    
+    // Begin transaction
+    $db->begin_transaction();
+    
+    // Insert into students table
+    $stmt = $db->prepare("
+        INSERT INTO students (
+            student_id, first_name, middle_name, surname, date_of_birth, gender,
+            profile_photo_path, nationality, created_by, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')
+    ");
+    $stmt->bind_param(
+        'ssssssssi',
+        $studentId,
+        $_POST['first_name'],
+        $_POST['middle_name'],
+        $_POST['surname'],
+        $_POST['date_of_birth'],
+        $_POST['gender'],
+        $profilePhotoPath,
+        $_POST['nationality'],
+        $_POST['created_by']
+    );
+    $stmt->execute();
+    $stmt->close();
+    
+    // Insert into contact_details
+    $stmt = $db->prepare("
+        INSERT INTO contact_details (
+            student_id, email, phone, alt_phone, address, city,
+            state_province, zip_postal_code, country, is_primary
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
+    ");
+    $stmt->bind_param(
+        'sssssssss',
+        $studentId,
+        $_POST['email'],
+        $_POST['phone'],
+        $_POST['alt_phone'],
+        $_POST['address'],
+        $_POST['city'],
+        $_POST['state_province'],
+        $_POST['zip_postal_code'],
+        $_POST['country']
+    );
+    $stmt->execute();
+    $stmt->close();
+    
+    // Insert into student_emergency_contacts
+    $stmt = $db->prepare("
+        INSERT INTO student_emergency_contacts (
+            student_id, contact_name, relationship, phone_number, is_primary
+        ) VALUES (?, ?, ?, ?, TRUE)
+    ");
+    $stmt->bind_param(
+        'ssss',
+        $studentId,
+        $_POST['emergency_contact_name'],
+        $_POST['emergency_relationship'],
+        $_POST['emergency_phone']
+    );
+    $stmt->execute();
+    $stmt->close();
+    
+    // Insert into academic_info (assuming you have course_id)
+    $courseId = 1; // You should determine this based on the selected program/department
+    $stmt = $db->prepare("
+        INSERT INTO academic_info (
+            student_id, course_id, program_level, year_level, expected_start_date,
+            expected_end_date, previous_institution, previous_gpa, enrollment_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+    $stmt->bind_param(
+        'sisssssds',
+        $studentId,
+        $courseId,
+        $_POST['program_level'],
+        $_POST['year_level'],
+        $_POST['expected_start_date'],
+        $_POST['expected_end_date'],
+        $_POST['previous_institution'],
+        $_POST['previous_gpa'],
+        $_POST['enrollment_status']
+    );
+    $stmt->execute();
+    $stmt->close();
+    
+    // Insert into consent_records
+    $stmt = $db->prepare("
+        INSERT INTO consent_records (
+            student_id, terms_agreed, terms_agreed_version, terms_agreed_date,
+            policy_agreed, policy_agreed_version, policy_agreed_date,
+            marketing_opt_in, digital_signature, signature_date
+        ) VALUES (?, TRUE, ?, NOW(), TRUE, ?, NOW(), ?, 'Digital Signature', NOW())
+    ");
+    $marketingOptIn = isset($_POST['marketing_opt_in']) ? 1 : 0;
+    $stmt->bind_param(
+        'sssi',
+        $studentId,
+        $_POST['terms_agreed_version'],
+        $_POST['policy_agreed_version'],
+        $marketingOptIn
+    );
+    $stmt->execute();
+    $stmt->close();
+    
+    // Insert into registration_status
+    $stmt = $db->prepare("
+        INSERT INTO registration_status (
+            student_id, status, submission_date
+        ) VALUES (?, 'submitted', NOW())
+    ");
+    $stmt->bind_param('s', $studentId);
+    $stmt->execute();
+    $stmt->close();
+    
+    // Handle document uploads (if any)
+    // ... (similar to profile photo handling)
+    
+    // Commit transaction
+    $db->commit();
+    
+    echo json_encode([
+        'success' => true,
+        'student_id' => $studentId,
+        'message' => 'Registration successful'
+    ]);
+    
+} catch (Exception $e) {
+    $db->rollback();
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
+}
+
+function generateStudentId($department, $year) {
+    $deptCode = strtoupper(substr($department, 0, 3));
+    $randomCode = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
+    return "MI-{$deptCode}-{$year}-{$randomCode}";
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -71,7 +261,7 @@
                 <div class="autosave-text">Saving...</div>
             </div>
         
-            <form id="studentRegistration" action="submit_student.php" method="POST" >
+            <form id="studentRegistration" action="student registration.php" method="POST"  enctype="multipart/form-data" >
             <div class="section active" data-section="1">
                     <div class="section-title">🔹 1. Personal Information</div>
                     
@@ -116,8 +306,7 @@
                                     <option value="">Select Gender</option>
                                     <option value="Male">Male</option>
                                     <option value="Female">Female</option>
-                                    <option value="Other">Other</option>
-                                    <option value="Prefer not to say">Prefer not to say</option>
+                                    
                                 </select>
                                 <div id="genderError" class="error-message">Please select your gender</div>
                             </div>
@@ -288,26 +477,23 @@
                                     <option value="">Select Program Level</option>
                                     <option value="Certificate">Certificate</option>
                                     <option value="Diploma">Diploma</option>
-                                    <option value="Bachelor">Bachelor</option>
-                                    <option value="Master">Master</option>
-                                    <option value="PhD">PhD</option>
+                                    
                                 </select>
                                 <div id="programLevelError" class="error-message">Please select a program level</div>
                             </div>
                         </div>
                         
                         <div class="form-col">
-                            <div class="form-group">
-                                <label for="department" class="required">Department</label>
-                                <select id="department" name="department" required>
-                                    <option value="">Select Department</option>
-                                    <option value="Information Technology">Information Technology</option>
-                                    <option value="Business">Business</option>
-                                    <option value="Design">Design</option>
-                                    <option value="Marketing">Marketing</option>
-                                </select>
-                                <div id="departmentError" class="error-message">Please select a department</div>
-                            </div>
+                        <div class="form-group">
+                            <label for="department">Department</label>
+                            <select id="department" name="department" required>
+                                <option value="">--Select a department--</option>
+                                <?php foreach($departments as $r): ?>
+                                    <option value="<?= $r['department_id']; ?>"><?= htmlspecialchars($r['department_name']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
                         </div>
                     </div>
                     
@@ -611,7 +797,7 @@
                 </div>
                 
                 <!-- 7. Confirmation (hidden by default) -->
-                <div class="section" data-section="7" style="display: none;">
+                <div class="section" data-section="7" style="">
                     <div class="section-title">🔹 Registration Complete</div>
                     
                     <div class="confirmation-message">
@@ -638,177 +824,7 @@
             </form>
         </div>
     </div>
-    
 
-    
-         <script src="student registration.js">
-
-            // student registration.js
-document.addEventListener('DOMContentLoaded', function() {
-    // Form submission handler
-    const form = document.getElementById('studentRegistration');
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Get form values needed for ID generation
-        const department = document.getElementById('department').value;
-        const enrollmentYear = new Date().getFullYear(); // Current year
-        
-        // Generate student ID (format: MI-DEP-YYYY-XXXX)
-        const studentId = generateStudentId(department, enrollmentYear);
-        
-        // Display the generated ID
-        document.getElementById('generatedStudentId').textContent = studentId;
-        
-        // Hide all sections
-        document.querySelectorAll('.section').forEach(section => {
-            section.style.display = 'none';
-        });
-        
-        // Show confirmation section
-        document.querySelector('[data-section="7"]').style.display = 'block';
-        
-        // Update progress bar to show completion
-        updateProgressBar(7);
-        
-        // Here you would typically send the form data to your server
-        // For this example, we'll just show the confirmation
-    });
-
-    // Student ID generator function
-    function generateStudentId(department, year) {
-        // Get department prefix (first 3 letters uppercase)
-        const deptCode = department.substring(0, 3).toUpperCase();
-        
-        // Generate random 4-digit number (1000-9999)
-        const randomCode = Math.floor(1000 + Math.random() * 9000);
-        
-        // Return formatted ID: MI-DEP-YYYY-XXXX
-        return `MI-${deptCode}-${year}-${randomCode}`;
-    }
-
-    // Progress bar update function
-    function updateProgressBar(currentStep) {
-        const steps = document.querySelectorAll('.progress-step');
-        
-        steps.forEach(step => {
-            const stepNumber = parseInt(step.getAttribute('data-step'));
-            
-            if (stepNumber < currentStep) {
-                step.classList.add('completed');
-                step.classList.remove('active');
-            } else if (stepNumber === currentStep) {
-                step.classList.add('active');
-                step.classList.remove('completed');
-            } else {
-                step.classList.remove('active', 'completed');
-            }
-        });
-    }
-
-    // Navigation between form sections
-    document.querySelectorAll('.btn-next').forEach(button => {
-        button.addEventListener('click', function() {
-            const nextSection = this.getAttribute('data-next');
-            navigateToSection(nextSection);
-        });
-    });
-
-    document.querySelectorAll('.btn-prev').forEach(button => {
-        button.addEventListener('click', function() {
-            const prevSection = this.getAttribute('data-prev');
-            navigateToSection(prevSection);
-        });
-    });
-
-    function navigateToSection(sectionNumber) {
-        // Hide all sections
-        document.querySelectorAll('.section').forEach(section => {
-            section.style.display = 'none';
-            section.classList.remove('active');
-        });
-        
-        // Show target section
-        const targetSection = document.querySelector(`[data-section="${sectionNumber}"]`);
-        targetSection.style.display = 'block';
-        targetSection.classList.add('active');
-        
-        // Update progress bar
-        updateProgressBar(sectionNumber);
-    }
-
-    // File upload preview functionality
-    document.querySelectorAll('input[type="file"]').forEach(input => {
-        input.addEventListener('change', function() {
-            const previewId = this.id + 'Preview';
-            const preview = document.getElementById(previewId);
-            
-            if (this.files && this.files[0]) {
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    if (preview.querySelector('img')) {
-                        preview.querySelector('img').src = e.target.result;
-                    }
-                    preview.querySelector('.file-name').textContent = input.files[0].name;
-                    preview.style.display = 'flex';
-                }
-                
-                if (this.files[0].type.startsWith('image/')) {
-                    reader.readAsDataURL(this.files[0]);
-                } else {
-                    preview.querySelector('.file-name').textContent = input.files[0].name;
-                    preview.style.display = 'flex';
-                }
-            }
-        });
-    });
-
-    // File remove functionality
-    document.querySelectorAll('.file-remove').forEach(button => {
-        button.addEventListener('click', function() {
-            const preview = this.closest('.file-preview');
-            const inputId = preview.id.replace('Preview', '');
-            const input = document.getElementById(inputId);
-            
-            input.value = '';
-            if (preview.querySelector('img')) {
-                preview.querySelector('img').src = '';
-            }
-            preview.querySelector('.file-name').textContent = '';
-            preview.style.display = 'none';
-        });
-    });
-
-    // Payment method selection handler
-    document.getElementById('paymentMethod').addEventListener('change', function() {
-        const method = this.value;
-        
-        // Hide all payment info sections
-        document.getElementById('creditCardInfo').style.display = 'none';
-        document.getElementById('cardDetails').style.display = 'none';
-        document.getElementById('bankInfo').style.display = 'none';
-        document.getElementById('scholarshipInfo').style.display = 'none';
-        
-        // Show relevant section based on selection
-        if (method === 'credit' || method === 'debit') {
-            document.getElementById('creditCardInfo').style.display = 'flex';
-            document.getElementById('cardDetails').style.display = 'flex';
-        } else if (method === 'bank') {
-            document.getElementById('bankInfo').style.display = 'flex';
-        } else if (method === 'scholarship') {
-            document.getElementById('scholarshipInfo').style.display = 'block';
-        }
-    });
-
-    // Billing address toggle handler
-    document.getElementById('sameAddress').addEventListener('change', function() {
-        document.getElementById('billingAddressSection').style.display = 
-            this.checked ? 'none' : 'block';
-    });
-});
-
-         </script> 
     
 </body>
 </html>
