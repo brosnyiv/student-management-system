@@ -512,14 +512,14 @@ if (!$staff_result) {
                             <div class="instructor-select">
                                 <label>Instructor</label>
                                 <select required name="instructor_id">
-        <option value="">Select instructor</option>
-        <?php foreach($teaching as $teaching): ?>
-            <option value="<?php echo $teaching['staff_id']; ?>">
-                <?php echo $teaching['full_name']; ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
-        </div>
+                                <option value="">Select instructor</option>
+                                <?php foreach($teaching as $teaching): ?>
+                                    <option value="<?php echo $teaching['staff_id']; ?>">
+                                        <?php echo $teaching['full_name']; ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
         
                             <div class="unit-credits">
                                 <label>Credits</label>
