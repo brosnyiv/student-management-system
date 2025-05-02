@@ -414,29 +414,7 @@ try {
     <style>
        
            /* Add any additional styles here */
-           .status-pill {
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            display: inline-block;
-        }
-        .status-unpaid {
-            background-color: #dc3545;
-            color: white;
-        }
-        .status-partial {
-            background-color: #ffc107;
-            color: #343a40;
-        }
-        .status-overdue {
-            background-color: #dc3545;
-            color: white;
-        }
-        .status-paid {
-            background-color: #28a745;
-            color: white;
-        }
+           
         /* Enhanced Filter Styles for Payments Page */
 
 /* Filter container styling */
@@ -836,7 +814,7 @@ select.filter-input {
                 </div>
                 <div class="chart-legend">
                     <div class="legend-item">
-                        <div class="legend-color" style="background-color: #ff0303;"></div>
+                        <div class="legend-color" style="background-color:rgb(5, 255, 68);"></div>
                         <span>Fully Paid (<?php echo $paymentStatusBreakdown['Fully Paid'] ?? 0; ?>%)</span>
                     </div>
                     <div class="legend-item">
@@ -1089,7 +1067,7 @@ select.filter-input {
     donutChart.style.width = '200px';
     donutChart.style.height = '200px';
     donutChart.style.borderRadius = '50%';
-    donutChart.style.background = 'conic-gradient(#28a745 0%, #28a745 60%, #ffc107 60%, #ffc107 85%, #dc3545 85%, #dc3545 100%)';
+    donutChart.style.background = 'conic-gradient(#28a745 0%,rgb(167, 49, 40) 60%, #ffc107 60%, #ffc107 85%, #dc3545 85%, #dc3545 100%)';
     donutChart.style.position = 'relative';
     donutChart.style.display = 'flex';
     donutChart.style.alignItems = 'center';
@@ -1098,9 +1076,8 @@ select.filter-input {
     donutChart.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
     donutChart.style.margin = '0 auto';
     donutChart.style.padding = '20px';
-    donutChart.style.border = '2px solid #8B1818';
     donutChart.style.borderRadius = '50%';
-    donutChart.style.transition = 'transform 0.3s ease-in-out';
+    donutChart.style.transition = 'transform 0.60s ease-in-out';
     donutChart.addEventListener('mouseover', () => {
         donutChart.style.transform = 'scale(1.05)';
     });
@@ -1122,7 +1099,6 @@ select.filter-input {
     barChart.style.padding = '10px';
     barChart.style.margin = '0 auto';
     barChart.style.padding = '20px';
-    barChart.style.border = '2px solid #8B1818';
     barChart.style.borderRadius = '10px';           
     barChart.style.transition = 'transform 0.3s ease-in-out';
     barChart.addEventListener('mouseover', () => {
