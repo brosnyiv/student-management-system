@@ -26,15 +26,16 @@ $result = mysqli_query($conn, $sql);
   // echo "Error in student query: " . mysqli_error($conn);
 }
 
-$sql = "SELECT COUNT(*) as total_faculties FROM faculties";
+$sql = "SELECT COUNT(*) as total_staff  FROM staff";
 $result = mysqli_query($conn, $sql);
  if ($result) {
-  $faculty_count = mysqli_fetch_assoc($result)['total_faculties'];
+  $staff_count = mysqli_fetch_assoc($result)['total_staff'];
 } else {
-   $faculty_count = 0;
+   $staff_count = 0;
      // For debugging
   // echo "Error in student query: " . mysqli_error($conn);
 }
+
 $sql = "SELECT COUNT(*) as total_notices FROM notices";
 $result = mysqli_query($conn, $sql);
  if ($result) {
@@ -333,8 +334,8 @@ if ($result) {
             </div>
             <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-user-tie"></i></div>
-                <div class="stat-value"><?php echo $faculty_count; ?></div>
-                <div class="stat-label">Total Faculty</div>
+                <div class="stat-value"><?php echo $staff_count; ?></div>
+                <div class="stat-label">Total Staff</div>
                 <div class="progress-bar"><div class="progress" style="width:65%"></div></div>
                 <button class="view-details">View Details</button>
             </div>
