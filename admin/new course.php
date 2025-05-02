@@ -75,6 +75,13 @@ if($courses){
     $_SESSION['success_message'] = "Course created successfully!";
 
 }
+//fetch data from semester table
+$sql = "SELECT semester_id FROM semesters";
+$result = mysqli_query($conn, $sql);
+$semesters= mysqli_fetch_all($result, MYSQLI_ASSOC);
+
+$semester_id = $semesters[0]['semester_id']; // Assuming you want to use the first semester ID
+
 
 //insert data into course_units table
 $sql = "INSERT INTO course_units (unit_name, unit_code, semester_id, instructor_id, credits)
@@ -503,11 +510,9 @@ $sql = "INSERT INTO course_units (unit_name, unit_code, semester_id, instructor_
                             <div class="instructor-select">
                                 <label>Instructor</label>
                                 <select required name="instructor_id">
-                                <option value="">Select instructor</option>
-                                <?php foreach($teaching as $teaching): ?>
-                                    <option value="<?php echo $teaching['staff_id']; ?>">
-                                        <?php echo $teaching['full_name']; ?>
-                                    </option>
+                                    <option value="">Select instructor</option>
+                                    <?php foreach($teaching as $instructor): ?>
+                                    <option value="<?php echo $instructor['staff_id']; ?>"><?php echo $instructor['full_name']; ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
@@ -541,16 +546,11 @@ $sql = "INSERT INTO course_units (unit_name, unit_code, semester_id, instructor_
                             <div class="instructor-select">
                                 <label>Instructor</label>
                                 <select required name="instructor_id">
-    <option value="">Select instructor</option>
-    <?php foreach($instructors as $instructor): ?>
-        <option value="<?php echo $instructor['staff_id']; ?>">
-            <?php 
-            // Include title if available
-            echo ($instructor['title'] ? $instructor['title'] . ' ' : '') . $instructor['full_name']; 
-            ?>
-        </option>
-    <?php endforeach; ?>
-</select>
+                                    <option value="">Select instructor</option>
+                                    <?php foreach($teaching as $instructor2): ?>
+                                    <option value="<?php echo$instructor2['staff_id']; ?>"><?php echo $instructor2['full_name']; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
                             <div class="unit-credits">
                                 <label>Credits</label>
@@ -581,16 +581,11 @@ $sql = "INSERT INTO course_units (unit_name, unit_code, semester_id, instructor_
                             <div class="instructor-select">
                                 <label>Instructor</label>
                                 <select required name="instructor_id">
-    <option value="">Select instructor</option>
-    <?php foreach($instructors as $instructor): ?>
-        <option value="<?php echo $instructor['staff_id']; ?>">
-            <?php 
-            // Include title if available
-            echo ($instructor['title'] ? $instructor['title'] . ' ' : '') . $instructor['full_name']; 
-            ?>
-        </option>
-    <?php endforeach; ?>
-</select>
+                                    <option value="">Select instructor</option>
+                                    <?php foreach($teaching as $instructor3): ?>
+                                    <option value="<?php echo $$instructor3['staff_id']; ?>"><?php echo $instructor3['full_name']; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
                             <div class="unit-credits">
                                 <label>Credits</label>
@@ -621,16 +616,11 @@ $sql = "INSERT INTO course_units (unit_name, unit_code, semester_id, instructor_
                             <div class="instructor-select">
                                 <label>Instructor*</label>
                                 <select required name="instructor_id">
-    <option value="">Select instructor</option>
-    <?php foreach($instructors as $instructor): ?>
-        <option value="<?php echo $instructor['staff_id']; ?>">
-            <?php 
-            // Include title if available
-            echo ($instructor['title'] ? $instructor['title'] . ' ' : '') . $instructor['full_name']; 
-            ?>
-        </option>
-    <?php endforeach; ?>
-</select>
+                                    <option value="">Select instructor</option>
+                                    <?php foreach($teaching as $instructor4): ?>
+                                    <option value="<?php echo $instructor4['staff_id']; ?>"><?php echo $instructor4['full_name']; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
                             <div class="unit-credits">
                                 <label>Credits*</label>
