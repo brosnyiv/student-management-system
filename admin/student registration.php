@@ -1,190 +1,296 @@
-
-
 <?php
-
-// Database connection
-include('dbconnect.php');
+require_once('dbconnect.php');
 
 // Process form data
-try {
-    // Basic validation
-    $requiredFields = [
-        'first_name', 'surname', 'date_of_birth', 'gender', 'email', 
-        'phone', 'address', 'city', 'state_province', 'zip_postal_code',
-        'country', 'nationality', 'emergency_contact_name', 'emergency_relationship',
-        'emergency_phone', 'program_level', 'department', 'major', 'year_level',
-        'expected_start_date', 'previous_institution', 'previous_gpa',
-        'terms_agreed', 'policy_agreed'
-    ];
-    
-    foreach ($requiredFields as $field) {
-        if (empty($_POST[$field])) {
-            throw new Exception("Missing required field: $field");
-        }
-    }
-    
-    // File upload handling
-    $profilePhotoPath = '';
-    if (isset($_FILES['profile_photo_path'])) {
-        $uploadDir = 'uploads/profile_photos/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        // Get database connection (assuming dbconnect.php defines $conn as the mysqli connection)
+        // Begin transaction
+        mysqli_begin_transaction($conn);
+
+        // Generate student ID
+        $department_code = $_POST['department_code'];
+        $enrollmentYear = date('Y');
+        $studentId = generateStudentId($department_code, $enrollmentYear);
+
+        // Handle file uploads
+        $profilePhotoPath = handleFileUpload('profile_photo_path', 'uploads/profile_photos/');
+        $transcriptPath = handleFileUpload('transcripts', 'uploads/documents/transcripts/');
+        $idProofPath = handleFileUpload('idProof', 'uploads/documents/id_proof/');
+        $admissionProofPath = handleFileUpload('addmisionProof', 'uploads/documents/admission_proof/');
+
+        // 1. Insert into students table
+        $query = "
+            INSERT INTO students (
+                student_id, first_name, middle_name, surname, date_of_birth, gender,
+                profile_photo_path, nationality, created_by, status
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, 'Active'
+            )
+        ";
+        
+        $stmt = mysqli_prepare($conn, $query);
+        $created_by = isset($_POST['created_by']) ? $_POST['created_by'] : 'Admin';
+        $middle_name = isset($_POST['middle_name']) ? $_POST['middle_name'] : null;
+        
+        mysqli_stmt_bind_param(
+            $stmt, 
+            'sssssssss', 
+            $studentId, 
+            $_POST['first_name'], 
+            $middle_name, 
+            $_POST['surname'], 
+            $_POST['date_of_birth'], 
+            $_POST['gender'], 
+            $profilePhotoPath, 
+            $_POST['nationality'], 
+            $created_by
+        );
+        
+        mysqli_stmt_execute($stmt);
+
+        // 2. Insert into contact_details
+        $query = "
+            INSERT INTO contact_details (
+                student_id, email, phone, alt_phone, address, city,
+                state_province, zip_postal_code, country, is_primary
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, 1
+            )
+        ";
+        
+        $stmt = mysqli_prepare($conn, $query);
+        $alt_phone = isset($_POST['alt_phone']) ? $_POST['alt_phone'] : null;
+        
+        mysqli_stmt_bind_param(
+            $stmt, 
+            'sssssssss', 
+            $studentId, 
+            $_POST['email'], 
+            $_POST['phone'], 
+            $alt_phone, 
+            $_POST['address'], 
+            $_POST['city'], 
+            $_POST['state_province'], 
+            $_POST['zip_postal_code'], 
+            $_POST['country']
+        );
+        
+        mysqli_stmt_execute($stmt);
+
+        // 3. Insert into student_emergency_contacts
+        $query = "
+            INSERT INTO student_emergency_contacts (
+                student_id, contact_name, relationship, phone_number, is_primary
+            ) VALUES (
+                ?, ?, ?, ?, 1
+            )
+        ";
+        
+        $stmt = mysqli_prepare($conn, $query);
+        
+        mysqli_stmt_bind_param(
+            $stmt, 
+            'ssss', 
+            $studentId, 
+            $_POST['emergency_contact_name'], 
+            $_POST['emergency_relationship'], 
+            $_POST['emergency_phone']
+        );
+        
+        mysqli_stmt_execute($stmt);
+
+        // 4. Insert into academic_info
+        // First get course_id based on department_code
+        $query = "
+            SELECT course_id FROM courses 
+            WHERE department_id = (
+                SELECT department_id FROM departments 
+                WHERE department_code = ?
+            ) LIMIT 1
+        ";
+        
+        $stmt = mysqli_prepare($conn, $query);
+        mysqli_stmt_bind_param($stmt, 's', $department_code);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $course = mysqli_fetch_assoc($result);
+        
+        if (!$course) {
+            throw new Exception("No course found for department code: $department_code");
         }
         
-        $fileName = uniqid() . '_' . basename($_FILES['profile_photo_path']['name']);
-        $targetPath = $uploadDir . $fileName;
+        $query = "
+            INSERT INTO academic_info (
+                student_id, course_id, program_level, year_level, expected_start_date,
+                expected_end_date, previous_institution, previous_gpa, enrollment_status
+            ) VALUES (
+                ?, ?, ?, ?, ?,
+                ?, ?, ?, 'Pending'
+            )
+        ";
         
-        if (move_uploaded_file($_FILES['profile_photo_path']['tmp_name'], $targetPath)) {
-            $profilePhotoPath = $targetPath;
-        } else {
-            throw new Exception('Failed to upload profile photo');
+        $stmt = mysqli_prepare($conn, $query);
+        $expected_end_date = isset($_POST['expected_end_date']) ? $_POST['expected_end_date'] : null;
+        
+        mysqli_stmt_bind_param(
+            $stmt, 
+            'sississs', 
+            $studentId, 
+            $course['course_id'], 
+            $_POST['program_level'], 
+            $_POST['year_level'], 
+            $_POST['expected_start_date'], 
+            $expected_end_date, 
+            $_POST['previous_institution'], 
+            $_POST['previous_gpa']
+        );
+        
+        mysqli_stmt_execute($stmt);
+
+        // 5. Insert into consent_records
+        $query = "
+            INSERT INTO consent_records (
+                student_id, terms_agreed, terms_agreed_version, terms_agreed_date,
+                policy_agreed, policy_agreed_version, policy_agreed_date,
+                marketing_opt_in, digital_signature, signature_date
+            ) VALUES (
+                ?, 1, ?, NOW(),
+                1, ?, NOW(),
+                ?, 'Digital Signature', NOW()
+            )
+        ";
+        
+        $stmt = mysqli_prepare($conn, $query);
+        $terms_version = isset($_POST['terms_agreed_version']) ? $_POST['terms_agreed_version'] : '1.0';
+        $policy_version = isset($_POST['policy_agreed_version']) ? $_POST['policy_agreed_version'] : '1.0';
+        $marketing_opt_in = isset($_POST['marketing_opt_in']) ? 1 : 0;
+        
+        mysqli_stmt_bind_param(
+            $stmt, 
+            'sssi', 
+            $studentId, 
+            $terms_version, 
+            $policy_version, 
+            $marketing_opt_in
+        );
+        
+        mysqli_stmt_execute($stmt);
+
+        // 6. Insert into registration_status
+        $query = "
+            INSERT INTO registration_status (
+                student_id, status, submission_date
+            ) VALUES (
+                ?, 'submitted', NOW()
+            )
+        ";
+        
+        $stmt = mysqli_prepare($conn, $query);
+        mysqli_stmt_bind_param($stmt, 's', $studentId);
+        mysqli_stmt_execute($stmt);
+
+        // 7. Insert documents into student_documents
+        $documents = [
+            ['type' => 'academic_transcript', 'path' => $transcriptPath],
+            ['type' => 'id_proof', 'path' => $idProofPath],
+            ['type' => 'admission_proof', 'path' => $admissionProofPath]
+        ];
+        
+        foreach ($documents as $doc) {
+            if ($doc['path']) {
+                $query = "
+                    INSERT INTO student_documents (
+                        student_id, document_type, file_path, file_name, 
+                        file_size, file_type, verification_status
+                    ) VALUES (
+                        ?, ?, ?, ?,
+                        ?, ?, 'Pending'
+                    )
+                ";
+                
+                $stmt = mysqli_prepare($conn, $query);
+                $fileInfo = pathinfo($doc['path']);
+                $fileSize = filesize($doc['path']);
+                $fileType = $fileInfo['extension'];
+                $fileName = $fileInfo['basename'];
+                
+                mysqli_stmt_bind_param(
+                    $stmt, 
+                    'ssssss', 
+                    $studentId, 
+                    $doc['type'], 
+                    $doc['path'], 
+                    $fileName, 
+                    $fileSize, 
+                    $fileType
+                );
+                
+                mysqli_stmt_execute($stmt);
+            }
         }
+
+        // Commit transaction
+        mysqli_commit($conn);
+
+        // Return success response
+        echo json_encode([
+            'success' => true,
+            'student_id' => $studentId,
+            'message' => 'Registration successful'
+        ]);
+        
+    } catch (Exception $e) {
+        // Rollback transaction on error
+        mysqli_rollback($conn);
+        
+        // Return error response
+        echo json_encode([
+            'success' => false,
+            'message' => 'Registration failed: ' . $e->getMessage()
+        ]);
     }
-    
-    // Generate student ID
-    $department = $_POST['department'];
-    $enrollmentYear = date('Y');
-    $studentId = generateStudentId($department, $enrollmentYear);
-    
-    // Begin transaction
-    $db->begin_transaction();
-    
-    // Insert into students table
-    $stmt = $db->prepare("
-        INSERT INTO students (
-            student_id, first_name, middle_name, surname, date_of_birth, gender,
-            profile_photo_path, nationality, created_by, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')
-    ");
-    $stmt->bind_param(
-        'ssssssssi',
-        $studentId,
-        $_POST['first_name'],
-        $_POST['middle_name'],
-        $_POST['surname'],
-        $_POST['date_of_birth'],
-        $_POST['gender'],
-        $profilePhotoPath,
-        $_POST['nationality'],
-        $_POST['created_by']
-    );
-    $stmt->execute();
-    $stmt->close();
-    
-    // Insert into contact_details
-    $stmt = $db->prepare("
-        INSERT INTO contact_details (
-            student_id, email, phone, alt_phone, address, city,
-            state_province, zip_postal_code, country, is_primary
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
-    ");
-    $stmt->bind_param(
-        'sssssssss',
-        $studentId,
-        $_POST['email'],
-        $_POST['phone'],
-        $_POST['alt_phone'],
-        $_POST['address'],
-        $_POST['city'],
-        $_POST['state_province'],
-        $_POST['zip_postal_code'],
-        $_POST['country']
-    );
-    $stmt->execute();
-    $stmt->close();
-    
-    // Insert into student_emergency_contacts
-    $stmt = $db->prepare("
-        INSERT INTO student_emergency_contacts (
-            student_id, contact_name, relationship, phone_number, is_primary
-        ) VALUES (?, ?, ?, ?, TRUE)
-    ");
-    $stmt->bind_param(
-        'ssss',
-        $studentId,
-        $_POST['emergency_contact_name'],
-        $_POST['emergency_relationship'],
-        $_POST['emergency_phone']
-    );
-    $stmt->execute();
-    $stmt->close();
-    
-    // Insert into academic_info (assuming you have course_id)
-    $courseId = 1; // You should determine this based on the selected program/department
-    $stmt = $db->prepare("
-        INSERT INTO academic_info (
-            student_id, course_id, program_level, year_level, expected_start_date,
-            expected_end_date, previous_institution, previous_gpa, enrollment_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ");
-    $stmt->bind_param(
-        'sisssssds',
-        $studentId,
-        $courseId,
-        $_POST['program_level'],
-        $_POST['year_level'],
-        $_POST['expected_start_date'],
-        $_POST['expected_end_date'],
-        $_POST['previous_institution'],
-        $_POST['previous_gpa'],
-        $_POST['enrollment_status']
-    );
-    $stmt->execute();
-    $stmt->close();
-    
-    // Insert into consent_records
-    $stmt = $db->prepare("
-        INSERT INTO consent_records (
-            student_id, terms_agreed, terms_agreed_version, terms_agreed_date,
-            policy_agreed, policy_agreed_version, policy_agreed_date,
-            marketing_opt_in, digital_signature, signature_date
-        ) VALUES (?, TRUE, ?, NOW(), TRUE, ?, NOW(), ?, 'Digital Signature', NOW())
-    ");
-    $marketingOptIn = isset($_POST['marketing_opt_in']) ? 1 : 0;
-    $stmt->bind_param(
-        'sssi',
-        $studentId,
-        $_POST['terms_agreed_version'],
-        $_POST['policy_agreed_version'],
-        $marketingOptIn
-    );
-    $stmt->execute();
-    $stmt->close();
-    
-    // Insert into registration_status
-    $stmt = $db->prepare("
-        INSERT INTO registration_status (
-            student_id, status, submission_date
-        ) VALUES (?, 'submitted', NOW())
-    ");
-    $stmt->bind_param('s', $studentId);
-    $stmt->execute();
-    $stmt->close();
-    
-    // Handle document uploads (if any)
-    // ... (similar to profile photo handling)
-    
-    // Commit transaction
-    $db->commit();
-    
-    echo json_encode([
-        'success' => true,
-        'student_id' => $studentId,
-        'message' => 'Registration successful'
-    ]);
-    
-} catch (Exception $e) {
-    $db->rollback();
-    echo json_encode([
-        'success' => false,
-        'message' => $e->getMessage()
-    ]);
 }
 
 function generateStudentId($department, $year) {
     $deptCode = strtoupper(substr($department, 0, 3));
     $randomCode = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
     return "MI-{$deptCode}-{$year}-{$randomCode}";
+}
+
+function handleFileUpload($field, $targetDir) {
+    if (!isset($_FILES[$field])) {
+        return null;
+    }
+    
+    $file = $_FILES[$field];
+    
+    // Check for errors
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        if ($file['error'] === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+        throw new Exception("File upload error: " . $file['error']);
+    }
+    
+    // Create target directory if it doesn't exist
+    if (!file_exists($targetDir)) {
+        mkdir($targetDir, 0755, true);
+    }
+    
+    // Generate unique filename
+    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $filename = uniqid() . '.' . $extension;
+    $targetPath = $targetDir . $filename;
+    
+    // Move uploaded file
+    if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
+        throw new Exception("Failed to move uploaded file");
+    }
+    
+    return $targetPath;
 }
 ?>
 
@@ -242,11 +348,11 @@ function generateStudentId($department, $year) {
                     <div class="step-icon">5</div>
                     <div class="step-text">Documents</div>
                 </div>
-                <div class="progress-step" data-step="6">
+                <!-- <div class="progress-step" data-step="6">
                     <div class="step-icon">6</div>
                     <div class="step-text">Confirmation</div>
+                     </div> -->
                 </div>
-            </div>
             
             <!-- Toast notification -->
             <div class="toast" id="toast">
@@ -261,7 +367,7 @@ function generateStudentId($department, $year) {
                 <div class="autosave-text">Saving...</div>
             </div>
         
-            <form id="studentRegistration" action="student registration.php" method="POST"  enctype="multipart/form-data" >
+            <form id="studentRegistration" action="submit_student.php" method="POST" >
             <div class="section active" data-section="1">
                     <div class="section-title">🔹 1. Personal Information</div>
                     
@@ -306,7 +412,8 @@ function generateStudentId($department, $year) {
                                     <option value="">Select Gender</option>
                                     <option value="Male">Male</option>
                                     <option value="Female">Female</option>
-                                    
+                                    <option value="Other">Other</option>
+                                    <option value="Prefer not to say">Prefer not to say</option>
                                 </select>
                                 <div id="genderError" class="error-message">Please select your gender</div>
                             </div>
@@ -477,23 +584,26 @@ function generateStudentId($department, $year) {
                                     <option value="">Select Program Level</option>
                                     <option value="Certificate">Certificate</option>
                                     <option value="Diploma">Diploma</option>
-                                    
+                                    <option value="Bachelor">Bachelor</option>
+                                    <option value="Master">Master</option>
+                                    <option value="PhD">PhD</option>
                                 </select>
                                 <div id="programLevelError" class="error-message">Please select a program level</div>
                             </div>
                         </div>
                         
                         <div class="form-col">
-                        <div class="form-group">
-                            <label for="department">Department</label>
-                            <select id="department" name="department" required>
-                                <option value="">--Select a department--</option>
-                                <?php foreach($departments as $r): ?>
-                                    <option value="<?= $r['department_id']; ?>"><?= htmlspecialchars($r['department_name']); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
+                            <div class="form-group">
+                                <label for="department" class="required">Department</label>
+                                <select id="department" name="department" required>
+                                    <option value="">Select Department</option>
+                                    <option value="Information Technology">Information Technology</option>
+                                    <option value="Business">Business</option>
+                                    <option value="Design">Design</option>
+                                    <option value="Marketing">Marketing</option>
+                                </select>
+                                <div id="departmentError" class="error-message">Please select a department</div>
+                            </div>
                         </div>
                     </div>
                     
@@ -690,6 +800,7 @@ function generateStudentId($department, $year) {
                 <div class="section" data-section="5">
                     <div class="section-title">🔹 5. Required Documents</div>
                     
+                   
                     <div class="form-group">
                         <label for="transcripts" class="required">Academic Transcripts</label>
                         <div class="file-upload-container">
@@ -796,8 +907,8 @@ function generateStudentId($department, $year) {
                     </div>
                 </div>
                 
-                <!-- 7. Confirmation (hidden by default) -->
-                <div class="section" data-section="7" style="">
+                <!--  7. Confirmation (hidden by default) 
+                <div class="section" data-section="7" style="display: none;">
                     <div class="section-title">🔹 Registration Complete</div>
                     
                     <div class="confirmation-message">
@@ -811,20 +922,150 @@ function generateStudentId($department, $year) {
                             <small>Please save this number for future reference</small>
                         </div>
                         
-                        <div class="next-steps">
-                            <h3>Next Steps:</h3>
-                            <ul>
-                                <li>Check your email for confirmation and further instructions</li>
-                                <li>Complete any additional requirements listed in your email</li>
-                                <li>Contact admissions@monaco-institute.ac if you have any questions</li>
-                            </ul>
-                        </div>
+                       
                     </div>
-                </div>
+                </div>  -->
             </form>
         </div>
     </div>
+    
 
+    
+         <script >
+
+           // student registration.js
+document.addEventListener('DOMContentLoaded', function() {
+    // Form submission handler
+    const form = document.getElementById('studentRegistration');
+    form.addEventListener('submit', function(e) {
+        // Let the form submit naturally to your database
+        // The preventDefault has been removed to allow normal form submission
+        
+        // Form will now submit to the action URL specified in the form: submit_student.php
+    });
+
+    // Progress bar update function
+    function updateProgressBar(currentStep) {
+        const steps = document.querySelectorAll('.progress-step');
+        
+        steps.forEach(step => {
+            const stepNumber = parseInt(step.getAttribute('data-step'));
+            
+            if (stepNumber < currentStep) {
+                step.classList.add('completed');
+                step.classList.remove('active');
+            } else if (stepNumber === currentStep) {
+                step.classList.add('active');
+                step.classList.remove('completed');
+            } else {
+                step.classList.remove('active', 'completed');
+            }
+        });
+    }
+
+    // Navigation between form sections
+    document.querySelectorAll('.btn-next').forEach(button => {
+        button.addEventListener('click', function() {
+            const nextSection = this.getAttribute('data-next');
+            navigateToSection(nextSection);
+        });
+    });
+
+    document.querySelectorAll('.btn-prev').forEach(button => {
+        button.addEventListener('click', function() {
+            const prevSection = this.getAttribute('data-prev');
+            navigateToSection(prevSection);
+        });
+    });
+
+    function navigateToSection(sectionNumber) {
+        // Hide all sections
+        document.querySelectorAll('.section').forEach(section => {
+            section.style.display = 'none';
+            section.classList.remove('active');
+        });
+        
+        // Show target section
+        const targetSection = document.querySelector(`[data-section="${sectionNumber}"]`);
+        targetSection.style.display = 'block';
+        targetSection.classList.add('active');
+        
+        // Update progress bar
+        updateProgressBar(sectionNumber);
+    }
+
+    // File upload preview functionality
+    document.querySelectorAll('input[type="file"]').forEach(input => {
+        input.addEventListener('change', function() {
+            const previewId = this.id + 'Preview';
+            const preview = document.getElementById(previewId);
+            
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    if (preview.querySelector('img')) {
+                        preview.querySelector('img').src = e.target.result;
+                    }
+                    preview.querySelector('.file-name').textContent = input.files[0].name;
+                    preview.style.display = 'flex';
+                }
+                
+                if (this.files[0].type.startsWith('image/')) {
+                    reader.readAsDataURL(this.files[0]);
+                } else {
+                    preview.querySelector('.file-name').textContent = input.files[0].name;
+                    preview.style.display = 'flex';
+                }
+            }
+        });
+    });
+
+    // File remove functionality
+    document.querySelectorAll('.file-remove').forEach(button => {
+        button.addEventListener('click', function() {
+            const preview = this.closest('.file-preview');
+            const inputId = preview.id.replace('Preview', '');
+            const input = document.getElementById(inputId);
+            
+            input.value = '';
+            if (preview.querySelector('img')) {
+                preview.querySelector('img').src = '';
+            }
+            preview.querySelector('.file-name').textContent = '';
+            preview.style.display = 'none';
+        });
+    });
+
+    // Payment method selection handler
+    document.getElementById('paymentMethod').addEventListener('change', function() {
+        const method = this.value;
+        
+        // Hide all payment info sections
+        document.getElementById('creditCardInfo').style.display = 'none';
+        document.getElementById('cardDetails').style.display = 'none';
+        document.getElementById('bankInfo').style.display = 'none';
+        document.getElementById('scholarshipInfo').style.display = 'none';
+        
+        // Show relevant section based on selection
+        if (method === 'credit' || method === 'debit') {
+            document.getElementById('creditCardInfo').style.display = 'flex';
+            document.getElementById('cardDetails').style.display = 'flex';
+        } else if (method === 'bank') {
+            document.getElementById('bankInfo').style.display = 'flex';
+        } else if (method === 'scholarship') {
+            document.getElementById('scholarshipInfo').style.display = 'block';
+        }
+    });
+
+    // Billing address toggle handler
+    document.getElementById('sameAddress').addEventListener('change', function() {
+        document.getElementById('billingAddressSection').style.display = 
+            this.checked ? 'none' : 'block';
+    });
+});
+
+         </script> 
     
 </body>
 </html>

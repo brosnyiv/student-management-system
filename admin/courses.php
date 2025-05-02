@@ -43,61 +43,6 @@ function getCourseIcon($department) {
     }
 }
 
-// Handle course insertion if form was submitted
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_course'])) {
-    // Sanitize and validate input
-    $course_name = $conn->real_escape_string($_POST['course_name']);
-    $course_code = $conn->real_escape_string($_POST['course_code']);
-    $level_id = $conn->real_escape_string($_POST['level_id']);
-    $department_id = (int)$_POST['department_id'];
-    $duration = (int)$_POST['duration'];
-    $max_capacity = (int)$_POST['max_capacity'];
-    $faculty_leader_id = (int)$_POST['faculty_leader_id'];
-    $status = $conn->real_escape_string($_POST['status']);
-    $description = $conn->real_escape_string($_POST['description']);
-    $course_fee = (float)$_POST['course_fee'];
-    
-    // Create SQL query to insert course
-    $sql = "INSERT INTO courses (course_name, course_code, level_id, department_id, duration, max_capacity, faculty_leader_id, status, description, course_fee) 
-            VALUES ('$course_name', '$course_code', '$level_id', $department_id, $duration, $max_capacity, $faculty_leader_id, '$status', '$description', $course_fee)";
-    
-    if ($conn->query($sql) === TRUE) {
-        // Success message
-        $success_message = "Course added successfully!";
-        // Redirect to prevent form resubmission
-        header("Location: courses.php?success=added");
-        exit();
-    } else {
-        // Error message
-        $error_message = "Error: " . $sql . "<br>" . $conn->error;
-    }
-}
-
-// Prepare and execute query to fetch courses with department and faculty leader info
-$sql = "SELECT 
-            c.course_id, 
-            c.course_name, 
-            c.course_code, 
-            cl.level_name as level,
-            d.department_name,
-            c.duration,
-            c.status,
-            c.course_fee,
-            s.full_name as faculty_leader,
-            COUNT(e.student_id) as student_count
-        FROM courses c
-        LEFT JOIN course_levels cl ON c.level_id = cl.level_id
-        LEFT JOIN departments d ON c.department_id = d.department_id
-        LEFT JOIN faculty_leaders fl ON c.faculty_leader_id = fl.faculty_leader_id
-        LEFT JOIN staff s ON fl.staff_id = s.staff_id
-        LEFT JOIN enrollments e ON c.course_id = e.course_id AND e.status = 'active'
-        GROUP BY c.course_id
-        ORDER BY c.course_name";
-
-$result = $conn->query($sql);   // Execute the query
-if ($result === false) {
-    die("Error executing query: " . $conn->error);
-}
 
 // Fetch all departments for the dropdown
 $dept_sql = "SELECT department_id, department_name FROM departments ORDER BY department_name";
@@ -107,11 +52,21 @@ $dept_result = $conn->query($dept_sql);
 $level_sql = "SELECT level_id, level_name FROM course_levels ORDER BY level_name";
 $level_result = $conn->query($level_sql);
 
-// Fetch all faculty leaders for the dropdown
-$faculty_sql = "SELECT fl.faculty_leader_id, s.full_name 
-                FROM faculty_leaders fl 
-                JOIN staff s ON fl.staff_id = s.staff_id 
-                ORDER BY s.full_name";
+// Query to fetch courses with department name and student count
+$sql = "SELECT c.course_id, c.course_name, c.course_code, c.duration, c.max_capacity, 
+               c.status, c.course_fee, d.department_name, cl.level_name as level,
+               (SELECT COUNT(*) FROM student_courses WHERE course_id = c.course_id) as student_count
+        FROM courses c
+        LEFT JOIN departments d ON c.department_id = d.department_id
+        LEFT JOIN course_levels cl ON c.level_id = cl.level_id
+        ORDER BY c.course_name";
+
+$result = $conn->query($sql);
+
+// Check for query errors
+if (!$result) {
+    $error_message = "Error fetching courses: " . $conn->error;
+}
 ?>
 
 <!DOCTYPE html>
@@ -441,7 +396,6 @@ $faculty_sql = "SELECT fl.faculty_leader_id, s.full_name
                         <th>Duration</th>
                         <th>Students</th>
                         <th>Course Fee</th>
-                        <th>Faculty leader</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -466,8 +420,7 @@ $faculty_sql = "SELECT fl.faculty_leader_id, s.full_name
                                 <td><?php echo htmlspecialchars($row['level']); ?></td>
                                 <td><?php echo htmlspecialchars($row['duration']); ?> years</td>
                                 <td><?php echo htmlspecialchars($row['student_count']); ?></td>
-                                <td>$<?php echo number_format($row['course_fee'], 2); ?></td>
-                                <td><?php echo htmlspecialchars($row['faculty_leader'] ?? 'Unassigned'); ?></td>
+                                <td>UGX <?php echo number_format($row['course_fee'], 2); ?></td>
                                 <td>
                                     <span class="status-tag status-<?php echo strtolower($row['status']); ?>">
                                         <?php echo htmlspecialchars($row['status']); ?>
