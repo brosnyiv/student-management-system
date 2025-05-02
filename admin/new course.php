@@ -26,6 +26,15 @@ $sql = "SELECT * FROM course_levels";
 $result2 = mysqli_query($conn, $sql);
 $levels= mysqli_fetch_all($result2, MYSQLI_ASSOC);
 
+// Query to fetch staff who are teaching
+$staff_query = "SELECT staff_id, full_name
+               FROM staff 
+               WHERE staff_type = 'teaching'  
+               ";
+               
+$staff_result = mysqli_query($conn, $staff_query);
+$teaching = mysqli_fetch_all($staff_result, MYSQLI_ASSOC);
+
 
 // course_id 	course_name 	course_code 	level_id 	department_id 	duration
 // Duration in years 	max_capacity 	status 	description 	course_fee 	start_date 	created_at 	updated_at 	
@@ -66,6 +75,13 @@ if($courses){
     $_SESSION['success_message'] = "Course created successfully!";
 
 }
+//fetch data from semester table
+$sql = "SELECT semester_id FROM semesters";
+$result = mysqli_query($conn, $sql);
+$semesters= mysqli_fetch_all($result, MYSQLI_ASSOC);
+
+$semester_id = $semesters[0]['semester_id']; // Assuming you want to use the first semester ID
+
 
 //insert data into course_units table
 $sql = "INSERT INTO course_units (unit_name, unit_code, semester_id, instructor_id, credits)
@@ -77,24 +93,6 @@ $sql = "INSERT INTO course_units (unit_name, unit_code, semester_id, instructor_
 
     }
 
-}
-
-// Query to fetch staff who are teaching
-$staff_query = "SELECT staff_id, full_name
-               FROM staff 
-               WHERE staff_type = 'staff_type'  
-               ";
-               
-$staff_result = mysqli_query($conn, $staff_query);
-
-// Check if query was successful
-if (!$staff_result) {
-    // Handle error
-    echo "Error fetching instructors: " . mysqli_error($conn);
-    $instructors = []; // Empty array if query fails
-} else {
-    // Fetch all instructors into an array
-    $instructors = mysqli_fetch_all($staff_result, MYSQLI_ASSOC);
 }
 
 ?>
@@ -512,11 +510,9 @@ if (!$staff_result) {
                             <div class="instructor-select">
                                 <label>Instructor</label>
                                 <select required name="instructor_id">
-                                <option value="">Select instructor</option>
-                                <?php foreach($teaching as $teaching): ?>
-                                    <option value="<?php echo $teaching['staff_id']; ?>">
-                                        <?php echo $teaching['full_name']; ?>
-                                    </option>
+                                    <option value="">Select instructor</option>
+                                    <?php foreach($teaching as $instructor): ?>
+                                    <option value="<?php echo $instructor['staff_id']; ?>"><?php echo $instructor['full_name']; ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
@@ -550,16 +546,11 @@ if (!$staff_result) {
                             <div class="instructor-select">
                                 <label>Instructor</label>
                                 <select required name="instructor_id">
-    <option value="">Select instructor</option>
-    <?php foreach($instructors as $instructor): ?>
-        <option value="<?php echo $instructor['staff_id']; ?>">
-            <?php 
-            // Include title if available
-            echo ($instructor['title'] ? $instructor['title'] . ' ' : '') . $instructor['full_name']; 
-            ?>
-        </option>
-    <?php endforeach; ?>
-</select>
+                                    <option value="">Select instructor</option>
+                                    <?php foreach($teaching as $instructor2): ?>
+                                    <option value="<?php echo$instructor2['staff_id']; ?>"><?php echo $instructor2['full_name']; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
                             <div class="unit-credits">
                                 <label>Credits</label>
@@ -590,16 +581,11 @@ if (!$staff_result) {
                             <div class="instructor-select">
                                 <label>Instructor</label>
                                 <select required name="instructor_id">
-    <option value="">Select instructor</option>
-    <?php foreach($instructors as $instructor): ?>
-        <option value="<?php echo $instructor['staff_id']; ?>">
-            <?php 
-            // Include title if available
-            echo ($instructor['title'] ? $instructor['title'] . ' ' : '') . $instructor['full_name']; 
-            ?>
-        </option>
-    <?php endforeach; ?>
-</select>
+                                    <option value="">Select instructor</option>
+                                    <?php foreach($teaching as $instructor3): ?>
+                                    <option value="<?php echo $$instructor3['staff_id']; ?>"><?php echo $instructor3['full_name']; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
                             <div class="unit-credits">
                                 <label>Credits</label>
@@ -630,16 +616,11 @@ if (!$staff_result) {
                             <div class="instructor-select">
                                 <label>Instructor*</label>
                                 <select required name="instructor_id">
-    <option value="">Select instructor</option>
-    <?php foreach($instructors as $instructor): ?>
-        <option value="<?php echo $instructor['staff_id']; ?>">
-            <?php 
-            // Include title if available
-            echo ($instructor['title'] ? $instructor['title'] . ' ' : '') . $instructor['full_name']; 
-            ?>
-        </option>
-    <?php endforeach; ?>
-</select>
+                                    <option value="">Select instructor</option>
+                                    <?php foreach($teaching as $instructor4): ?>
+                                    <option value="<?php echo $instructor4['staff_id']; ?>"><?php echo $instructor4['full_name']; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
                             <div class="unit-credits">
                                 <label>Credits*</label>
