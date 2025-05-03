@@ -519,8 +519,7 @@ if ($result) {
                         <div class="pie-chart" style="background: conic-gradient(
                             #4CAF50 0% <?php echo $student_present; ?>%, 
                             #FF5252 <?php echo $student_present; ?>% <?php echo ($student_present + $student_absent); ?>%, 
-                            #9E9E9E <?php echo ($student_present + $student_absent); ?>% 100%
-                        );"></div>
+                            #9E9E9E <?php echo ($student_present + $student_absent); ?>% 100);"></div>
                         <div class="percentage"><?php echo $student_present; ?>%</div>
                     </div>
 
