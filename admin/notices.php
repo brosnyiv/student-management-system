@@ -4,9 +4,12 @@ ob_start();
 
 include 'dbconnect.php';
 
+// Initialize variables
+$error = '';
+$success_message = '';
+$notices = [];
 
 // Fetch notices from database
-$notices = [];
 $sql = "SELECT * FROM notices ORDER BY post_date DESC";
 $result = mysqli_query($conn, $sql);
 if ($result) {
@@ -17,6 +20,7 @@ if ($result) {
 
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate and sanitize inputs
     $title = mysqli_real_escape_string($conn, $_POST['title'] ?? '');
     $content = mysqli_real_escape_string($conn, $_POST['content'] ?? '');
     $source_office = mysqli_real_escape_string($conn, $_POST['source_office'] ?? '');
@@ -25,78 +29,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $expiry_date = !empty($_POST['expiry_date']) ? mysqli_real_escape_string($conn, $_POST['expiry_date']) : null;
     $is_urgent = isset($_POST['is_urgent']) ? 1 : 0;
     $status = mysqli_real_escape_string($conn, $_POST['status'] ?? 'draft');
-    $created_by = $_SESSION['user_id'] ?? 1;
-
-    $notice_id = $_POST['notice_id'] ?? null;
-
-    try {
-        if ($notice_id) {
-            // Update existing notice
-            $sql = "UPDATE notices SET 
-                    title = '$title', 
-                    content = '$content', 
-                    source_office = '$source_office', 
-                    category = '$category', 
-                    post_date = '$post_date', 
-                    expiry_date = " . ($expiry_date ? "'$expiry_date'" : "NULL") . ", 
-                    is_urgent = $is_urgent, 
-                    status = '$status', 
-                    updated_at = NOW() 
-                    WHERE notice_id = $notice_id";
-        } else {
-            // Insert new notice
-            $sql = "INSERT INTO notices 
-                    (title, content, source_office, category, post_date, expiry_date, is_urgent, status, created_by) 
-                    VALUES (
-                        '$title', 
-                        '$content', 
-                        '$source_office', 
-                        '$category', 
-                        '$post_date', 
-                        " . ($expiry_date ? "'$expiry_date'" : "NULL") . ", 
-                        $is_urgent, 
-                        '$status', 
-                        $created_by
-                    )";
-        }
-
-        if (mysqli_query($conn, $sql)) {
-            $notice_id = $notice_id ?? mysqli_insert_id($conn);
-
-            // Handle file upload
-            if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
-                $upload_dir = "uploads/notices/";
-                if (!file_exists($upload_dir)) {
-                    mkdir($upload_dir, 0777, true);
-                }
-                
-                $file_name = time() . '_' . basename($_FILES['attachment']['name']);
-                $target_file = $upload_dir . $file_name;
-                
-                if (move_uploaded_file($_FILES['attachment']['tmp_name'], $target_file)) {
-                    $attach_sql = "INSERT INTO notice_attachments 
-                                  (notice_id, file_name, file_path) 
-                                  VALUES ($notice_id, '$file_name', '$target_file')";
-                    mysqli_query($conn, $attach_sql);
-                }
+    $created_by = $_SESSION['user_id'] ?? 1; // Default to admin if not logged in
+    
+    // Check for required fields
+    if (empty($title)) {
+        $error = "Notice title is required";
+    } elseif (empty($content)) {
+        $error = "Notice content is required";
+    } else {
+        try {
+            $notice_id = $_POST['notice_id'] ?? null;
+            
+            if ($notice_id) {
+                // Update existing notice
+                $sql = "UPDATE notices SET 
+                        title = '$title', 
+                        content = '$content', 
+                        source_office = '$source_office', 
+                        category = '$category', 
+                        post_date = '$post_date', 
+                        expiry_date = " . ($expiry_date ? "'$expiry_date'" : "NULL") . ", 
+                        is_urgent = $is_urgent, 
+                        status = '$status', 
+                        updated_at = NOW() 
+                        WHERE notice_id = $notice_id";
+            } else {
+                // Insert new notice
+                $sql = "INSERT INTO notices 
+                        (title, content, source_office, category, post_date, expiry_date, is_urgent, status, created_by) 
+                        VALUES (
+                            '$title', 
+                            '$content', 
+                            '$source_office', 
+                            '$category', 
+                            '$post_date', 
+                            " . ($expiry_date ? "'$expiry_date'" : "NULL") . ", 
+                            $is_urgent, 
+                            '$status', 
+                            $created_by
+                        )";
             }
 
-            header("Location: notices.php?success=1");
-            exit();
-        } else {
-            $error = "Error saving notice: " . mysqli_error($conn);
+            if (mysqli_query($conn, $sql)) {
+                $notice_id = $notice_id ?? mysqli_insert_id($conn);
+
+                // Handle file upload
+                if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                    $upload_dir = "uploads/notices/";
+                    if (!file_exists($upload_dir)) {
+                        mkdir($upload_dir, 0777, true);
+                    }
+                    
+                    $file_name = time() . '_' . basename($_FILES['attachment']['name']);
+                    $target_file = $upload_dir . $file_name;
+                    
+                    if (move_uploaded_file($_FILES['attachment']['tmp_name'], $target_file)) {
+                        $attach_sql = "INSERT INTO notice_attachments 
+                                      (notice_id, file_name, file_path) 
+                                      VALUES ($notice_id, '$file_name', '$target_file')";
+                        mysqli_query($conn, $attach_sql);
+                    }
+                }
+
+                $_SESSION['success_message'] = "Notice operation completed successfully!";
+                header("Location: notices.php");
+                exit();
+            } else {
+                $error = "Error saving notice: " . mysqli_error($conn);
+            }
+        } catch (Exception $e) {
+            $error = "Error: " . $e->getMessage();
         }
-    } catch (Exception $e) {
-        $error = "Error: " . $e->getMessage();
     }
 }
 
-$success_message = '';
-if (isset($_GET['success']) && $_GET['success'] == 1) {
-    $success_message = "Notice operation completed successfully!";
+// Check for success message from redirect
+if (isset($_SESSION['success_message'])) {
+    $success_message = $_SESSION['success_message'];
+    unset($_SESSION['success_message']);
 }
 
-
+// Fetch notifications count (existing code remains the same)
+$user_notified = $_SESSION['user_id'];
+$sql = "SELECT count(*) FROM notifications WHERE user_id IS NOT NULL AND user_id='$user_notified' AND is_read='unread' ORDER BY created_at DESC";
+$result = mysqli_query($conn, $sql);
+if ($result) {
+    $notification_count = mysqli_fetch_assoc($result)['count(*)'];
+} else {
+    $notification_count = 0;
+}
 ?>
 
 <!DOCTYPE html>
@@ -592,39 +613,132 @@ if (isset($_GET['success']) && $_GET['success'] == 1) {
     </div>
 
     <div class="main-content">
-        <div class="welcome-banner">
-            <div class="welcome-text">
-                <h1>MONACO INSTITUTE</h1>
-                <p>Welcome back, <?php echo $_SESSION['user_name'] ?? 'Admin'; ?>!</p>
-                <div class="date-display">
-                    <i class="fas fa-calendar-alt"></i> <span id="currentDate"></span>
-                    <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
-                    <div class="weather-widget">
-                        <i class="fas fa-sun weather-icon"></i>
-                        <span class="temperature">26°C</span>
+    <div class="welcome-banner">
+
+<!-- welcome message   -->
+
+    <div class="welcome-text">
+<h1>MONACO INSTITUTE</h1>
+<div class="welcome-message">
+    <?php
+    // Time-based greeting
+    $hour = date('H');
+    $greeting = ($hour < 12) ? "Good Morning" : (($hour < 17) ? "Good Afternoon" : "Good Evening");
+    
+    // Get username
+    $username = isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : "User";
+    echo "<p class='welcome-user'>{$greeting}, <span class='username'>{$username}</span></p>";
+    
+    // Dynamic messages
+    $month = date('n');
+    $seasonalMessages = [
+        1 => "Happy New Year! New year, new learning opportunities",
+        5 => "Spring into your educational journey",
+        9 => "Welcome to the new academic year!",
+        12 => "Season's greetings! Wrapping up the year with excellence"
+    ];
+    
+    $dailyMessages = [
+        "Empowering your educational journey every day!",
+        "Building futures, one lesson at a time",
+        "Today is a great day to learn something new!",
+        "Where skills meet innovation",
+        "Excellence in education since 2007",
+        "Together, we grow"
+    ];
+    
+    $message = $seasonalMessages[$month] ?? $dailyMessages[date('z') % count($dailyMessages)];
+    echo "<p class='welcome-message-text'>{$message}</p>";
+    ?>
+</div>
+<div class="date-display">
+    <i class="fas fa-calendar-alt"></i> <span id="currentDate"><?php echo date('l, F j, Y'); ?></span>
+    <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"><?php echo date('h:i:s A'); ?></span></span>
+</div>
+</div>
+
+
+         <!-- Notifications  -->
+
+        <div class="user-section" style="display:flex; align-items:center;">
+        <div class="notification-bell" id="notificationBell">
+<i class="fas fa-bell"></i>
+<span class="notification-count"><?php echo $notification_count; ?></span>
+
+<!-- Notifications dropdown -->
+<div class="notifications-dropdown" id="notificationsDropdown">
+    <div class="notifications-header">
+        <h3></h3>
+        <?php if ($notification_count > 0): ?>
+            <a href="mark_all_read.php" class="mark-all-read">Mark all as read</a>
+        <?php endif; ?>
+    </div>
+    
+    <div class="notifications-list">
+        <?php if (empty($notifications)): ?>
+            <div class="no-notifications"></div>
+        <?php else: ?>
+            <?php foreach ($notifications as $notification): ?>
+                <div class="notification-item" data-id="<?php echo $notification['id']; ?>">
+                    <div class="notification-icon">
+                        <?php if ($notification['type'] == 'message'): ?>
+                            <i class="fas fa-envelope"></i>
+                        <?php elseif ($notification['type'] == 'event'): ?>
+                            <i class="fas fa-calendar-alt"></i>
+                        <?php elseif ($notification['type'] == 'alert'): ?>
+                            <i class="fas fa-exclamation-circle"></i>
+                        <?php else: ?>
+                            <i class="fas fa-bell"></i>
+                        <?php endif; ?>
                     </div>
-                </div>
-            </div>
-            <div class="user-section" style="display:flex; align-items:center;">
-                <div class="notification-bell">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-count">3</span>
-                </div>
-                <div class="user-profile">
-                    <div class="user-avatar"><?php echo substr($_SESSION['user_name'] ?? 'A', 0, 1); ?></div>
-                    <div class="user-info">
-                        <?php echo $_SESSION['user_name'] ?? 'Admin'; ?><br>
-                        <span class="role"><?php echo $_SESSION['user_role'] ?? 'Administrator'; ?></span>
+                    <div class="notification-content">
+                        <div class="notification-text"><?php echo htmlspecialchars($notification['message']); ?></div>
+                        <div class="notification-time">
+                            <?php 
+                                $time_diff = time() - strtotime($notification['created_at']);
+                                if ($time_diff < 60) {
+                                    echo "Just now";
+                                } elseif ($time_diff < 3600) {
+                                    echo floor($time_diff / 60) . " min ago";
+                                } elseif ($time_diff < 86400) {
+                                    echo floor($time_diff / 3600) . " hrs ago";
+                                } else {
+                                    echo floor($time_diff / 86400) . " days ago";
+                                }
+                            ?>
+                        </div>
                     </div>
+                    <button class="mark-read" onclick="markAsRead(<?php echo $notification['id']; ?>)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            <?php endforeach; ?>
+            
+            <?php if ($notification_count > count($notifications)): ?>
+                <a href="all_notifications.php" class="view-all-notifications">
+                    View all notifications (<?php echo $notification_count; ?>)
+                </a>
+            <?php endif; ?>
+        <?php endif; ?>
+    </div>
+</div>
+</div>
+
+
+            <div class="user-profile">
+                <div class="user-avatar">
+                    <?php echo isset($_SESSION['username']) ? substr($_SESSION['username'], 0, 1) : 'U'; ?>
+                </div>
+                <div class="user-info">
+                    <?php echo isset($_SESSION['username']) ? $_SESSION['username'] : 'User'; ?><br>
+                    <span class="role"><?php echo isset($_SESSION['role_name']) ? $_SESSION['role_name'] : 'User'; ?></span>
                 </div>
             </div>
         </div>
+    </div>
 
-        <?php if (isset($error)): ?>
-            <div class="alert alert-error">
-                <i class="fas fa-exclamation-circle"></i> <?php echo $error; ?>
-            </div>
-        <?php endif; ?>
+
+    
 
         <?php if (!empty($success_message)): ?>
             <div class="alert alert-success">
@@ -848,58 +962,58 @@ if (isset($_GET['success']) && $_GET['success'] == 1) {
         </div>
         
         <table class="notices-table">
-            <thead>
-                <tr>
-                    <th>Notice Title</th>
-                    <th>Category</th>
-                    <th>Source Office</th>
-                    <th>Posted Date</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-    <?php if (empty($notices)): ?>
+    <thead>
         <tr>
-            <td colspan="6" class="no-notices">No notices found</td>
+            <th>Notice Title</th>
+            <th>Category</th>
+            <th>Source Office</th>
+            <th>Posted Date</th>
+            <th>Status</th>
+            <th>Actions</th>
         </tr>
-    <?php else: ?>
-        <?php foreach ($notices as $notice): ?>
+    </thead>
+    <tbody>
+        <?php if (empty($notices)): ?>
             <tr>
-                <td><?= htmlspecialchars($notice['title']) ?></td>
-                <td>
-                    <span class="notice-badge badge-<?= $notice['category'] ?>">
-                        <?= ucfirst($notice['category']) ?>
-                    </span>
-                </td>
-                <td><?= htmlspecialchars($notice['source_office']) ?></td>
-                <td><?= date('M j, Y', strtotime($notice['post_date'])) ?></td>
-                <td>
-                    <span class="notice-badge badge-<?= $notice['status'] ?>">
-                        <?= ucfirst($notice['status']) ?>
-                    </span>
-                    <?php if ($notice['is_urgent']): ?>
-                        <span class="notice-badge badge-urgent">Urgent</span>
-                    <?php endif; ?>
-                </td>
-                <td>
-                    <div class="action-icons">
-                        <button class="action-icon edit-notice" data-id="<?= $notice['notice_id'] ?>">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="action-icon view-notice" data-id="<?= $notice['notice_id'] ?>">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="action-icon delete-notice" data-id="<?= $notice['notice_id'] ?>">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
+                <td colspan="6" class="no-notices">No notices found</td>
             </tr>
-        <?php endforeach; ?>
-    <?php endif; ?>
-</tbody>
-        </table>
+        <?php else: ?>
+            <?php foreach ($notices as $notice): ?>
+                <tr>
+                    <td><?= htmlspecialchars($notice['title']) ?></td>
+                    <td>
+                        <span class="notice-badge badge-<?= $notice['category'] ?>">
+                            <?= ucfirst($notice['category']) ?>
+                        </span>
+                    </td>
+                    <td><?= htmlspecialchars($notice['source_office']) ?></td>
+                    <td><?= date('M j, Y', strtotime($notice['post_date'])) ?></td>
+                    <td>
+                        <span class="notice-badge badge-<?= $notice['status'] ?>">
+                            <?= ucfirst($notice['status']) ?>
+                        </span>
+                        <?php if ($notice['is_urgent']): ?>
+                            <span class="notice-badge badge-urgent">Urgent</span>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <div class="action-icons">
+                            <button class="action-icon edit-notice" data-id="<?= $notice['notice_id'] ?>">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="action-icon view-notice" data-id="<?= $notice['notice_id'] ?>">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="action-icon delete-notice" data-id="<?= $notice['notice_id'] ?>">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </tbody>
+</table>
         
         <div class="pagination">
             <button><i class="fas fa-angle-double-left"></i></button>
@@ -1015,14 +1129,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Form submission (prevented for demo)
-    const noticeForm = document.getElementById('noticeForm');
-    if (noticeForm) {
-        noticeForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            alert('Notice published successfully!');
-        });
-    }
+   
     
     // Rich text editor basic functionality
     const editorButtons = document.querySelectorAll('.editor-toolbar button');

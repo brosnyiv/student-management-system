@@ -372,8 +372,11 @@ if ($result) {
 
 
         <div class="search-bar">
-            <input type="text" placeholder="Search..." aria-label="Search">
-        </div>
+    <form method="GET" action=""> 
+        <input type="text" name="query" placeholder="Search students, staff, courses..." aria-label="Search">
+        <button type="submit"><i class="fas fa-search"></i></button>
+    </form>
+</div>
 
         <div class="quick-access" >
             <div class="quick-access-item">
@@ -912,6 +915,66 @@ function updateClock() {
 // Update immediately and every second
 updateClock();
 setInterval(updateClock, 1000);
+
+// Add this to your existing JavaScript section
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.querySelector('.search-bar input');
+    const searchForm = document.querySelector('.search-bar form');
+    
+    // AJAX search suggestions
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.trim();
+            
+            if (query.length > 2) {
+                fetch(`search_suggestions.php?query=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        showSearchSuggestions(data);
+                    });
+            } else {
+                hideSearchSuggestions();
+            }
+        });
+        
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!searchForm.contains(e.target)) {
+                hideSearchSuggestions();
+            }
+        });
+    }
+    
+    function showSearchSuggestions(suggestions) {
+        // Remove existing suggestions if any
+        hideSearchSuggestions();
+        
+        if (suggestions.length === 0) return;
+        
+        const suggestionsDiv = document.createElement('div');
+        suggestionsDiv.className = 'search-suggestions';
+        
+        suggestions.forEach(item => {
+            const suggestion = document.createElement('div');
+            suggestion.className = 'suggestion-item';
+            suggestion.textContent = item.name;
+            suggestion.addEventListener('click', function() {
+                searchInput.value = item.name;
+                searchForm.submit();
+            });
+            suggestionsDiv.appendChild(suggestion);
+        });
+        
+        searchForm.appendChild(suggestionsDiv);
+    }
+    
+    function hideSearchSuggestions() {
+        const existing = document.querySelector('.search-suggestions');
+        if (existing) {
+            existing.remove();
+        }
+    }
+});
 
 
     </script>

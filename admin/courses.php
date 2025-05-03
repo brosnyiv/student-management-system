@@ -14,8 +14,19 @@ if (empty($_SESSION['user_id'])) {
 }
 
 // course_id 	course_name 	course_code 	level_id 	department_id 	duration
-// Duration in years 	max_capacity 	faculty_leader_id 	status 	description 	course_fee 	start_date 	created_at 	updated_at 	
+// Duration in years 	max_capacity 	faculty_leader_id 	status 	description 	course_fee 	start_date 	created_at 	updated_at 
 
+//pull notifications count from notifications table where the user_id is the same as the current session user_id
+$user_notified=$_SESSION['user_id'];
+$sql="select count(*) from notifications where user_id is not null and user_id='$user_notified' and is_read='unread' order by created_at desc";
+$result=mysqli_query($conn,$sql);
+if ($result) {
+   $notification_count= mysqli_fetch_assoc($result)['count(*)'];
+} else {
+    $notifications_count = 0;
+    // For debugging
+    // echo "Error in student query: " . mysqli_error($conn);
+}
 
 // Function to get course icon based on department
 function getCourseIcon($department) {
@@ -299,45 +310,130 @@ if (!$result) {
     </div>
 
     <div class="main-content">
-        <div class="welcome-banner">
-            <div class="welcome-text">
-            <h1>MONACO INSTITUTE</h1>
-                <p>Course Management</p>
-                <div class="date-display">
-                    <i class="fas fa-calendar-alt"></i> <span id="currentDate"></span>
-                    <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
-                    <div class="weather-widget">
-                        <i class="fas fa-sun weather-icon"></i>
-                        <span class="temperature">26°C</span>
+    <div class="welcome-banner">
+
+<!-- welcome message   -->
+
+    <div class="welcome-text">
+<h1>MONACO INSTITUTE</h1>
+<div class="welcome-message">
+    <?php
+    // Time-based greeting
+    $hour = date('H');
+    $greeting = ($hour < 12) ? "Good Morning" : (($hour < 17) ? "Good Afternoon" : "Good Evening");
+    
+    // Get username
+    $username = isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : "User";
+    echo "<p class='welcome-user'>{$greeting}, <span class='username'>{$username}</span></p>";
+    
+    // Dynamic messages
+    $month = date('n');
+    $seasonalMessages = [
+        1 => "Happy New Year! New year, new learning opportunities",
+        5 => "Spring into your educational journey",
+        9 => "Welcome to the new academic year!",
+        12 => "Season's greetings! Wrapping up the year with excellence"
+    ];
+    
+    $dailyMessages = [
+        "Empowering your educational journey every day!",
+        "Building futures, one lesson at a time",
+        "Today is a great day to learn something new!",
+        "Where skills meet innovation",
+        "Excellence in education since 2007",
+        "Together, we grow"
+    ];
+    
+    $message = $seasonalMessages[$month] ?? $dailyMessages[date('z') % count($dailyMessages)];
+    echo "<p class='welcome-message-text'>{$message}</p>";
+    ?>
+</div>
+<div class="date-display">
+    <i class="fas fa-calendar-alt"></i> <span id="currentDate"><?php echo date('l, F j, Y'); ?></span>
+    <span class="time-display"><i class="fas fa-clock"></i> <span id="currentTime"><?php echo date('h:i:s A'); ?></span></span>
+</div>
+</div>
+
+
+         <!-- Notifications  -->
+
+        <div class="user-section" style="display:flex; align-items:center;">
+        <div class="notification-bell" id="notificationBell">
+<i class="fas fa-bell"></i>
+<span class="notification-count"><?php echo $notification_count; ?></span>
+
+<!-- Notifications dropdown -->
+<div class="notifications-dropdown" id="notificationsDropdown">
+    <div class="notifications-header">
+        <h3></h3>
+        <?php if ($notification_count > 0): ?>
+            <a href="mark_all_read.php" class="mark-all-read">Mark all as read</a>
+        <?php endif; ?>
+    </div>
+    
+    <div class="notifications-list">
+        <?php if (empty($notifications)): ?>
+            <div class="no-notifications"></div>
+        <?php else: ?>
+            <?php foreach ($notifications as $notification): ?>
+                <div class="notification-item" data-id="<?php echo $notification['id']; ?>">
+                    <div class="notification-icon">
+                        <?php if ($notification['type'] == 'message'): ?>
+                            <i class="fas fa-envelope"></i>
+                        <?php elseif ($notification['type'] == 'event'): ?>
+                            <i class="fas fa-calendar-alt"></i>
+                        <?php elseif ($notification['type'] == 'alert'): ?>
+                            <i class="fas fa-exclamation-circle"></i>
+                        <?php else: ?>
+                            <i class="fas fa-bell"></i>
+                        <?php endif; ?>
                     </div>
-                </div>
-            </div>
-            <div class="user-section" style="display:flex; align-items:center;">
-                <div class="notification-bell">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-count">3</span>
-                </div>
-                <div class="user-profile">
-                    <div class="user-avatar"><?php echo isset($_SESSION['username']) ? substr($_SESSION['username'], 0, 1) : 'U'; ?></div>
-                    <div class="user-info">
-                        <?php echo isset($_SESSION['username']) ? $_SESSION['username'] : 'User'; ?><br>
-                        <span class="role"><?php echo isset($_SESSION['role_name']) ? $_SESSION['role_name'] : 'User'; ?></span>
+                    <div class="notification-content">
+                        <div class="notification-text"><?php echo htmlspecialchars($notification['message']); ?></div>
+                        <div class="notification-time">
+                            <?php 
+                                $time_diff = time() - strtotime($notification['created_at']);
+                                if ($time_diff < 60) {
+                                    echo "Just now";
+                                } elseif ($time_diff < 3600) {
+                                    echo floor($time_diff / 60) . " min ago";
+                                } elseif ($time_diff < 86400) {
+                                    echo floor($time_diff / 3600) . " hrs ago";
+                                } else {
+                                    echo floor($time_diff / 86400) . " days ago";
+                                }
+                            ?>
+                        </div>
                     </div>
+                    <button class="mark-read" onclick="markAsRead(<?php echo $notification['id']; ?>)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            <?php endforeach; ?>
+            
+            <?php if ($notification_count > count($notifications)): ?>
+                <a href="all_notifications.php" class="view-all-notifications">
+                    View all notifications (<?php echo $notification_count; ?>)
+                </a>
+            <?php endif; ?>
+        <?php endif; ?>
+    </div>
+</div>
+</div>
+
+
+            <div class="user-profile">
+                <div class="user-avatar">
+                    <?php echo isset($_SESSION['username']) ? substr($_SESSION['username'], 0, 1) : 'U'; ?>
+                </div>
+                <div class="user-info">
+                    <?php echo isset($_SESSION['username']) ? $_SESSION['username'] : 'User'; ?><br>
+                    <span class="role"><?php echo isset($_SESSION['role_name']) ? $_SESSION['role_name'] : 'User'; ?></span>
                 </div>
             </div>
         </div>
+    </div>
 
-        <?php if(isset($success_message)): ?>
-            <div class="alert alert-success">
-                <?php echo $success_message; ?>
-            </div>
-        <?php endif; ?>
-        
-        <?php if(isset($error_message)): ?>
-            <div class="alert alert-danger">
-                <?php echo $error_message; ?>
-            </div>
-        <?php endif; ?>
 
         <div class="search-bar">
             <input type="text" id="courseSearch" placeholder="Search courses..." aria-label="Search">
