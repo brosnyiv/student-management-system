@@ -13,17 +13,6 @@ if (empty($_SESSION['user_id'])) {
     exit();
 }
 
-// Fetch staff members for the instructor dropdown
-$staff_query = "SELECT staff_id, full_name, designation 
-                FROM staff ";
-$staff_result = mysqli_query($conn, $staff_query);
-$staff_members = [];
-
-if ($staff_result) {
-    while ($row = mysqli_fetch_assoc($staff_result)) {
-        $staff_members[] = $row;
-    }
-}
 
 // Process form submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -156,6 +145,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
     }
 }
+
+// Fetch staff members for the instructor dropdown
+$staff_query = "SELECT staff_id, full_name, designation 
+                FROM staff ";
+$staff_result = mysqli_query($conn, $staff_query);
+$staff_members = [];
+
+if ($staff_result) {
+    while ($row = mysqli_fetch_assoc($staff_result)) {
+        $staff_members[] = $row;
+    }
+}
+ 
 ?>
 
 <!DOCTYPE html>

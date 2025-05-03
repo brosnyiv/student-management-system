@@ -15,6 +15,36 @@ if (empty($_SESSION['user_id'])) {
     exit();
 }
 
+// Uganda Public Holidays 2025 (Fixed + Computed Dates)
+$current_year = date('Y');
+$uganda_holidays = [
+    '01-01' => 'New Year’s Day',
+    '01-26' => 'Liberation Day',
+    '03-08' => 'International Women’s Day',
+    // Good Friday (April 18, 2025 - Computed)
+    '04-18' => 'Good Friday',
+    // Easter Monday (April 21, 2025 - Computed)
+    '04-21' => 'Easter Monday',
+    '05-01' => 'Labour Day',
+    '06-03' => 'Martyrs’ Day',
+    '06-09' => 'National Heroes’ Day',
+    '10-09' => 'Independence Day',
+    '12-25' => 'Christmas Day',
+    '12-26' => 'Boxing Day'
+];
+
+// Get current date info
+$current_date = new DateTime();
+$current_day = $current_date->format('j');
+$current_month = $current_date->format('n');
+$current_year = $current_date->format('Y');
+
+// For 2026
+if ($current_year == 2026) {
+    $uganda_holidays['04-03'] = 'Good Friday';
+    $uganda_holidays['04-06'] = 'Easter Monday';
+}
+
 // Count total students
  $sql = "SELECT COUNT(*) as total_students FROM students";
 $result = mysqli_query($conn, $sql);
@@ -76,26 +106,7 @@ if ($result) {
     // echo "Error in student query: " . mysqli_error($conn);
 }
 
-// $sql = "SELECT COUNT(*) as total_absent FROM student_attendance WHERE status = 'absent'";
-// $result = mysqli_query($conn, $sql);
-// if ($result) {
-//     $student_absent = mysqli_fetch_assoc($result)['total_absent'];
-// } else {
-//     $student_absent = 0;
-//     // For debugging
-//     // echo "Error in student query: " . mysqli_error($conn);
-// }
 
-// //calculate student attendance for status excused and display it as a percentage on front end
-// $sql = "SELECT COUNT(*) as total_excused FROM student_attendance WHERE status = 'excused'";
-// $result = mysqli_query($conn, $sql);
-// if ($result) {
-//     $student_excused = mysqli_fetch_assoc($result)['total_excused'];
-// } else {
-//     $student_excused = 0;
-//     // For debugging
-//     // echo "Error in student query: " . mysqli_error($conn);
-// }
 
 //staff attendance in a similar manner as students attendance
 $sql = "SELECT COUNT(*) as total_present FROM staff_attendance_records WHERE status = 'present'";
@@ -107,13 +118,7 @@ if ($result) {
     // For debugging
     // echo "Error in student query: " . mysqli_error($conn);
 }
-// $sql = "SELECT COUNT(*) as total_absent FROM staff_attendance_records WHERE status = 'absent'";
-// $result = mysqli_query($conn, $sql);
-// if ($result) {
-    // $staff_absent = mysqli_fetch_assoc($result)['total_absent'];
-// } else {
-//     $staff_absent = 0;
-// }
+
 
 //pull notifications count from notifications table where the user_id is the same as the current session user_id
 $user_notified=$_SESSION['user_id'];
@@ -127,6 +132,22 @@ if ($result) {
     // echo "Error in student query: " . mysqli_error($conn);
 }
 
+// Fetch upcoming events
+$sql = "SELECT event_id as id, title, start_datetime, location, organizer_id 
+        FROM events 
+        WHERE start_datetime >= NOW() 
+        ORDER BY start_datetime ASC 
+        LIMIT 5"; // Limit to 5 upcoming events
+
+$result = mysqli_query($conn, $sql);
+if ($result) {
+    $events_data = mysqli_fetch_all($result, MYSQLI_ASSOC);
+} else {
+    $events_data = [];
+    // For debugging
+    // echo "Error in events query: " . mysqli_error($conn);
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -138,7 +159,61 @@ if ($result) {
     <link rel="stylesheet" href="dash.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-  
+        /* Holiday Styling */
+.calendar-day.holiday {
+    color:rgb(19, 3, 238); 
+    font-weight: bold;
+}
+
+.calendar-day.holiday:hover::after {
+    content: attr(title);
+    position: absolute;
+    background:#8B1818;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    z-index: 100;
+    margin-top: 25px;
+    margin-left: -10px;
+}
+
+/* Current Day Styling */
+.calendar-day.current {
+    background-color: #8B1818;
+    color: white;
+}
+/* Attendance Chart Colors */
+.pie-chart {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    margin: 0 auto;
+}
+
+/* Standardized Colors */
+/* Present - Green */
+.conic-gradient #4CAF50 { 
+    stop-color: #4CAF50; /* Solid green */
+}
+
+/* Absent - Light Red */
+.conic-gradient #FF5252 { 
+    stop-color: #FF5252; /* Soft red */
+}
+
+/* On Leave - Gray */
+.conic-gradient #9E9E9E { 
+    stop-color: #9E9E9E; /* Medium gray */
+}
+
+.percentage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: bold;
+    font-size: 1.2rem;
+}
         </style>
 </head>
 <body>
@@ -370,52 +445,65 @@ if ($result) {
                 </div>
             </div>
             <table>
-                <thead>
-                    <tr>
-                        <th>Event</th>
-                        <th>Time</th>
-                        <th>Venue</th>
-                        <th>Instructor</th>
-                        <th>Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-    <?php if (empty($events_data)): ?>
+    <thead>
         <tr>
-            <td colspan="6">No upcoming events found</td>
+            <th>Event</th>
+            <th>Time</th>
+            <th>Venue</th>
+            <th>Instructor</th>
+            <th>Date</th>
+            <th>Actions</th>
         </tr>
-    <?php else: ?>
-        <?php foreach ($events_data as $event): ?>
+    </thead>
+    <tbody>
+        <?php if (empty($events_data)): ?>
             <tr>
-                <td><?php echo htmlspecialchars($event['event_name']); ?></td>
-                <td><?php echo htmlspecialchars($event['time']); ?></td>
-                <td><?php echo htmlspecialchars($event['venue']); ?></td>
-                <td><?php echo htmlspecialchars($event['instructor']); ?></td>
-                <td>
-                    <?php 
-                        $event_date = new DateTime($event['date']);
+                <td colspan="6">No upcoming events found</td>
+            </tr>
+        <?php else: ?>
+            <?php foreach ($events_data as $event): ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($event['title']); ?></td>
+                    <td>
+                        <?php 
+                        $start_time = new DateTime($event['start_datetime']);
+                        echo $start_time->format('h:i A');
+                        ?>
+                    </td>
+                    <td><?php echo htmlspecialchars($event['location']); ?></td>
+                    <td>
+                        <?php 
+                        // You might want to fetch organizer name from staff table
+                        echo htmlspecialchars($event['organizer_id']); 
+                        ?>
+                    </td>
+                    <td>
+                        <?php 
                         $today = new DateTime('today');
                         $tomorrow = new DateTime('tomorrow');
                         
-                        if ($event_date->format('Y-m-d') == $today->format('Y-m-d')) {
+                        if ($start_time->format('Y-m-d') == $today->format('Y-m-d')) {
                             echo 'Today';
-                        } elseif ($event_date->format('Y-m-d') == $tomorrow->format('Y-m-d')) {
+                        } elseif ($start_time->format('Y-m-d') == $tomorrow->format('Y-m-d')) {
                             echo 'Tomorrow';
                         } else {
-                            echo $event_date->format('M d, Y');
+                            echo $start_time->format('M d, Y');
                         }
-                    ?>
-                </td>
-                <td>
-                    <button class="action-icon edit" onclick="location.href='edit_event.php?id=<?php echo $event['id']; ?>'"><i class="fas fa-edit"></i></button>
-                    <button class="action-icon delete" onclick="if(confirm('Are you sure you want to delete this event?')) location.href='delete_event.php?id=<?php echo $event['id']; ?>'"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-    <?php endif; ?>
-</tbody>
-            </table>
+                        ?>
+                    </td>
+                    <td>
+                        <button class="action-icon edit" onclick="location.href='edit_event.php?id=<?php echo $event['id']; ?>'">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-icon delete" onclick="if(confirm('Are you sure you want to delete this event?')) location.href='delete_event.php?id=<?php echo $event['id']; ?>'">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </tbody>
+</table>
         </div>
 
         <div class="charts-row">
@@ -423,29 +511,30 @@ if ($result) {
                 <div class="section-header">
                     <div class="section-title"><i class="fas fa-user-graduate"></i> Student Attendance</div>
                 </div>
-                <!-- Student Attendance Chart -->
-                <div class="chart">
-                <div class="pie-chart" style="background: conic-gradient(
-                    #8B1818 0% <?php echo $student_present; ?>%, 
-                    #E74C3C <?php echo $student_present; ?>% <?php echo ($student_present + $student_absent); ?>%, 
-                    #ddd <?php echo ($student_present + $student_absent); ?>% 100%);"></div>
-                <div class="percentage"><?php echo $student_present; ?>%</div>
-            </div>
+               <!-- Student Attendance Chart -->
+                    <div class="chart">
+                        <div class="pie-chart" style="background: conic-gradient(
+                            #4CAF50 0% <?php echo $student_present; ?>%, 
+                            #FF5252 <?php echo $student_present; ?>% <?php echo ($student_present + $student_absent); ?>%, 
+                            #9E9E9E <?php echo ($student_present + $student_absent); ?>% 100%
+                        );"></div>
+                        <div class="percentage"><?php echo $student_present; ?>%</div>
+                    </div>
 
-                <div class="chart-legend">
-                    <div class="legend-item">
-                        <div class="legend-color" style="background-color: #8B1818;"></div>
-                        <span>Present</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background-color: #E74C3C;"></div>
-                        <span>Absent</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background-color: #ddd;"></div>
-                        <span>On Leave</span>
-                    </div>
-                </div>
+                    <div class="chart-legend">
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #4CAF50;"></div>
+        <span>Present</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #FF5252;"></div>
+        <span>Absent</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #9E9E9E;"></div>
+        <span>On Leave</span>
+    </div>
+</div>
             </div>
             <div class="chart-container">
                 <div class="section-header">
@@ -460,19 +549,19 @@ if ($result) {
                     <div class="percentage"><?php echo $staff_present; ?>%</div>
                 </div>
                 <div class="chart-legend">
-                    <div class="legend-item">
-                        <div class="legend-color" style="background-color: #8B1818;"></div>
-                        <span>Present</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background-color: #E74C3C;"></div>
-                        <span>Absent</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background-color: #ddd;"></div>
-                        <span>On Leave</span>
-                    </div>
-                </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #4CAF50;"></div>
+        <span>Present</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #FF5252;"></div>
+        <span>Absent</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #9E9E9E;"></div>
+        <span>On Leave</span>
+    </div>
+</div>
             </div>
         </div>
 
@@ -483,61 +572,59 @@ if ($result) {
                     <div class="section-title"><i class="fas fa-calendar-alt"></i> Schedule</div>
                 </div>
                 <div class="calendar">
-                    <div class="calendar-header">
-                        <div class="calendar-navigation">
-                            <button id="prevMonth"><i class="fas fa-chevron-left"></i></button>
-                        </div>
-                        <div class="calendar-title" id="calendarTitle">April 2025</div>
-                        <div class="calendar-navigation">
-                            <button id="nextMonth"><i class="fas fa-chevron-right"></i></button>
-                        </div>
-                    </div>
-                    <div class="calendar-grid">
-                        <div class="day-header">Sun</div>
-                        <div class="day-header">Mon</div>
-                        <div class="day-header">Tue</div>
-                        <div class="day-header">Wed</div>
-                        <div class="day-header">Thu</div>
-                        <div class="day-header">Fri</div>
-                        <div class="day-header">Sat</div>
-                        
-                        <div class="calendar-day other-month">30</div>
-                        <div class="calendar-day other-month">31</div>
-                        <div class="calendar-day">1</div>
-                        <div class="calendar-day">2</div>
-                        <div class="calendar-day">3</div>
-                        <div class="calendar-day">4</div>
-                        <div class="calendar-day">5</div>
-                        <div class="calendar-day">6</div>
-                        <div class="calendar-day">7</div>
-                        <div class="calendar-day">8</div>
-                        <div class="calendar-day">9</div>
-                        <div class="calendar-day">10</div>
-                        <div class="calendar-day">11</div>
-                        <div class="calendar-day">12</div>
-                        <div class="calendar-day">13</div>
-                        <div class="calendar-day current has-event">14</div>
-                        <div class="calendar-day has-event">15</div>
-                        <div class="calendar-day">16</div>
-                        <div class="calendar-day">17</div>
-                        <div class="calendar-day">18</div>
-                        <div class="calendar-day">19</div>
-                        <div class="calendar-day">20</div>
-                        <div class="calendar-day">21</div>
-                        <div class="calendar-day">22</div>
-                        <div class="calendar-day">23</div>
-                        <div class="calendar-day">24</div>
-                        <div class="calendar-day">25</div>
-                        <div class="calendar-day">26</div>
-                        <div class="calendar-day">27</div>
-                        <div class="calendar-day">28</div>
-                        <div class="calendar-day">29</div>
-                        <div class="calendar-day">30</div>
-                        <div class="calendar-day other-month">1</div>
-                        <div class="calendar-day other-month">2</div>
-                        <div class="calendar-day other-month">3</div>
-                    </div>
-                </div>
+    <div class="calendar-header">
+        <div class="calendar-navigation">
+            <button id="prevMonth"><i class="fas fa-chevron-left"></i></button>
+        </div>
+        <div class="calendar-title">
+            <?php echo date('F Y', strtotime("$current_year-$current_month-01")); ?>
+        </div>
+        <div class="calendar-navigation">
+            <button id="nextMonth"><i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+    <div class="calendar-grid">
+        <!-- Day Headers -->
+        <div class="day-header">Sun</div>
+        <div class="day-header">Mon</div>
+        <div class="day-header">Tue</div>
+        <div class="day-header">Wed</div>
+        <div class="day-header">Thu</div>
+        <div class="day-header">Fri</div>
+        <div class="day-header">Sat</div>
+        
+        <?php
+        // Calculate calendar layout
+        $first_day_of_month = date('w', strtotime("$current_year-$current_month-01"));
+        $days_in_month = date('t', strtotime("$current_year-$current_month-01"));
+        $days_in_prev_month = date('t', strtotime("last day of previous month", strtotime("$current_year-$current_month-01")));
+
+        // Generate calendar cells
+        for ($i = 0; $i < 42; $i++) {
+            if ($i < $first_day_of_month) {
+                // Previous month's days
+                $day = $days_in_prev_month - ($first_day_of_month - $i - 1);
+                echo "<div class='calendar-day other-month'>$day</div>";
+            } elseif ($i < ($first_day_of_month + $days_in_month)) {
+                // Current month's days
+                $day = $i - $first_day_of_month + 1;
+                $date_key = sprintf("%02d-%02d", $current_month, $day);
+                $is_today = ($day == $current_day && $current_month == date('n')) ? 'current' : '';
+                $is_holiday = isset($uganda_holidays[$date_key]) ? 'holiday' : '';
+                $holiday_name = $is_holiday ? $uganda_holidays[$date_key] : '';
+                
+                echo "<div class='calendar-day $is_today $is_holiday' title='$holiday_name'>$day</div>";
+            } else {
+                // Next month's days
+                $day = $i - ($first_day_of_month + $days_in_month) + 1;
+                echo "<div class='calendar-day other-month'>$day</div>";
+            }
+        }
+        ?>
+    </div>
+
+</div>
+
             </div>
             
             <!-- Classes section on the right -->
@@ -825,6 +912,7 @@ function updateClock() {
 // Update immediately and every second
 updateClock();
 setInterval(updateClock, 1000);
+
 
     </script>
 </body>
