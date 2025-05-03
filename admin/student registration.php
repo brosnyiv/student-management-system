@@ -1,296 +1,74 @@
 <?php
-require_once('dbconnect.php');
 
-// Process form data
+session_start(); // Start the session
+ob_start();
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+include 'dbconnect.php'; // Include the database connection file
+
+// Check if user is not logged in
+if (empty($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
-        // Get database connection (assuming dbconnect.php defines $conn as the mysqli connection)
-        // Begin transaction
-        mysqli_begin_transaction($conn);
+    // Generate a unique student ID
+    $student_id = uniqid('STU');
 
-        // Generate student ID
-        $department_code = $_POST['department_code'];
-        $enrollmentYear = date('Y');
-        $studentId = generateStudentId($department_code, $enrollmentYear);
+    // Sanitize and retrieve form inputs
+    $first_name = mysqli_real_escape_string($conn, $_POST['first_name']);
+    $middle_name = isset($_POST['middle_name']) ? mysqli_real_escape_string($conn, $_POST['middle_name']) : null;
+    $surname = mysqli_real_escape_string($conn, $_POST['surname']);
+    $date_of_birth = mysqli_real_escape_string($conn, $_POST['date_of_birth']);
+    $gender = mysqli_real_escape_string($conn, $_POST['gender']);
+    $nationality = mysqli_real_escape_string($conn, $_POST['nationality']);
+    $course_id = isset($_POST['course_id']) ? mysqli_real_escape_string($conn, $_POST['course_id']) : null;
+    $created_by = 'Admin'; // Default created_by value
+    $status = 'Active'; // Default status value
+    $created_at = date('Y-m-d H:i:s'); // Current timestamp
+    $updated_at = date('Y-m-d H:i:s'); // Current timestamp
 
-        // Handle file uploads
-        $profilePhotoPath = handleFileUpload('profile_photo_path', 'uploads/profile_photos/');
-        $transcriptPath = handleFileUpload('transcripts', 'uploads/documents/transcripts/');
-        $idProofPath = handleFileUpload('idProof', 'uploads/documents/id_proof/');
-        $admissionProofPath = handleFileUpload('addmisionProof', 'uploads/documents/admission_proof/');
+    // Handle profile photo upload
+    $profile_photo_path = null;
+    if (isset($_FILES['profile_photo_path']) && $_FILES['profile_photo_path']['error'] === UPLOAD_ERR_OK) {
+        $photo_tmp_name = $_FILES['profile_photo_path']['tmp_name'];
+        $photo_name = uniqid('photo_') . '_' . $_FILES['profile_photo_path']['name'];
+        $upload_dir = 'uploads/students/';
+        $profile_photo_path = $upload_dir . $photo_name;
 
-        // 1. Insert into students table
-        $query = "
-            INSERT INTO students (
-                student_id, first_name, middle_name, surname, date_of_birth, gender,
-                profile_photo_path, nationality, created_by, status
-            ) VALUES (
-                ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, 'Active'
-            )
-        ";
-        
-        $stmt = mysqli_prepare($conn, $query);
-        $created_by = isset($_POST['created_by']) ? $_POST['created_by'] : 'Admin';
-        $middle_name = isset($_POST['middle_name']) ? $_POST['middle_name'] : null;
-        
-        mysqli_stmt_bind_param(
-            $stmt, 
-            'sssssssss', 
-            $studentId, 
-            $_POST['first_name'], 
-            $middle_name, 
-            $_POST['surname'], 
-            $_POST['date_of_birth'], 
-            $_POST['gender'], 
-            $profilePhotoPath, 
-            $_POST['nationality'], 
-            $created_by
-        );
-        
-        mysqli_stmt_execute($stmt);
-
-        // 2. Insert into contact_details
-        $query = "
-            INSERT INTO contact_details (
-                student_id, email, phone, alt_phone, address, city,
-                state_province, zip_postal_code, country, is_primary
-            ) VALUES (
-                ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, 1
-            )
-        ";
-        
-        $stmt = mysqli_prepare($conn, $query);
-        $alt_phone = isset($_POST['alt_phone']) ? $_POST['alt_phone'] : null;
-        
-        mysqli_stmt_bind_param(
-            $stmt, 
-            'sssssssss', 
-            $studentId, 
-            $_POST['email'], 
-            $_POST['phone'], 
-            $alt_phone, 
-            $_POST['address'], 
-            $_POST['city'], 
-            $_POST['state_province'], 
-            $_POST['zip_postal_code'], 
-            $_POST['country']
-        );
-        
-        mysqli_stmt_execute($stmt);
-
-        // 3. Insert into student_emergency_contacts
-        $query = "
-            INSERT INTO student_emergency_contacts (
-                student_id, contact_name, relationship, phone_number, is_primary
-            ) VALUES (
-                ?, ?, ?, ?, 1
-            )
-        ";
-        
-        $stmt = mysqli_prepare($conn, $query);
-        
-        mysqli_stmt_bind_param(
-            $stmt, 
-            'ssss', 
-            $studentId, 
-            $_POST['emergency_contact_name'], 
-            $_POST['emergency_relationship'], 
-            $_POST['emergency_phone']
-        );
-        
-        mysqli_stmt_execute($stmt);
-
-        // 4. Insert into academic_info
-        // First get course_id based on department_code
-        $query = "
-            SELECT course_id FROM courses 
-            WHERE department_id = (
-                SELECT department_id FROM departments 
-                WHERE department_code = ?
-            ) LIMIT 1
-        ";
-        
-        $stmt = mysqli_prepare($conn, $query);
-        mysqli_stmt_bind_param($stmt, 's', $department_code);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        $course = mysqli_fetch_assoc($result);
-        
-        if (!$course) {
-            throw new Exception("No course found for department code: $department_code");
+        // Move the uploaded file to the target directory
+        if (!move_uploaded_file($photo_tmp_name, $profile_photo_path)) {
+            die('Error uploading profile photo.');
         }
-        
-        $query = "
-            INSERT INTO academic_info (
-                student_id, course_id, program_level, year_level, expected_start_date,
-                expected_end_date, previous_institution, previous_gpa, enrollment_status
-            ) VALUES (
-                ?, ?, ?, ?, ?,
-                ?, ?, ?, 'Pending'
-            )
-        ";
-        
-        $stmt = mysqli_prepare($conn, $query);
-        $expected_end_date = isset($_POST['expected_end_date']) ? $_POST['expected_end_date'] : null;
-        
-        mysqli_stmt_bind_param(
-            $stmt, 
-            'sississs', 
-            $studentId, 
-            $course['course_id'], 
-            $_POST['program_level'], 
-            $_POST['year_level'], 
-            $_POST['expected_start_date'], 
-            $expected_end_date, 
-            $_POST['previous_institution'], 
-            $_POST['previous_gpa']
-        );
-        
-        mysqli_stmt_execute($stmt);
-
-        // 5. Insert into consent_records
-        $query = "
-            INSERT INTO consent_records (
-                student_id, terms_agreed, terms_agreed_version, terms_agreed_date,
-                policy_agreed, policy_agreed_version, policy_agreed_date,
-                marketing_opt_in, digital_signature, signature_date
-            ) VALUES (
-                ?, 1, ?, NOW(),
-                1, ?, NOW(),
-                ?, 'Digital Signature', NOW()
-            )
-        ";
-        
-        $stmt = mysqli_prepare($conn, $query);
-        $terms_version = isset($_POST['terms_agreed_version']) ? $_POST['terms_agreed_version'] : '1.0';
-        $policy_version = isset($_POST['policy_agreed_version']) ? $_POST['policy_agreed_version'] : '1.0';
-        $marketing_opt_in = isset($_POST['marketing_opt_in']) ? 1 : 0;
-        
-        mysqli_stmt_bind_param(
-            $stmt, 
-            'sssi', 
-            $studentId, 
-            $terms_version, 
-            $policy_version, 
-            $marketing_opt_in
-        );
-        
-        mysqli_stmt_execute($stmt);
-
-        // 6. Insert into registration_status
-        $query = "
-            INSERT INTO registration_status (
-                student_id, status, submission_date
-            ) VALUES (
-                ?, 'submitted', NOW()
-            )
-        ";
-        
-        $stmt = mysqli_prepare($conn, $query);
-        mysqli_stmt_bind_param($stmt, 's', $studentId);
-        mysqli_stmt_execute($stmt);
-
-        // 7. Insert documents into student_documents
-        $documents = [
-            ['type' => 'academic_transcript', 'path' => $transcriptPath],
-            ['type' => 'id_proof', 'path' => $idProofPath],
-            ['type' => 'admission_proof', 'path' => $admissionProofPath]
-        ];
-        
-        foreach ($documents as $doc) {
-            if ($doc['path']) {
-                $query = "
-                    INSERT INTO student_documents (
-                        student_id, document_type, file_path, file_name, 
-                        file_size, file_type, verification_status
-                    ) VALUES (
-                        ?, ?, ?, ?,
-                        ?, ?, 'Pending'
-                    )
-                ";
-                
-                $stmt = mysqli_prepare($conn, $query);
-                $fileInfo = pathinfo($doc['path']);
-                $fileSize = filesize($doc['path']);
-                $fileType = $fileInfo['extension'];
-                $fileName = $fileInfo['basename'];
-                
-                mysqli_stmt_bind_param(
-                    $stmt, 
-                    'ssssss', 
-                    $studentId, 
-                    $doc['type'], 
-                    $doc['path'], 
-                    $fileName, 
-                    $fileSize, 
-                    $fileType
-                );
-                
-                mysqli_stmt_execute($stmt);
-            }
-        }
-
-        // Commit transaction
-        mysqli_commit($conn);
-
-        // Return success response
-        echo json_encode([
-            'success' => true,
-            'student_id' => $studentId,
-            'message' => 'Registration successful'
-        ]);
-        
-    } catch (Exception $e) {
-        // Rollback transaction on error
-        mysqli_rollback($conn);
-        
-        // Return error response
-        echo json_encode([
-            'success' => false,
-            'message' => 'Registration failed: ' . $e->getMessage()
-        ]);
     }
-}
 
-function generateStudentId($department, $year) {
-    $deptCode = strtoupper(substr($department, 0, 3));
-    $randomCode = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
-    return "MI-{$deptCode}-{$year}-{$randomCode}";
-}
+    // Insert into the `students` table
+    $query = "
+        INSERT INTO students (
+            student_id, first_name, middle_name, surname, date_of_birth, gender,
+            profile_photo_path, nationality, course_id, created_at, updated_at,
+            created_by, updated_by, status
+        ) VALUES (
+            '$student_id', '$first_name', '$middle_name', '$surname', '$date_of_birth', '$gender',
+            '$profile_photo_path', '$nationality', '$course_id', '$created_at', '$updated_at',
+            '$created_by', NULL, '$status'
+        )
+    ";
 
-function handleFileUpload($field, $targetDir) {
-    if (!isset($_FILES[$field])) {
-        return null;
+    $result = mysqli_query($conn, $query);
+
+    if ($result) {
+        echo 'Student registered successfully!';
+    } else {
+        echo 'Error inserting student: ' . mysqli_error($conn);
     }
-    
-    $file = $_FILES[$field];
-    
-    // Check for errors
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        if ($file['error'] === UPLOAD_ERR_NO_FILE) {
-            return null;
-        }
-        throw new Exception("File upload error: " . $file['error']);
-    }
-    
-    // Create target directory if it doesn't exist
-    if (!file_exists($targetDir)) {
-        mkdir($targetDir, 0755, true);
-    }
-    
-    // Generate unique filename
-    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-    $filename = uniqid() . '.' . $extension;
-    $targetPath = $targetDir . $filename;
-    
-    // Move uploaded file
-    if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
-        throw new Exception("Failed to move uploaded file");
-    }
-    
-    return $targetPath;
+
+    // Close the database connection
+    mysqli_close($conn);
 }
 ?>
 
@@ -368,7 +146,7 @@ function handleFileUpload($field, $targetDir) {
             </div>
         
             <form id="studentRegistration" action="submit_student.php" method="POST" >
-            <div class="section active" data-section="1">
+            <div class="section" data-section="1">
                     <div class="section-title">🔹 1. Personal Information</div>
                     
                     <div class="form-row">
@@ -435,10 +213,10 @@ function handleFileUpload($field, $targetDir) {
                         </div>
                     </div>
                     
-                    <div class="button-container">
+                    <!-- <div class="button-container">
                         <div></div>
                         <button type="button" class="btn-next" data-next="2">Next: Contact Details</button>
-                    </div>
+                    </div> -->
                 </div>
         
                 <!-- 2. Contact Details -->
@@ -566,10 +344,10 @@ function handleFileUpload($field, $targetDir) {
                         </div>
                     </div>
                     
-                    <div class="button-container">
+                    <!-- <div class="button-container">
                         <button type="button" class="btn-prev" data-prev="1">Previous: Personal Information</button>
                         <button type="button" class="btn-next" data-next="3">Next: Academic Information</button>
-                    </div>
+                    </div> -->
                 </div>
                 
                 <!-- 3. Academic Information -->
@@ -661,10 +439,10 @@ function handleFileUpload($field, $targetDir) {
                         <div id="gradesError" class="error-message">Please enter your previous grades/GPA</div>
                     </div>
                     
-                    <div class="button-container">
+                    <!-- <div class="button-container">
                         <button type="button" class="btn-prev" data-prev="2">Previous: Contact Details</button>
                         <button type="button" class="btn-next" data-next="4">Next: Payment Information</button>
-                    </div>
+                    </div> -->
                 </div>
                 
                 <!-- 4. Payment Information -->
@@ -790,10 +568,10 @@ function handleFileUpload($field, $targetDir) {
                         </div>
                     </div>
                     
-                    <div class="button-container">
+                    <!-- <div class="button-container">
                         <button type="button" class="btn-prev" data-prev="3">Previous: Academic Information</button>
                         <button type="button" class="btn-next" data-next="5">Next: Required Documents</button>
-                    </div>
+                    </div> -->
                 </div>
                 
                 <!-- 5. Required Documents -->
@@ -858,10 +636,10 @@ function handleFileUpload($field, $targetDir) {
                         </div>
                     </div>
                     
-                    <div class="button-container">
+                    <!-- <div class="button-container">
                         <button type="button" class="btn-prev" data-prev="4">Previous: Payment Information</button>
                         <button type="button" class="btn-next" data-next="6">Next: Review & Submit</button>
-                    </div>
+                    </div> -->
                 </div>
                 
                 <!-- 6. Review & Submit -->
@@ -931,110 +709,12 @@ function handleFileUpload($field, $targetDir) {
     
 
     
-         <script >
-
-           // student registration.js
+    <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Form submission handler
     const form = document.getElementById('studentRegistration');
     form.addEventListener('submit', function(e) {
-        // Let the form submit naturally to your database
-        // The preventDefault has been removed to allow normal form submission
-        
-        // Form will now submit to the action URL specified in the form: submit_student.php
-    });
-
-    // Progress bar update function
-    function updateProgressBar(currentStep) {
-        const steps = document.querySelectorAll('.progress-step');
-        
-        steps.forEach(step => {
-            const stepNumber = parseInt(step.getAttribute('data-step'));
-            
-            if (stepNumber < currentStep) {
-                step.classList.add('completed');
-                step.classList.remove('active');
-            } else if (stepNumber === currentStep) {
-                step.classList.add('active');
-                step.classList.remove('completed');
-            } else {
-                step.classList.remove('active', 'completed');
-            }
-        });
-    }
-
-    // Navigation between form sections
-    document.querySelectorAll('.btn-next').forEach(button => {
-        button.addEventListener('click', function() {
-            const nextSection = this.getAttribute('data-next');
-            navigateToSection(nextSection);
-        });
-    });
-
-    document.querySelectorAll('.btn-prev').forEach(button => {
-        button.addEventListener('click', function() {
-            const prevSection = this.getAttribute('data-prev');
-            navigateToSection(prevSection);
-        });
-    });
-
-    function navigateToSection(sectionNumber) {
-        // Hide all sections
-        document.querySelectorAll('.section').forEach(section => {
-            section.style.display = 'none';
-            section.classList.remove('active');
-        });
-        
-        // Show target section
-        const targetSection = document.querySelector(`[data-section="${sectionNumber}"]`);
-        targetSection.style.display = 'block';
-        targetSection.classList.add('active');
-        
-        // Update progress bar
-        updateProgressBar(sectionNumber);
-    }
-
-    // File upload preview functionality
-    document.querySelectorAll('input[type="file"]').forEach(input => {
-        input.addEventListener('change', function() {
-            const previewId = this.id + 'Preview';
-            const preview = document.getElementById(previewId);
-            
-            if (this.files && this.files[0]) {
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    if (preview.querySelector('img')) {
-                        preview.querySelector('img').src = e.target.result;
-                    }
-                    preview.querySelector('.file-name').textContent = input.files[0].name;
-                    preview.style.display = 'flex';
-                }
-                
-                if (this.files[0].type.startsWith('image/')) {
-                    reader.readAsDataURL(this.files[0]);
-                } else {
-                    preview.querySelector('.file-name').textContent = input.files[0].name;
-                    preview.style.display = 'flex';
-                }
-            }
-        });
-    });
-
-    // File remove functionality
-    document.querySelectorAll('.file-remove').forEach(button => {
-        button.addEventListener('click', function() {
-            const preview = this.closest('.file-preview');
-            const inputId = preview.id.replace('Preview', '');
-            const input = document.getElementById(inputId);
-            
-            input.value = '';
-            if (preview.querySelector('img')) {
-                preview.querySelector('img').src = '';
-            }
-            preview.querySelector('.file-name').textContent = '';
-            preview.style.display = 'none';
-        });
+        // Form will submit normally to submit_student.php
     });
 
     // Payment method selection handler
@@ -1063,9 +743,13 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('billingAddressSection').style.display = 
             this.checked ? 'none' : 'block';
     });
-});
 
-         </script> 
+    // Make all sections visible on page load
+    document.querySelectorAll('.section').forEach(section => {
+        section.style.display = 'block';
+    });
+});
+</script>
     
 </body>
 </html>

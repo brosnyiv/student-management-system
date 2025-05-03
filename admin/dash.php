@@ -46,7 +46,7 @@ if ($current_year == 2026) {
 }
 
 // Count total students
- $sql = "SELECT COUNT(*) as total_students FROM students";
+$sql = "SELECT COUNT(*) as total_students FROM students";
 $result = mysqli_query($conn, $sql);
  if ($result) {
   $student_count = mysqli_fetch_assoc($result)['total_students'];
